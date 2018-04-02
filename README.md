@@ -49,6 +49,11 @@ Filter URL: https://example.org/path/filter.txt
 !#include https://example.com/path/includedfile.txt
 ```
 
+## Build
+For build run:
+
+    $ gulp build
+
 ## Usage
 
 ```
