@@ -10,21 +10,20 @@ const FilterCompilerConditionsConstants = {
     adguard_ext_android_cb: false
 };
 
-FilterCompiler.init(FilterCompilerConditionsConstants);
-
 QUnit.test("Test filter compiler", function (assert) {
+    "use strict";
+
     let done = assert.async();
 
-    let rules = [
-        'test'
-    ];
-
-    FilterCompiler.compile(rules, function (compiled) {
+    let promise = FilterCompiler.download("resources/rules.txt", FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'test');
 
         done();
+    }, () => {
+        assert.ok(false);
     });
 });
 
@@ -510,16 +509,34 @@ QUnit.test("Test filter compiler - invalid 'if' conditions", function (assert) {
 QUnit.test("Test filter compiler - simple includes", function (assert) {
     let done = assert.async();
 
-    let rules = [
-        'test',
-        '!#include test-filter-compiler.html'
-    ];
-
-    FilterCompiler.compile(rules, function (compiled) {
+    let promise = FilterCompiler.download("resources/rules_simple_include.txt", FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
-        assert.ok(compiled.length > 1);
-        assert.equal(compiled[0], 'test');
+        assert.equal(compiled.length, 2);
+        assert.equal(compiled[0], 'test_main');
+        assert.equal(compiled[1], 'test');
 
         done();
+    }, () => {
+        assert.ok(false);
+    });
+});
+
+QUnit.test("Test filter compiler - nested includes", function (assert) {
+    let done = assert.async();
+
+    let promise = FilterCompiler.download("resources/rules_nested_includes.txt", FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
+        assert.ok(compiled);
+        assert.equal(compiled.length, 5);
+        assert.equal(compiled[0], 'test_parent');
+        assert.equal(compiled[1], 'test_main');
+        assert.equal(compiled[2], 'test');
+        assert.equal(compiled[3], 'test_main');
+        assert.equal(compiled[4], 'test');
+
+        done();
+    }, () => {
+        assert.ok(false);
     });
 });

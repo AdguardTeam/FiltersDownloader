@@ -246,40 +246,27 @@ const FilterCompiler = (() => {
     /**
      * Validates and resolves include directive
      *
-     * @param directive
+     * @param line
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const resolveInclude = function (directive) {
-        return new Promise((resolve, reject) => {
-            if (directive.indexOf(INCLUDE_DIRECTIVE) !== 0) {
-                resolve([directive]);
-            } else {
-                const url = directive.substring(INCLUDE_DIRECTIVE.length).trim();
-                //TODO: Validate url
+    const resolveInclude = function (line) {
+        if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
+            return new Promise((resolve) => {
+                resolve([line]);
+            });
+        } else {
+            const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
+            //TODO: Reject external urls
 
-                const onError = (request, ex) => {
-                    reject(ex);
-                };
-
-                const onSuccess = (response) => {
-                    const responseText = response.responseText;
-                    if (!responseText) {
-                        onError(response, "Response is empty");
-                    }
-
-                    const lines = responseText.split(/[\r\n]+/);
-                    //TODO: Compile lines
-                    resolve(lines);
-                };
-
-                executeRequestAsync(url, "text/plain", onSuccess, onError);
-            }
-        });
+            return download(url, filterCompilerConstants);
+        }
     };
 
     /**
      * Resolves include directives
      *
      * @param rules
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const resolveIncludes = (rules) => {
         const dfds = [];
@@ -336,9 +323,39 @@ const FilterCompiler = (() => {
         }
     };
 
+    /**
+     * Downloads a specified filter and interpretes all the pre-processor directives from there.
+     *
+     * @param {string} url Filter file URL
+     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     */
+    const download = (url, definedProperties) => {
+        filterCompilerConstants = definedProperties;
+
+        return new Promise((resolve, reject) => {
+            const onError = (request, ex) => {
+                reject(ex);
+            };
+
+            const onSuccess = (response) => {
+                const responseText = response.responseText;
+                if (!responseText) {
+                    onError(response, "Response is empty");
+                }
+
+                const lines = responseText.split(/[\r\n]+/);
+                compile(lines, resolve, onError);
+            };
+
+            executeRequestAsync(url, "text/plain", onSuccess, onError);
+        });
+    };
+
     return {
         init: init,
-        compile: compile
+        compile: compile,
+        download: download
     };
 })();
 

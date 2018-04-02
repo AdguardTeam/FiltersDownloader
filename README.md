@@ -51,8 +51,33 @@ Filter URL: https://example.org/path/filter.txt
 
 ## Usage
 
+```
+const FilterCompilerConditionsConstants = {
+    adguard: true,
+    ....
+    adguard_ext_android_cb: false
+};
+
+// Option One
+let promise = FilterCompiler.download("resources/rules.txt", FilterCompilerConditionsConstants);
+promise.then((compiled) => {
+    // Success
+}, (exception) => {
+    // Error
+});
+
+// Option Two
+FilterCompiler.init(FilterCompilerConditionsConstants);
+FilterCompiler.compile(['rule'], (compiled) => {
+    // Success        
+}, (exception) => {
+    // Error
+});
+
+```
+
 ## Tests
 
 ```
-npm test
+/src/test/test-filter-compiler.html
 ```

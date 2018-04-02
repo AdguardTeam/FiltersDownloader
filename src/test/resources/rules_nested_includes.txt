@@ -1,0 +1,3 @@
+test_parent
+!#include resources/rules_simple_include.txt
+!#include resources/rules_simple_include.txt
