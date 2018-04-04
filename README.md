@@ -64,7 +64,7 @@ const FilterCompilerConditionsConstants = {
 };
 
 // Option One
-let promise = FilterCompiler.download("resources/rules.txt", FilterCompilerConditionsConstants);
+let promise = FilterDownloader.download("resources/rules.txt", FilterCompilerConditionsConstants);
 promise.then((compiled) => {
     // Success
 }, (exception) => {
@@ -72,8 +72,7 @@ promise.then((compiled) => {
 });
 
 // Option Two
-FilterCompiler.init(FilterCompilerConditionsConstants);
-FilterCompiler.compile(['rule'], (compiled) => {
+FilterDownloader.compile(['rule'], FilterCompilerConditionsConstants, (compiled) => {
     // Success        
 }, (exception) => {
     // Error
@@ -84,5 +83,5 @@ FilterCompiler.compile(['rule'], (compiled) => {
 ## Tests
 
 ```
-/src/test/test-filter-compiler.html
+/src/test/test-filter-downloader.html
 ```

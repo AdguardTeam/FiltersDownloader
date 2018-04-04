@@ -28,7 +28,7 @@
  * More details:
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917
  */
-const FilterCompiler = (() => {
+const FilterDownloader = (() => {
     "use strict";
 
     const CONDITION_DIRECTIVE_START = "!#if";
@@ -279,22 +279,16 @@ const FilterCompiler = (() => {
     };
 
     /**
-     * Initializes with constants
-     *
-     * @param constants object
-     */
-    const init = (constants) => {
-        filterCompilerConstants = constants;
-    };
-
-    /**
      * Compiles filter content
      *
-     * @param rules Array of strings
-     * @param successCallBack
-     * @param errorCallback
+     * @param {Array} rules Array of strings
+     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {function} successCallBack
+     * @param {function} errorCallback
      */
-    const compile = (rules, successCallBack, errorCallback) => {
+    const compile = (rules, definedProperties, successCallBack, errorCallback) => {
+
+        filterCompilerConstants = definedProperties;
 
         try {
             // Resolve 'if' conditions
@@ -339,13 +333,19 @@ const FilterCompiler = (() => {
             };
 
             const onSuccess = (response) => {
+                if (response.status !== 200) {
+                    onError(response, "Response status is invalid: " + response.status);
+                    return;
+                }
+
                 const responseText = response.responseText;
                 if (!responseText) {
                     onError(response, "Response is empty");
+                    return;
                 }
 
                 const lines = responseText.split(/[\r\n]+/);
-                compile(lines, resolve, onError);
+                compile(lines, filterCompilerConstants, resolve, onError);
             };
 
             executeRequestAsync(url, "text/plain", onSuccess, onError);
@@ -353,7 +353,6 @@ const FilterCompiler = (() => {
     };
 
     return {
-        init: init,
         compile: compile,
         download: download
     };
