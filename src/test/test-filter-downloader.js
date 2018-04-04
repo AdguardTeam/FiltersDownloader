@@ -40,7 +40,7 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -55,7 +55,7 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -69,7 +69,7 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -84,7 +84,7 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -102,7 +102,7 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 3);
         assert.equal(compiled[0], 'always_included_rule');
@@ -122,7 +122,7 @@ QUnit.test("Test filter downloader - unsupported conditions", function (assert) 
     ];
 
     let done = assert.async();
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'test');
@@ -144,7 +144,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -160,7 +160,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -175,7 +175,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -191,7 +191,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -207,7 +207,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -222,7 +222,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -237,7 +237,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -253,7 +253,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -269,7 +269,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -285,7 +285,7 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -306,7 +306,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -322,7 +322,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -338,7 +338,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -353,7 +353,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -368,7 +368,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -383,7 +383,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -399,7 +399,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -415,7 +415,7 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -435,7 +435,7 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         "!#endif"
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function () {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
     }, function (ex) {
@@ -449,7 +449,7 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         'missing_endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function () {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
     }, function (ex) {
@@ -464,7 +464,7 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function () {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
     }, function (ex) {
@@ -482,7 +482,7 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function () {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
     }, function (ex) {
@@ -497,7 +497,7 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function () {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
     }, function (ex) {
@@ -551,11 +551,11 @@ QUnit.test("Test filter downloader - invalid includes", function (assert) {
         '!#include resources/not_found_file.txt'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
-    }, function () {
-        assert.ok(true);
+    }, function (ex) {
+        assert.ok(ex);
         done();
     });
 
@@ -565,11 +565,11 @@ QUnit.test("Test filter downloader - invalid includes", function (assert) {
         '!#include http://filters.adtidy.org/windows/filters/14.txt'
     ];
 
-    FilterDownloader.compile(rules, FilterCompilerConditionsConstants, function (compiled) {
+    FilterDownloader.compile(rules, 'http://google.com', FilterCompilerConditionsConstants, function () {
         assert.ok(false);
         done();
-    }, function () {
-        assert.ok(true);
+    }, function (ex) {
+        assert.ok(ex);
         done();
     });
 });

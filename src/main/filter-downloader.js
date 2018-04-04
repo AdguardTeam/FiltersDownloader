@@ -15,6 +15,7 @@
  * along with Adguard Browser Extension.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* global URL */
 /**
  * The utility tool resolves preprocessor directives in filter content.
  *
@@ -42,7 +43,10 @@ const FilterDownloader = (() => {
 
     const INCLUDE_DIRECTIVE = "!#include";
 
+    const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
+
     let filterCompilerConstants = {};
+    let filterUrlOrigin;
 
     /**
      * Checks brackets in string
@@ -244,6 +248,24 @@ const FilterDownloader = (() => {
     };
 
     /**
+     * Validates url to be the same origin with original filterUrl
+     *
+     * @param url
+     */
+    const validateUrl = function (url) {
+        if (filterUrlOrigin) {
+            if (REGEXP_ABSOLUTE_URL.test(url)) {
+
+                // Include url is absolute
+                let origin = new URL(url).origin;
+                if (origin !== filterUrlOrigin) {
+                    throw new Error('Include url is rejected with origin: ' + origin);
+                }
+            }
+        }
+    };
+
+    /**
      * Validates and resolves include directive
      *
      * @param line
@@ -256,9 +278,9 @@ const FilterDownloader = (() => {
             });
         } else {
             const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
-            //TODO: Reject external urls
+            validateUrl(url);
 
-            return download(url, filterCompilerConstants);
+            return downloadFilterRules(url);
         }
     };
 
@@ -282,13 +304,15 @@ const FilterDownloader = (() => {
      * Compiles filter content
      *
      * @param {Array} rules Array of strings
+     * @param {?string} filterOrigin Filter file URL origin or null
      * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @param {function} successCallBack
      * @param {function} errorCallback
      */
-    const compile = (rules, definedProperties, successCallBack, errorCallback) => {
+    const compile = (rules, filterOrigin, definedProperties, successCallBack, errorCallback) => {
 
         filterCompilerConstants = definedProperties;
+        filterUrlOrigin = filterOrigin;
 
         try {
             // Resolve 'if' conditions
@@ -318,15 +342,12 @@ const FilterDownloader = (() => {
     };
 
     /**
-     * Downloads a specified filter and interpretes all the pre-processor directives from there.
+     * Downloads filter rules from url
      *
      * @param {string} url Filter file URL
-     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
-     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     * @returns {Promise}
      */
-    const download = (url, definedProperties) => {
-        filterCompilerConstants = definedProperties;
-
+    const downloadFilterRules = (url) => {
         return new Promise((resolve, reject) => {
             const onError = (request, ex) => {
                 reject(ex);
@@ -345,11 +366,30 @@ const FilterDownloader = (() => {
                 }
 
                 const lines = responseText.split(/[\r\n]+/);
-                compile(lines, filterCompilerConstants, resolve, onError);
+                compile(lines, filterUrlOrigin, filterCompilerConstants, resolve, onError);
             };
 
             executeRequestAsync(url, "text/plain", onSuccess, onError);
         });
+    };
+
+    /**
+     * Downloads a specified filter and interpretes all the pre-processor directives from there.
+     *
+     * @param {string} url Filter file URL
+     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     */
+    const download = (url, definedProperties) => {
+        filterCompilerConstants = definedProperties;
+
+        if (url && REGEXP_ABSOLUTE_URL.test(url)) {
+            filterUrlOrigin = new URL(url).origin;
+        } else {
+            filterUrlOrigin = null;
+        }
+
+        return downloadFilterRules(url);
     };
 
     return {
