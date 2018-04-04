@@ -72,7 +72,7 @@ promise.then((compiled) => {
 });
 
 // Option Two
-FilterDownloader.compile(['rule'], FilterCompilerConditionsConstants, (compiled) => {
+FilterDownloader.compile(['rule'], 'http://example.com', FilterCompilerConditionsConstants, (compiled) => {
     // Success        
 }, (exception) => {
     // Error
