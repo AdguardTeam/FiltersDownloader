@@ -45,9 +45,6 @@ const FilterDownloader = (() => {
 
     const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
 
-    let filterCompilerConstants = {};
-    let filterUrlOrigin;
-
     /**
      * Checks brackets in string
      *
@@ -103,22 +100,24 @@ const FilterDownloader = (() => {
      * Resolves constant expression
      *
      * @param expression
+     * @param definedProperties
      */
-    const resolveConditionConstant = (expression) => {
+    const resolveConditionConstant = (expression, definedProperties) => {
         if (!expression) {
             throw new Error('Invalid directives: Empty condition');
         }
 
         let trim = expression.trim();
-        return trim === "true" || FilterCompilerConditionsConstants[trim];
+        return trim === "true" || definedProperties[trim];
     };
 
     /**
      * Calculates conditional expression
      *
      * @param expression
+     * @param definedProperties
      */
-    const resolveExpression = (expression) => {
+    const resolveExpression = (expression, definedProperties) => {
         if (!expression) {
             throw new Error('Invalid directives: Empty condition');
         }
@@ -134,11 +133,11 @@ const FilterDownloader = (() => {
         if (openBracketIndex !== -1) {
             const endBracketIndex = expression.indexOf(CONDITION_BRACKET_CLOSE_CHAR, openBracketIndex);
             const innerExpression = expression.substring(openBracketIndex + 1, endBracketIndex);
-            const innerResult = resolveExpression(innerExpression);
+            const innerResult = resolveExpression(innerExpression, definedProperties);
             const resolvedInner = expression.substring(0, openBracketIndex) +
                     innerResult + expression.substring(endBracketIndex + 1);
 
-            return resolveExpression(resolvedInner);
+            return resolveExpression(resolvedInner, definedProperties);
         }
 
         let result;
@@ -149,15 +148,15 @@ const FilterDownloader = (() => {
         const indexOfNotOperator = expression.indexOf(CONDITION_OPERATOR_NOT);
 
         if (indexOfOrOperator !== -1) {
-            result  = resolveExpression(expression.substring(0, indexOfOrOperator - 1)) ||
-                resolveExpression(expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length));
+            result  = resolveExpression(expression.substring(0, indexOfOrOperator - 1), definedProperties) ||
+                resolveExpression(expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length), definedProperties);
         } else if (indexOfAndOperator !== -1) {
-            result  = resolveExpression(expression.substring(0, indexOfAndOperator - 1)) &&
-                resolveExpression(expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length));
+            result  = resolveExpression(expression.substring(0, indexOfAndOperator - 1), definedProperties) &&
+                resolveExpression(expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length), definedProperties);
         } else if (indexOfNotOperator === 0) {
-            result = !resolveExpression(expression.substring(CONDITION_OPERATOR_NOT.length));
+            result = !resolveExpression(expression.substring(CONDITION_OPERATOR_NOT.length), definedProperties);
         } else {
-            result = resolveConditionConstant(expression);
+            result = resolveConditionConstant(expression, definedProperties);
         }
 
         return result;
@@ -167,19 +166,21 @@ const FilterDownloader = (() => {
      * Validates and resolves condition directive
      *
      * @param directive
+     * @param definedProperties
      */
-    const resolveCondition = (directive) => {
+    const resolveCondition = (directive, definedProperties) => {
         const expression = directive.substring(CONDITION_DIRECTIVE_START.length).trim();
 
-        return resolveExpression(expression);
+        return resolveExpression(expression, definedProperties);
     };
 
     /**
      * Resolves conditions directives
      *
      * @param rules
+     * @param definedProperties
      */
-    const resolveConditions = (rules) => {
+    const resolveConditions = (rules, definedProperties) => {
         let result = [];
 
         for (let i = 0; i < rules.length; i++) {
@@ -191,7 +192,7 @@ const FilterDownloader = (() => {
                     throw new Error('Invalid directives: Condition end not found: ' + rule);
                 }
 
-                let conditionValue = resolveCondition(rule);
+                let conditionValue = resolveCondition(rule, definedProperties);
                 if (conditionValue) {
                     result = result.concat(rules.slice(i + 1, endLineIndex));
                 }
@@ -251,8 +252,9 @@ const FilterDownloader = (() => {
      * Validates url to be the same origin with original filterUrl
      *
      * @param url
+     * @param filterUrlOrigin
      */
-    const validateUrl = function (url) {
+    const validateUrl = function (url, filterUrlOrigin) {
         if (filterUrlOrigin) {
             if (REGEXP_ABSOLUTE_URL.test(url)) {
 
@@ -269,18 +271,20 @@ const FilterDownloader = (() => {
      * Validates and resolves include directive
      *
      * @param line
+     * @param filterOrigin
+     * @param definedProperties
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const resolveInclude = function (line) {
+    const resolveInclude = function (line, filterOrigin, definedProperties) {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return new Promise((resolve) => {
                 resolve([line]);
             });
         } else {
             const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
-            validateUrl(url);
+            validateUrl(url, filterOrigin);
 
-            return downloadFilterRules(url);
+            return downloadFilterRules(url, filterOrigin, definedProperties);
         }
     };
 
@@ -288,13 +292,15 @@ const FilterDownloader = (() => {
      * Resolves include directives
      *
      * @param rules
+     * @param filterOrigin
+     * @param definedProperties
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const resolveIncludes = (rules) => {
+    const resolveIncludes = (rules, filterOrigin, definedProperties) => {
         const dfds = [];
 
         for (let rule of rules) {
-            dfds.push(resolveInclude(rule));
+            dfds.push(resolveInclude(rule, filterOrigin, definedProperties));
         }
 
         return Promise.all(dfds);
@@ -310,16 +316,12 @@ const FilterDownloader = (() => {
      * @param {function} errorCallback
      */
     const compile = (rules, filterOrigin, definedProperties, successCallBack, errorCallback) => {
-
-        filterCompilerConstants = definedProperties;
-        filterUrlOrigin = filterOrigin;
-
         try {
             // Resolve 'if' conditions
-            const resolvedConditionsResult = resolveConditions(rules);
+            const resolvedConditionsResult = resolveConditions(rules, definedProperties);
 
             // Resolve 'includes' directives
-            const promise = resolveIncludes(resolvedConditionsResult);
+            const promise = resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
 
             promise.then((values) => {
                 let result = [];
@@ -345,9 +347,11 @@ const FilterDownloader = (() => {
      * Downloads filter rules from url
      *
      * @param {string} url Filter file URL
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise}
      */
-    const downloadFilterRules = (url) => {
+    const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
         return new Promise((resolve, reject) => {
             const onError = (request, ex) => {
                 reject(ex);
@@ -366,7 +370,7 @@ const FilterDownloader = (() => {
                 }
 
                 const lines = responseText.split(/[\r\n]+/);
-                compile(lines, filterUrlOrigin, filterCompilerConstants, resolve, onError);
+                compile(lines, filterUrlOrigin, definedProperties, resolve, onError);
             };
 
             executeRequestAsync(url, "text/plain", onSuccess, onError);
@@ -381,15 +385,14 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const download = (url, definedProperties) => {
-        filterCompilerConstants = definedProperties;
-
+        let filterUrlOrigin;
         if (url && REGEXP_ABSOLUTE_URL.test(url)) {
             filterUrlOrigin = new URL(url).origin;
         } else {
             filterUrlOrigin = null;
         }
 
-        return downloadFilterRules(url);
+        return downloadFilterRules(url, filterUrlOrigin, definedProperties);
     };
 
     return {
