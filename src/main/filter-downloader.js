@@ -295,7 +295,18 @@ const FilterDownloader = (() => {
             dfds.push(resolveInclude(rule, filterOrigin, definedProperties));
         }
 
-        return Promise.all(dfds);
+        return new Promise((resolve, reject) => {
+            Promise.all(dfds).then((values) => {
+                let result = [];
+                values.forEach(function (v) {
+                    result = result.concat(v);
+                });
+
+                resolve(result);
+            }, (ex) => {
+                reject(ex);
+            });
+        });
     };
 
     /**
@@ -307,29 +318,15 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const compile = (rules, filterOrigin, definedProperties) => {
-        return new Promise((resolve, reject) => {
-            try {
-                // Resolve 'if' conditions
-                const resolvedConditionsResult = resolveConditions(rules, definedProperties);
+        try {
+            // Resolve 'if' conditions
+            const resolvedConditionsResult = resolveConditions(rules, definedProperties);
 
-                // Resolve 'includes' directives
-                const promise = resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
-
-                promise.then((values) => {
-                    let result = [];
-                    values.forEach(function (v) {
-                        result = result.concat(v);
-                    });
-
-                    resolve(result);
-                }, (ex) => {
-                    reject(ex);
-                });
-
-            } catch (ex) {
-                reject(ex);
-            }
-        });
+            // Resolve 'includes' directives
+            return resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
+        } catch (ex) {
+            return Promise.reject(ex);
+        }
     };
 
     /**
