@@ -295,17 +295,13 @@ const FilterDownloader = (() => {
             dfds.push(resolveInclude(rule, filterOrigin, definedProperties));
         }
 
-        return new Promise((resolve, reject) => {
-            Promise.all(dfds).then((values) => {
-                let result = [];
-                values.forEach(function (v) {
-                    result = result.concat(v);
-                });
-
-                resolve(result);
-            }, (ex) => {
-                reject(ex);
+        return Promise.all(dfds).then((values) => {
+            let result = [];
+            values.forEach(function (v) {
+                result = result.concat(v);
             });
+
+            return result;
         });
     };
 
@@ -338,25 +334,18 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
-        return new Promise((resolve, reject) => {
-            const inner = executeRequestAsync(url, "text/plain");
-            inner.then((response) => {
-                if (response.status !== 200) {
-                    reject("Response status is invalid: " + response.status);
-                    return;
-                }
+        return executeRequestAsync(url, 'text/plain').then((response) => {
+            if (response.status !== 200) {
+                throw new Error("Response status is invalid: " + response.status);
+            }
 
-                const responseText = response.responseText;
-                if (!responseText) {
-                    reject("Response is empty");
-                    return;
-                }
+            const responseText = response.responseText;
+            if (!responseText) {
+                throw new Error("Response is empty");
+            }
 
-                const lines = responseText.split(/[\r\n]+/);
-                resolve(compile(lines, filterUrlOrigin, definedProperties));
-            }, (ex) => {
-                reject(ex);
-            });
+            const lines = responseText.split(/[\r\n]+/);
+            return compile(lines, filterUrlOrigin, definedProperties);
         });
     };
 
@@ -368,14 +357,18 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const download = (url, definedProperties) => {
-        let filterUrlOrigin;
-        if (url && REGEXP_ABSOLUTE_URL.test(url)) {
-            filterUrlOrigin = new URL(url).origin;
-        } else {
-            filterUrlOrigin = null;
-        }
+        try {
+            let filterUrlOrigin;
+            if (url && REGEXP_ABSOLUTE_URL.test(url)) {
+                filterUrlOrigin = new URL(url).origin;
+            } else {
+                filterUrlOrigin = null;
+            }
 
-        return downloadFilterRules(url, filterUrlOrigin, definedProperties);
+            return downloadFilterRules(url, filterUrlOrigin, definedProperties);
+        } catch (ex) {
+            return Promise.reject(ex);
+        }
     };
 
     return {
