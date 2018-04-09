@@ -30,7 +30,7 @@ QUnit.test("Test filter downloader", function (assert) {
 QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) {
 
     let rules;
-
+    let promise;
     let done = assert.async(5);
 
     rules = [
@@ -40,7 +40,8 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -55,7 +56,8 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -69,7 +71,8 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -84,7 +87,8 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -102,7 +106,8 @@ QUnit.test("Test filter downloader - simple 'if' conditions", function (assert) 
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 3);
         assert.equal(compiled[0], 'always_included_rule');
@@ -122,7 +127,9 @@ QUnit.test("Test filter downloader - unsupported conditions", function (assert) 
     ];
 
     let done = assert.async();
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+
+    let promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'test');
@@ -133,7 +140,7 @@ QUnit.test("Test filter downloader - unsupported conditions", function (assert) 
 QUnit.test("Test filter downloader - logical 'if' conditions", function (assert) {
 
     let rules;
-
+    let promise;
     let done = assert.async(10);
 
     // true && true = true
@@ -144,7 +151,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -160,7 +168,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -175,7 +184,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -191,7 +201,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -207,7 +218,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -222,7 +234,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -237,7 +250,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -253,7 +267,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -269,7 +284,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -285,7 +301,8 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -295,8 +312,9 @@ QUnit.test("Test filter downloader - logical 'if' conditions", function (assert)
 
 QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert) {
 
-    let done = assert.async(8);
     let rules;
+    let promise;
+    let done = assert.async(8);
 
     // (((true))) = true
     rules = [
@@ -306,7 +324,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -322,7 +341,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -338,7 +358,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -353,7 +374,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -368,7 +390,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -383,7 +406,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -399,7 +423,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 2);
         assert.equal(compiled[0], 'always_included_rule');
@@ -415,7 +440,8 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function (compiled) {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then((compiled) => {
         assert.ok(compiled);
         assert.equal(compiled.length, 1);
         assert.equal(compiled[0], 'always_included_rule');
@@ -425,8 +451,9 @@ QUnit.test("Test filter downloader - 'if' conditions brackets", function (assert
 
 QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert) {
 
-    let done = assert.async(5);
     let rules;
+    let promise;
+    let done = assert.async(5);
 
     rules = [
         'always_included_rule',
@@ -435,10 +462,11 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         "!#endif"
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then(() => {
         assert.ok(false);
         done();
-    }, function (ex) {
+    }, (ex) => {
         assert.ok(ex);
         done();
     });
@@ -449,10 +477,11 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         'missing_endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then(() => {
         assert.ok(false);
         done();
-    }, function (ex) {
+    }, (ex) => {
         assert.ok(ex);
         done();
     });
@@ -464,10 +493,11 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then(() => {
         assert.ok(false);
         done();
-    }, function (ex) {
+    }, (ex) => {
         assert.ok(ex);
         done();
     });
@@ -482,10 +512,11 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then(() => {
         assert.ok(false);
         done();
-    }, function (ex) {
+    }, (ex) => {
         assert.ok(ex);
         done();
     });
@@ -497,10 +528,11 @@ QUnit.test("Test filter downloader - invalid 'if' conditions", function (assert)
         '!#endif'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
+    promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    promise.then(() => {
         assert.ok(false);
         done();
-    }, function (ex) {
+    }, (ex) => {
         assert.ok(ex);
         done();
     });
@@ -551,13 +583,16 @@ QUnit.test("Test filter downloader - invalid includes", function (assert) {
         '!#include resources/not_found_file.txt'
     ];
 
-    FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants, function () {
-        assert.ok(false);
-        done();
-    }, function (ex) {
-        assert.ok(ex);
-        done();
-    });
+    let promise = FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants)
+    promise.then(() => {
+            assert.ok(false);
+            done();
+        }, (ex) => {
+            assert.ok(ex);
+            done();
+        }
+    );
+
 
     // different origin
     rules = [
@@ -565,11 +600,13 @@ QUnit.test("Test filter downloader - invalid includes", function (assert) {
         '!#include http://filters.adtidy.org/windows/filters/14.txt'
     ];
 
-    FilterDownloader.compile(rules, 'http://google.com', FilterCompilerConditionsConstants, function () {
-        assert.ok(false);
-        done();
-    }, function (ex) {
-        assert.ok(ex);
-        done();
-    });
+    promise = FilterDownloader.compile(rules, 'http://google.com', FilterCompilerConditionsConstants)
+    promise.then(() => {
+            assert.ok(false);
+            done();
+        }, (ex) => {
+            assert.ok(ex);
+            done();
+        }
+    );
 });

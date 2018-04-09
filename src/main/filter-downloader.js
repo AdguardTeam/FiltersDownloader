@@ -215,37 +215,31 @@ const FilterDownloader = (() => {
      *
      * @param url Url
      * @param contentType Content type
-     * @param successCallback success callback
-     * @param errorCallback error callback
+     * @returns {Promise}
      */
-    const executeRequestAsync = (url, contentType, successCallback, errorCallback) => {
+    const executeRequestAsync = (url, contentType) => {
 
-        const request = new XMLHttpRequest();
-        try {
-            request.open('GET', url);
-            request.setRequestHeader('Content-type', contentType);
-            request.setRequestHeader('Pragma', 'no-cache');
-            request.overrideMimeType(contentType);
-            request.mozBackgroundRequest = true;
-            if (successCallback) {
+        return new Promise((resolve, reject) => {
+            const request = new XMLHttpRequest();
+
+            try {
+                request.open('GET', url);
+                request.setRequestHeader('Content-type', contentType);
+                request.setRequestHeader('Pragma', 'no-cache');
+                request.overrideMimeType(contentType);
+                request.mozBackgroundRequest = true;
                 request.onload = function () {
-                    successCallback(request);
+                    resolve(request);
                 };
+                request.onerror = reject;
+                request.onabort = reject;
+                request.ontimeout = reject;
+
+                request.send(null);
+            } catch (ex) {
+                reject(ex);
             }
-            if (errorCallback) {
-                const errorCallbackWrapper = function () {
-                    errorCallback(request);
-                };
-                request.onerror = errorCallbackWrapper;
-                request.onabort = errorCallbackWrapper;
-                request.ontimeout = errorCallbackWrapper;
-            }
-            request.send(null);
-        } catch (ex) {
-            if (errorCallback) {
-                errorCallback(request, ex);
-            }
-        }
+        });
     };
 
     /**
@@ -277,9 +271,7 @@ const FilterDownloader = (() => {
      */
     const resolveInclude = function (line, filterOrigin, definedProperties) {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
-            return new Promise((resolve) => {
-                resolve([line]);
-            });
+            return Promise.resolve([line]);
         } else {
             const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
             validateUrl(url, filterOrigin);
@@ -312,35 +304,32 @@ const FilterDownloader = (() => {
      * @param {Array} rules Array of strings
      * @param {?string} filterOrigin Filter file URL origin or null
      * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
-     * @param {function} successCallBack
-     * @param {function} errorCallback
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const compile = (rules, filterOrigin, definedProperties, successCallBack, errorCallback) => {
-        try {
-            // Resolve 'if' conditions
-            const resolvedConditionsResult = resolveConditions(rules, definedProperties);
+    const compile = (rules, filterOrigin, definedProperties) => {
+        return new Promise((resolve, reject) => {
+            try {
+                // Resolve 'if' conditions
+                const resolvedConditionsResult = resolveConditions(rules, definedProperties);
 
-            // Resolve 'includes' directives
-            const promise = resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
+                // Resolve 'includes' directives
+                const promise = resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
 
-            promise.then((values) => {
-                let result = [];
-                values.forEach(function (v) {
-                    result = result.concat(v);
+                promise.then((values) => {
+                    let result = [];
+                    values.forEach(function (v) {
+                        result = result.concat(v);
+                    });
+
+                    resolve(result);
+                }, (ex) => {
+                    reject(ex);
                 });
 
-                successCallBack(result);
-            }, (ex) => {
-                if (errorCallback) {
-                    errorCallback(ex);
-                }
-            });
-
-        } catch (ex) {
-            if (errorCallback) {
-                errorCallback(ex);
+            } catch (ex) {
+                reject(ex);
             }
-        }
+        });
     };
 
     /**
@@ -349,31 +338,28 @@ const FilterDownloader = (() => {
      * @param {string} url Filter file URL
      * @param {?string} filterUrlOrigin Filter file URL origin or null
      * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
-     * @returns {Promise}
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
         return new Promise((resolve, reject) => {
-            const onError = (request, ex) => {
-                reject(ex);
-            };
-
-            const onSuccess = (response) => {
+            const inner = executeRequestAsync(url, "text/plain");
+            inner.then((response) => {
                 if (response.status !== 200) {
-                    onError(response, "Response status is invalid: " + response.status);
+                    reject("Response status is invalid: " + response.status);
                     return;
                 }
 
                 const responseText = response.responseText;
                 if (!responseText) {
-                    onError(response, "Response is empty");
+                    reject("Response is empty");
                     return;
                 }
 
                 const lines = responseText.split(/[\r\n]+/);
-                compile(lines, filterUrlOrigin, definedProperties, resolve, onError);
-            };
-
-            executeRequestAsync(url, "text/plain", onSuccess, onError);
+                resolve(compile(lines, filterUrlOrigin, definedProperties));
+            }, (ex) => {
+                reject(ex);
+            });
         });
     };
 
