@@ -49,10 +49,40 @@ Filter URL: https://example.org/path/filter.txt
 !#include https://example.com/path/includedfile.txt
 ```
 
+## Build
+For build run:
+
+    $ gulp build
+
 ## Usage
+
+```
+const FilterCompilerConditionsConstants = {
+    adguard: true,
+    ....
+    adguard_ext_android_cb: false
+};
+
+// Option One
+let promise = FilterDownloader.download("resources/rules.txt", FilterCompilerConditionsConstants);
+promise.then((compiled) => {
+    // Success
+}, (exception) => {
+    // Error
+});
+
+// Option Two
+let promise = FilterDownloader.compile(['rule'], 'http://example.com', FilterCompilerConditionsConstants);
+promise.then((compiled) => {
+    // Success
+}, (exception) => {
+    // Error
+});
+
+```
 
 ## Tests
 
 ```
-npm test
+/src/test/test-filter-downloader.html
 ```
