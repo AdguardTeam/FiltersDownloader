@@ -29,6 +29,9 @@
  * More details:
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917
  */
+
+const axios = require('axios');
+
 const FilterDownloader = (() => {
     "use strict";
 
@@ -218,26 +221,12 @@ const FilterDownloader = (() => {
      * @returns {Promise}
      */
     const executeRequestAsync = (url, contentType) => {
-
-        return new Promise((resolve, reject) => {
-            const request = new XMLHttpRequest();
-
-            try {
-                request.open('GET', url);
-                request.setRequestHeader('Content-type', contentType);
-                request.setRequestHeader('Pragma', 'no-cache');
-                request.overrideMimeType(contentType);
-                request.mozBackgroundRequest = true;
-                request.onload = function () {
-                    resolve(request);
-                };
-                request.onerror = reject;
-                request.onabort = reject;
-                request.ontimeout = reject;
-
-                request.send(null);
-            } catch (ex) {
-                reject(ex);
+        return axios({
+            method: 'get',
+            url: url,
+            headers: {
+                'Content-type': contentType,
+                'Pragma': 'no-cache'
             }
         });
     };
@@ -381,4 +370,3 @@ const FilterDownloader = (() => {
         download: download
     };
 })();
-
