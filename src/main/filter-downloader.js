@@ -366,7 +366,10 @@ const FilterDownloader = (() => {
     };
 
     return {
-        compile: compile,
-        download: download
+        download: download,
+        resolveConditions: resolveConditions,
+        resolveIncludes: resolveIncludes
     };
 })();
+
+module.exports = FilterDownloader;
