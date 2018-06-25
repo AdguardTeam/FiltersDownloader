@@ -333,7 +333,8 @@ const FilterDownloader = (() => {
                 throw new Error("Response status is invalid: " + response.status);
             }
 
-            const responseText = response.responseText;
+            const responseText = response.responseText ? response.responseText : response.data;
+
             if (!responseText) {
                 throw new Error("Response is empty");
             }
@@ -353,8 +354,10 @@ const FilterDownloader = (() => {
     const download = (url, definedProperties) => {
         try {
             let filterUrlOrigin;
+            // require('url') is for tests
+            const parseURL = typeof URL !== 'undefined' ? new URL(url) : require('url').parse(url, true);
             if (url && REGEXP_ABSOLUTE_URL.test(url)) {
-                filterUrlOrigin = new URL(url).origin;
+                filterUrlOrigin = parseURL.origin;
             } else {
                 filterUrlOrigin = null;
             }

@@ -1,2 +1,2 @@
 test_main
-!#include resources/rules.txt
+!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt
