@@ -446,27 +446,27 @@ QUnit.test('Test filter downloader - simple includes', async (assert) => {
     const FilterDownloader = require('../main/filter-downloader.js');
     assert.ok(FilterDownloader);
 
-    let compiled = await FilterDownloader.download(URL2, FilterCompilerConditionsConstants);
-
-    assert.ok(compiled);
-    assert.equal(compiled.length, 2);
-    assert.equal(compiled[0], 'test_main');
-    assert.equal(compiled[1], 'test');
+    let rules = await FilterDownloader.download('../test/resources/rules_simple_include.txt', FilterCompilerConditionsConstants);
+    let resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(resolve);
+    assert.equal(resolve.length, 2);
+    assert.equal(resolve[0], 'test_main');
+    assert.equal(resolve[1], 'test');
 });
 
 QUnit.test('Test filter downloader - nested includes', async (assert) => {
     const FilterDownloader = require('../main/filter-downloader.js');
     assert.ok(FilterDownloader);
 
-    let compiled = await FilterDownloader.download(URL1, FilterCompilerConditionsConstants);
-
-    assert.ok(compiled);
-    assert.equal(compiled.length, 5);
-    assert.equal(compiled[0], 'test_parent');
-    assert.equal(compiled[1], 'test_main');
-    assert.equal(compiled[2], 'test');
-    assert.equal(compiled[3], 'test_main');
-    assert.equal(compiled[4], 'test');
+    let rules = await FilterDownloader.download('../test/resources/rules_nested_includes.txt', FilterCompilerConditionsConstants);
+    let resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(resolve);
+    assert.equal(resolve.length, 5);
+    assert.equal(resolve[0], 'test_parent');
+    assert.equal(resolve[1], 'test_main');
+    assert.equal(resolve[2], 'test');
+    assert.equal(resolve[3], 'test_main');
+    assert.equal(resolve[4], 'test');
 });
 
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {

@@ -31,6 +31,8 @@
  */
 
 const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
 
 const FilterDownloader = (() => {
     "use strict";
@@ -328,20 +330,26 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
-        return executeRequestAsync(url, 'text/plain').then((response) => {
-            if (response.status !== 200 && response.status !== 0) {
-                throw new Error("Response status is invalid: " + response.status);
-            }
+        if (REGEXP_ABSOLUTE_URL.test(url)) {
+            return executeRequestAsync(url, 'text/plain').then((response) => {
+                if (response.status !== 200 && response.status !== 0) {
+                    throw new Error("Response status is invalid: " + response.status);
+                }
 
-            const responseText = response.responseText ? response.responseText : response.data;
+                const responseText = response.responseText ? response.responseText : response.data;
 
-            if (!responseText) {
-                throw new Error("Response is empty");
-            }
+                if (!responseText) {
+                    throw new Error("Response is empty");
+                }
 
-            const lines = responseText.split(/[\r\n]+/);
-            return compile(lines, filterUrlOrigin, definedProperties);
-        });
+                const lines = responseText.trim().split(/[\r\n]+/);
+                return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+            });
+        } else {
+            const file = fs.readFileSync(path.resolve(__dirname, url)).toString();
+            const lines = file.trim().split(/[\r\n]+/);
+            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+        }
     };
 
     /**
