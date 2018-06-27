@@ -377,6 +377,7 @@ const FilterDownloader = (() => {
     };
 
     return {
+        compile: compile,
         download: download,
         resolveConditions: resolveConditions,
         resolveIncludes: resolveIncludes

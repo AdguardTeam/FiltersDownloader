@@ -11,8 +11,6 @@ const FilterCompilerConditionsConstants = {
 };
 
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt';
-const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_nested_includes.txt';
-const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_simple_include.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FilterDownloader = require('../main/filter-downloader.js');
