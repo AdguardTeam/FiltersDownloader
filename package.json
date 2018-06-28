@@ -1,10 +1,17 @@
 {
   "name": "filters-downloader",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Compiles filters source files",
-  "main": "gulpfile.js",
+  "main": "index.js",
   "homepage": "http://adguard.com",
-  "dependencies": {},
+  "scripts": {
+    "dev": "gulp dev",
+    "build": "gulp build",
+    "test": "node ./src/test/testrunner.js"
+  },
+  "dependencies": {
+    "axios": "^0.18.0"
+  },
   "devDependencies": {
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.2",
@@ -16,6 +23,7 @@
     "gulp-minify": "^2.1.0",
     "gulp-util": "^3.0.8",
     "gulp-watch": "^4.3.11",
-    "run-sequence": "^1.2.2"
+    "run-sequence": "^1.2.2",
+    "qunit": "1.0.0"
   }
 }

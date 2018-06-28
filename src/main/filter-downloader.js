@@ -29,6 +29,11 @@
  * More details:
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917
  */
+
+const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
+
 const FilterDownloader = (() => {
     "use strict";
 
@@ -218,26 +223,12 @@ const FilterDownloader = (() => {
      * @returns {Promise}
      */
     const executeRequestAsync = (url, contentType) => {
-
-        return new Promise((resolve, reject) => {
-            const request = new XMLHttpRequest();
-
-            try {
-                request.open('GET', url);
-                request.setRequestHeader('Content-type', contentType);
-                request.setRequestHeader('Pragma', 'no-cache');
-                request.overrideMimeType(contentType);
-                request.mozBackgroundRequest = true;
-                request.onload = function () {
-                    resolve(request);
-                };
-                request.onerror = reject;
-                request.onabort = reject;
-                request.ontimeout = reject;
-
-                request.send(null);
-            } catch (ex) {
-                reject(ex);
+        return axios({
+            method: 'get',
+            url: url,
+            headers: {
+                'Content-type': contentType,
+                'Pragma': 'no-cache'
             }
         });
     };
@@ -339,19 +330,26 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
-        return executeRequestAsync(url, 'text/plain').then((response) => {
-            if (response.status !== 200 && response.status !== 0) {
-                throw new Error("Response status is invalid: " + response.status);
-            }
+        if (REGEXP_ABSOLUTE_URL.test(url)) {
+            return executeRequestAsync(url, 'text/plain').then((response) => {
+                if (response.status !== 200 && response.status !== 0) {
+                    throw new Error("Response status is invalid: " + response.status);
+                }
 
-            const responseText = response.responseText;
-            if (!responseText) {
-                throw new Error("Response is empty");
-            }
+                const responseText = response.responseText ? response.responseText : response.data;
 
-            const lines = responseText.split(/[\r\n]+/);
-            return compile(lines, filterUrlOrigin, definedProperties);
-        });
+                if (!responseText) {
+                    throw new Error("Response is empty");
+                }
+
+                const lines = responseText.trim().split(/[\r\n]+/);
+                return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+            });
+        } else {
+            const file = fs.readFileSync(path.resolve(__dirname, url)).toString();
+            const lines = file.trim().split(/[\r\n]+/);
+            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+        }
     };
 
     /**
@@ -364,8 +362,10 @@ const FilterDownloader = (() => {
     const download = (url, definedProperties) => {
         try {
             let filterUrlOrigin;
+            // require('url') is for tests
+            const parseURL = typeof URL !== 'undefined' ? new URL(url) : require('url').parse(url, true);
             if (url && REGEXP_ABSOLUTE_URL.test(url)) {
-                filterUrlOrigin = new URL(url).origin;
+                filterUrlOrigin = parseURL.origin;
             } else {
                 filterUrlOrigin = null;
             }
@@ -378,7 +378,10 @@ const FilterDownloader = (() => {
 
     return {
         compile: compile,
-        download: download
+        download: download,
+        resolveConditions: resolveConditions,
+        resolveIncludes: resolveIncludes
     };
 })();
 
+module.exports = FilterDownloader;

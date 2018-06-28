@@ -3,3 +3,4 @@ Build
 .vscode/
 node_modules
 *.iml
+build
