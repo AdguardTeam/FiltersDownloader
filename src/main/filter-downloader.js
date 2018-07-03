@@ -255,9 +255,9 @@ const FilterDownloader = (() => {
     /**
      * Validates and resolves include directive
      *
-     * @param line
-     * @param filterOrigin
-     * @param definedProperties
+     * @param {string} line
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const resolveInclude = function (line, filterOrigin, definedProperties) {
@@ -274,9 +274,9 @@ const FilterDownloader = (() => {
     /**
      * Resolves include directives
      *
-     * @param rules
-     * @param filterOrigin
-     * @param definedProperties
+     * @param {Array} rules   array of rules
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const resolveIncludes = (rules, filterOrigin, definedProperties) => {
@@ -305,8 +305,8 @@ const FilterDownloader = (() => {
      * Compiles filter content
      *
      * @param {Array} rules Array of strings
-     * @param {?string} filterOrigin Filter file URL origin or null
-     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const compile = (rules, filterOrigin, definedProperties) => {
@@ -326,7 +326,7 @@ const FilterDownloader = (() => {
      *
      * @param {string} url Filter file URL
      * @param {?string} filterUrlOrigin Filter file URL origin or null
-     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
@@ -346,7 +346,7 @@ const FilterDownloader = (() => {
                 return resolveIncludes(lines, filterUrlOrigin, definedProperties);
             });
         } else {
-            const file = fs.readFileSync(path.resolve(__dirname, url)).toString();
+            const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
             const lines = file.trim().split(/[\r\n]+/);
             return resolveIncludes(lines, filterUrlOrigin, definedProperties);
         }
