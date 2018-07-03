@@ -346,11 +346,20 @@ const FilterDownloader = (() => {
                 return resolveIncludes(lines, filterUrlOrigin, definedProperties);
             });
         } else {
+            filterUrlOrigin = filterUrlOrigin ? filterUrlOrigin : getFilterUrlOrigin(url);
             const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
             const lines = file.trim().split(/[\r\n]+/);
             return resolveIncludes(lines, filterUrlOrigin, definedProperties);
         }
     };
+
+    /**
+     * Get the `filterUrlOrigin` from url for relative path resolve
+     *
+     * @param {string} url Filter file URL
+     * @returns {string}
+     */
+    const getFilterUrlOrigin = (url) => url.substring(0, url.lastIndexOf('/'));
 
     /**
      * Downloads a specified filter and interpretes all the pre-processor directives from there.
@@ -366,8 +375,6 @@ const FilterDownloader = (() => {
             const parseURL = typeof URL !== 'undefined' ? new URL(url) : require('url').parse(url, true);
             if (url && REGEXP_ABSOLUTE_URL.test(url)) {
                 filterUrlOrigin = parseURL.origin;
-            } else {
-                filterUrlOrigin = null;
             }
 
             return downloadFilterRules(url, filterUrlOrigin, definedProperties);
