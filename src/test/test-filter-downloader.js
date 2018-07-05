@@ -11,6 +11,7 @@ const FilterCompilerConditionsConstants = {
 };
 
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt';
+const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_simple_include.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FilterDownloader = require('../main/filter-downloader.js');
@@ -21,6 +22,17 @@ QUnit.test('Test filter downloader', async (assert) => {
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'test');
+});
+
+QUnit.test('Test filter download from external resource with relative url', async (assert) => {
+    const FilterDownloader = require('../main/filter-downloader.js');
+    assert.ok(FilterDownloader);
+
+    let compiled = await FilterDownloader.download(URL1, FilterCompilerConditionsConstants);
+
+    assert.ok(compiled);
+    assert.equal(compiled.length, 2);
+    assert.equal(compiled[compiled.length-1], 'test');
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => {
