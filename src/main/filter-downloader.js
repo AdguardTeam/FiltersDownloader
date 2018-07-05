@@ -337,6 +337,14 @@ const FilterDownloader = (() => {
         }
     };
 
+    /**
+     * Downloads filter rules from external url
+     *
+     * @param {string} url Filter file URL
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     */
     const externalDownload = (url, filterUrlOrigin, definedProperties) => {
         // getting absolute url for external file with relative url
         if (!REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
@@ -360,6 +368,14 @@ const FilterDownloader = (() => {
         });
     };
 
+    /**
+     * Get filter rules from local path
+     *
+     * @param {string} url local path
+     * @param {?string} filterUrlOrigin origin path
+     * @param {?object} definedProperties An object with the defined properties
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     */
     const getLocalFile = (url, filterUrlOrigin, definedProperties) => {
         filterUrlOrigin = getFilterUrlOrigin(url, filterUrlOrigin);
         const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
