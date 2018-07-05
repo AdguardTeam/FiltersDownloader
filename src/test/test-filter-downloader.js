@@ -11,7 +11,7 @@ const FilterCompilerConditionsConstants = {
 };
 
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt';
-const URL1 = 'https://raw.githubusercontent.com/tomasko126/easylistczechandslovak/master/filters.txt';
+const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_simple_include.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FilterDownloader = require('../main/filter-downloader.js');
@@ -31,10 +31,8 @@ QUnit.test('Test filter download from external resource with relative url', asyn
     let compiled = await FilterDownloader.download(URL1, FilterCompilerConditionsConstants);
 
     assert.ok(compiled);
-    assert.equal(compiled.length, 1454);
-    // the last rule `uschovna.cz##body:style(background:none !important;)` if from included file
-    // https://raw.githubusercontent.com/tomasko126/easylistczechandslovak/master/filters_ublock.txt
-    assert.equal(compiled[compiled.length-1], 'uschovna.cz##body:style(background:none !important;)');
+    assert.equal(compiled.length, 2);
+    assert.equal(compiled[compiled.length-1], 'test');
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => {
