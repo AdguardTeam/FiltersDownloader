@@ -330,36 +330,57 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
-        if (REGEXP_ABSOLUTE_URL.test(url)) {
-            return executeRequestAsync(url, 'text/plain').then((response) => {
-                if (response.status !== 200 && response.status !== 0) {
-                    throw new Error("Response status is invalid: " + response.status);
-                }
-
-                const responseText = response.responseText ? response.responseText : response.data;
-
-                if (!responseText) {
-                    throw new Error("Response is empty");
-                }
-
-                const lines = responseText.trim().split(/[\r\n]+/);
-                return resolveIncludes(lines, filterUrlOrigin, definedProperties);
-            });
+        if (REGEXP_ABSOLUTE_URL.test(url) || REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
+            return externalDownload(url, filterUrlOrigin, definedProperties);
         } else {
-            filterUrlOrigin = filterUrlOrigin ? filterUrlOrigin : getFilterUrlOrigin(url);
-            const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
-            const lines = file.trim().split(/[\r\n]+/);
-            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+            return getLocalFile(url, filterUrlOrigin, definedProperties);
         }
+    };
+
+    const externalDownload = (url, filterUrlOrigin, definedProperties) => {
+        // getting absolute url for external file with relative url
+        if (!REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
+            url = `${filterUrlOrigin}/${url}`;
+        }
+
+        return executeRequestAsync(url, 'text/plain').then((response) => {
+            if (response.status !== 200 && response.status !== 0) {
+                throw new Error("Response status is invalid: " + response.status);
+            }
+
+            const responseText = response.responseText ? response.responseText : response.data;
+
+            if (!responseText) {
+                throw new Error("Response is empty");
+            }
+
+            const lines = responseText.trim().split(/[\r\n]+/);
+            filterUrlOrigin = getFilterUrlOrigin(url, filterUrlOrigin);
+            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+        });
+    };
+
+    const getLocalFile = (url, filterUrlOrigin, definedProperties) => {
+        filterUrlOrigin = getFilterUrlOrigin(url, filterUrlOrigin);
+        const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
+        const lines = file.trim().split(/[\r\n]+/);
+        return resolveIncludes(lines, filterUrlOrigin, definedProperties);
     };
 
     /**
      * Get the `filterUrlOrigin` from url for relative path resolve
      *
      * @param {string} url Filter file URL
-     * @returns {string}
+     * @param {string|null} filterUrlOrigin  existing origin url
+     * @returns {string} valid origin url
      */
-    const getFilterUrlOrigin = (url) => url.substring(0, url.lastIndexOf('/'));
+    const getFilterUrlOrigin = (url, filterUrlOrigin) => {
+        if (filterUrlOrigin) {
+            return filterUrlOrigin;
+        } else {
+            return url.substring(0, url.lastIndexOf('/'));
+        }
+    };
 
     /**
      * Downloads a specified filter and interpretes all the pre-processor directives from there.
