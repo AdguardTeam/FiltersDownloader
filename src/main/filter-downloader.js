@@ -340,7 +340,7 @@ const FilterDownloader = (() => {
     /**
      * Downloads filter rules from external url
      *
-     * @param {string} url Filter file URL
+     * @param {string} url Filter file absolute URL or relative path
      * @param {?string} filterUrlOrigin Filter file URL origin or null
      * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
