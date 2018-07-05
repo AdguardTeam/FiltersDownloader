@@ -244,7 +244,7 @@ const FilterDownloader = (() => {
             if (REGEXP_ABSOLUTE_URL.test(url)) {
 
                 // Include url is absolute
-                let origin = new URL(url).origin;
+                let origin = parseURL(url).origin;
                 if (origin !== filterUrlOrigin) {
                     throw new Error('Include url is rejected with origin: ' + origin);
                 }
@@ -266,7 +266,6 @@ const FilterDownloader = (() => {
         } else {
             const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
             validateUrl(url, filterOrigin);
-
             return downloadFilterRules(url, filterOrigin, definedProperties);
         }
     };
@@ -408,10 +407,8 @@ const FilterDownloader = (() => {
     const download = (url, definedProperties) => {
         try {
             let filterUrlOrigin;
-            // require('url') is for tests
-            const parseURL = typeof URL !== 'undefined' ? new URL(url) : require('url').parse(url, true);
             if (url && REGEXP_ABSOLUTE_URL.test(url)) {
-                filterUrlOrigin = parseURL.origin;
+                filterUrlOrigin = parseURL(url).origin;
             }
 
             return downloadFilterRules(url, filterUrlOrigin, definedProperties);
@@ -420,11 +417,26 @@ const FilterDownloader = (() => {
         }
     };
 
+    /**
+     * Parse url
+     *
+     * @param {string} url
+     * @returns {object}  parsed url data
+     */
+    const parseURL = (url) => {
+        if (typeof URL !== 'undefined') {
+            return new URL(url);
+        } else {
+            return require('url').parse(url, true);
+        }
+    };
+
     return {
         compile: compile,
         download: download,
         resolveConditions: resolveConditions,
-        resolveIncludes: resolveIncludes
+        resolveIncludes: resolveIncludes,
+        getFilterUrlOrigin: getFilterUrlOrigin
     };
 })();
 
