@@ -34,7 +34,7 @@ QUnit.test('Test filter download from external resource with relative url', asyn
     assert.equal(compiled.length, 1454);
     // the last rule `uschovna.cz##body:style(background:none !important;)` if from included file
     // https://raw.githubusercontent.com/tomasko126/easylistczechandslovak/master/filters_ublock.txt
-    assert.equal(compiled[1453], 'uschovna.cz##body:style(background:none !important;)');
+    assert.equal(compiled[compiled.length-1], 'uschovna.cz##body:style(background:none !important;)');
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => {
