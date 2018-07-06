@@ -225,7 +225,7 @@ const FilterDownloader = (() => {
     const executeRequestAsync = (url, contentType) => {
         return axios({
             method: 'get',
-            url: url,
+            url: encodeURI(url),
             headers: {
                 'Content-type': contentType,
                 'Pragma': 'no-cache'
