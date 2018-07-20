@@ -86,15 +86,19 @@ const FilterDownloader = (() => {
      * @param startIndex
      */
     const findConditionEnd = (rules, startIndex) => {
+        const stack = [];
         for (let j = startIndex; j < rules.length; j++) {
             let internalRule = rules[j];
 
             if (internalRule.startsWith(CONDITION_DIRECTIVE_START)) {
-                throw new Error('Invalid directives: Nested conditions are not supported: ' + internalRule);
-            }
+                stack.push(CONDITION_DIRECTIVE_START);
 
-            if (internalRule.startsWith(CONDITION_DIRECTIVE_END)) {
-                return j;
+            } else if (internalRule.startsWith(CONDITION_DIRECTIVE_END)) {
+                if (stack.length > 0) {
+                    stack.pop();
+                } else {
+                    return j;
+                }
             }
         }
 
@@ -199,7 +203,9 @@ const FilterDownloader = (() => {
 
                 let conditionValue = resolveCondition(rule, definedProperties);
                 if (conditionValue) {
-                    result = result.concat(rules.slice(i + 1, endLineIndex));
+                    let rulesUnderCondition = rules.slice(i + 1, endLineIndex);
+                    // Resolve inner conditions in recursion
+                    result = result.concat(resolveConditions(rulesUnderCondition, definedProperties));
                 }
 
                 // Skip to the end of block

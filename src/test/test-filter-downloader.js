@@ -387,9 +387,75 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
     assert.equal(compiled[0], 'always_included_rule');
 });
 
-QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) => {
+QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
     let rules;
     let compiled;
+
+    rules = [
+        'zero_level_rule',
+        '!#if adguard',
+            'first_level_condition',
+            '!#if adguard',
+                'second_level_condition',
+            '!#endif',
+        '!#endif'
+    ];
+
+    const FilterDownloader = require('../main/filter-downloader.js');
+    assert.ok(FilterDownloader);
+
+    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 3);
+    assert.equal(compiled[0], 'zero_level_rule');
+    assert.equal(compiled[1], 'first_level_condition');
+    assert.equal(compiled[2], 'second_level_condition');
+
+    rules = [
+        'zero_level_rule',
+        '!#if adguard',
+            'first_level_condition',
+            '!#if adguard',
+                'second_level_condition',
+                '!#if !adguard',
+                    'third_level_condition',
+                '!#endif',
+            '!#endif',
+        '!#endif'
+    ];
+
+    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 3);
+    assert.equal(compiled[0], 'zero_level_rule');
+    assert.equal(compiled[1], 'first_level_condition');
+    assert.equal(compiled[2], 'second_level_condition');
+
+    rules = [
+        'zero_level_rule',
+        '!#if adguard',
+            'first_level_condition',
+            '!#if adguard',
+                'second_level_1_condition',
+            '!#endif',
+            '!#if adguard',
+                'second_level_2_condition',
+            '!#endif',
+        '!#endif'
+    ];
+
+    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 4);
+    assert.equal(compiled[0], 'zero_level_rule');
+    assert.equal(compiled[1], 'first_level_condition');
+    assert.equal(compiled[2], 'second_level_1_condition');
+    assert.equal(compiled[3], 'second_level_2_condition');
+
+});
+
+QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) => {
+    let rules;
 
     rules = [
         'always_included_rule',
@@ -417,8 +483,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
 
     rules = [
         'always_included_rule',
-        '!#if',
-        'invalid_condition',
+        'invalid_endif',
         '!#endif'
     ];
 
@@ -428,11 +493,8 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
 
     rules = [
         'always_included_rule',
-        '!#if adguard',
+        '!#if',
         'invalid_condition',
-        '!#if adguard_ext_chromium',
-        'invalid_nested_condition',
-        '!#endif',
         '!#endif'
     ];
 
