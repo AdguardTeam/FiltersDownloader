@@ -50,9 +50,12 @@ Filter URL: https://example.org/path/filter.txt
 ```
 
 ## Build
-For build run:
+To build one file for browser environment:
+```
+yarn build
+```
 
-    $ gulp build
+See `/build` for results.
 
 ## Usage
 
@@ -84,5 +87,5 @@ promise.then((compiled) => {
 ## Tests
 
 ```
-/src/test/test-filter-downloader.html
+yarn tests
 ```
