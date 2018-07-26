@@ -437,4 +437,6 @@ const FilterDownloader = (() => {
     };
 })();
 
-module.exports = FilterDownloader;
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = FilterDownloader;
+}

@@ -59,7 +59,9 @@ const FileDownloadWrapper = (() => {
                 request.setRequestHeader('Pragma', 'no-cache');
                 request.overrideMimeType(contentType);
                 request.mozBackgroundRequest = true;
-                request.onload = onRequestLoad;
+                request.onload = function () {
+                    onRequestLoad(request);
+                };
                 request.onerror = reject;
                 request.onabort = reject;
                 request.ontimeout = reject;
