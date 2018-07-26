@@ -3,7 +3,7 @@ const gulp = require('gulp');
 const runSequence = require('run-sequence').use(gulp);
 
 const options = global.options = {
-    src: 'src/main/*.js',
+    src: ['src/main/browser/file-download-wrapper.js', 'src/main/filter-downloader.js'],
     scriptName: 'filter-downloader',
     outputPath: 'build',
     concatFile: 'concat.js',
