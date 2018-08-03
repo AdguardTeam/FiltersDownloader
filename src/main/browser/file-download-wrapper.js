@@ -22,7 +22,7 @@
  *
  * @type {{getLocalFile, getExternalFile}}
  */
-const FileDownloadWrapper = (() => {
+let FileDownloadWrapper = (() => {
     "use strict";
 
     /**

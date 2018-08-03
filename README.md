@@ -87,5 +87,5 @@ promise.then((compiled) => {
 ## Tests
 
 ```
-yarn tests
+yarn test
 ```
