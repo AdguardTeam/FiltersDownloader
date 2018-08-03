@@ -224,24 +224,6 @@ const FilterDownloader = (() => {
     };
 
     /**
-     * Executes async request
-     *
-     * @param url Url
-     * @param contentType Content type
-     * @returns {Promise}
-     */
-    const executeRequestAsync = (url, contentType) => {
-        return axios({
-            method: 'get',
-            url: encodeURI(url),
-            headers: {
-                'Content-type': contentType,
-                'Pragma': 'no-cache'
-            }
-        });
-    };
-
-    /**
      * Validates url to be the same origin with original filterUrl
      *
      * @param url
