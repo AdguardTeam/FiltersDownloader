@@ -12,6 +12,7 @@ const FilterCompilerConditionsConstants = {
 
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt';
 const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_simple_include.txt';
+const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FilterDownloader = require('../main/filter-downloader.js');
@@ -28,11 +29,30 @@ QUnit.test('Test filter download from external resource with relative url', asyn
     const FilterDownloader = require('../main/filter-downloader.js');
     assert.ok(FilterDownloader);
 
-    let compiled = await FilterDownloader.download(URL1, FilterCompilerConditionsConstants);
+    let compiled;
+
+    try {
+        compiled = await FilterDownloader.download(URL1, FilterCompilerConditionsConstants);
+    } catch (e) {
+        console.log(e.message);
+    }
 
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[compiled.length-1], 'test');
+});
+
+QUnit.test('Test that not found link returns error ', async (assert) => {
+    const FilterDownloader = require('../main/filter-downloader.js');
+    assert.ok(FilterDownloader);
+    let compiled;
+    try {
+        compiled = await FilterDownloader.download(URL404, FilterCompilerConditionsConstants);
+    } catch (e) {
+        assert.equal(e.message, 'Response status is invalid: 404');
+    }
+
+    assert.notOk(compiled);
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => {
