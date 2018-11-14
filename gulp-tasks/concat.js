@@ -1,18 +1,15 @@
+const gulp = require('gulp');
+const concat = require('gulp-concat');
+const { src, outputPath, genFileName } = require('./helpers');
+
 /**
  * Compiles src files into one
  */
-
-const gulp = require('gulp');
-const gutil = require('gulp-util');
-
 module.exports = () => {
-    const options = global.options || {};
+    let fileName = genFileName(process.env.NODE_ENV);
 
-    gutil.log('Concat files ' + options.src);
-
-    var concat = require('gulp-concat');
-
-    return gulp.src(options.src)
-        .pipe(concat(options.fileName))
-        .pipe(gulp.dest(options.outputPath));
+    console.log(`Build file: ${fileName}`);
+    return gulp.src(src)
+        .pipe(concat(fileName))
+        .pipe(gulp.dest(outputPath));
 };

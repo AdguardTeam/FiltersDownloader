@@ -5,25 +5,20 @@
   "main": "index.js",
   "homepage": "http://adguard.com",
   "scripts": {
-    "dev": "gulp dev",
-    "build": "gulp build",
+    "dev": "NODE_ENV=dev gulp dev",
+    "prod": "NODE_ENV=prod gulp prod",
     "test": "node ./src/test/testrunner.js"
   },
   "dependencies": {
     "axios": "^0.18.0"
   },
   "devDependencies": {
-    "gulp": "^3.9.1",
-    "gulp-clean": "^0.3.2",
-    "gulp-download-stream": "0.0.13",
+    "del": "^3.0.0",
+    "gulp": "^4.0.0",
     "gulp-concat": "2.6.1",
     "gulp-header": "2.0.5",
-    "gulp-file": "^0.3.0",
-    "gulp-hash-creator": "^0.2.0",
-    "gulp-minify": "^2.1.0",
-    "gulp-util": "^3.0.8",
-    "gulp-watch": "^4.3.11",
-    "run-sequence": "^1.2.2",
-    "qunit": "1.0.0"
+    "gulp-minify": "^3.1.0",
+    "qunit": "1.0.0",
+    "run-sequence": "^1.2.2"
   }
 }
