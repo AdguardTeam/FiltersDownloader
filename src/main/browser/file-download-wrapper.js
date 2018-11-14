@@ -23,7 +23,7 @@
  * @type {{getLocalFile, getExternalFile}}
  */
 let FileDownloadWrapper = (() => {
-    "use strict";
+    'use strict';
 
     /**
      * Executes async request
@@ -38,13 +38,18 @@ let FileDownloadWrapper = (() => {
 
             const onRequestLoad = (response) => {
                 if (response.status !== 200 && response.status !== 0) {
-                    throw new Error("Response status is invalid: " + response.status);
+                    reject(new Error('Response status is invalid: ' + response.status));
                 }
 
                 const responseText = response.responseText ? response.responseText : response.data;
 
                 if (!responseText) {
-                    throw new Error("Response is empty");
+                    reject(new Error('Response is empty'));
+                }
+
+                const responseContentType = response.getResponseHeader('Content-Type');
+                if (!responseContentType || !responseContentType.includes(contentType)) {
+                    reject(new Error(`Response content type should be: "${contentType}"`));
                 }
 
                 const lines = responseText.trim().split(/[\r\n]+/);
@@ -55,16 +60,15 @@ let FileDownloadWrapper = (() => {
 
             try {
                 request.open('GET', url);
-                request.setRequestHeader('Content-type', contentType);
                 request.setRequestHeader('Pragma', 'no-cache');
                 request.overrideMimeType(contentType);
                 request.mozBackgroundRequest = true;
                 request.onload = function () {
                     onRequestLoad(request);
                 };
-                request.onerror = reject;
-                request.onabort = reject;
-                request.ontimeout = reject;
+                request.onerror = () => reject(new Error(`Request error happened: ${request.statusText || 'status text empty'}`));
+                request.onabort = () => reject(new Error(`Request was aborted with status text: ${request.statusText}`));
+                request.ontimeout = () => reject(new Error(`Request timed out with status text: ${request.statusText}`));
 
                 request.send(null);
             } catch (ex) {
@@ -95,6 +99,6 @@ let FileDownloadWrapper = (() => {
 
     return {
         getLocalFile: getLocalFile,
-        getExternalFile: getExternalFile
-    }
+        getExternalFile: getExternalFile,
+    };
 })();

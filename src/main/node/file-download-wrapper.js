@@ -37,14 +37,14 @@ module.exports = (() => {
      * @param contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsync = (url, contentType) => {
+    const executeRequestAsync = (url) => {
         return axios({
             method: 'get',
             url: encodeURI(url),
             headers: {
-                'Content-type': contentType,
                 'Pragma': 'no-cache'
-            }
+            },
+            validateStatus: null,
         });
     };
 
@@ -55,19 +55,29 @@ module.exports = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getExternalFile = (url) => {
-        return executeRequestAsync(url, 'text/plain').then((response) => {
-            if (response.status !== 200 && response.status !== 0) {
-                throw new Error("Response status is invalid: " + response.status);
-            }
 
-            const responseText = response.responseText ? response.responseText : response.data;
+        const contentType = 'text/plain';
 
-            if (!responseText) {
-                throw new Error("Response is empty");
-            }
+        return new Promise((resolve, reject) => {
+            executeRequestAsync(url).then((response) => {
+                if (response.status !== 200 && response.status !== 0) {
+                    reject(new Error("Response status is invalid: " + response.status));
+                }
 
-            const lines = responseText.trim().split(/[\r\n]+/);
-            return Promise.resolve(lines);
+                const responseContentType = response.headers['content-type'];
+                if (!responseContentType || !responseContentType.includes(contentType)) {
+                    reject(new Error(`Response content type should be: "${contentType}"`));
+                }
+
+                const responseText = response.responseText ? response.responseText : response.data;
+
+                if (!responseText) {
+                    reject(new Error("Response is empty"));
+                }
+                resolve(responseText.trim().split(/[\r\n]+/));
+            }).catch(err => {
+                reject(err);
+            });
         });
     };
 

@@ -1,20 +1,20 @@
-/**
- * Uglify js.
- */
-
 const path = require('path');
 const gulp = require('gulp');
 const minify = require('gulp-minify');
+const { outputPath, genFileName } = require('./helpers');
 
+/**
+ * Uglify js.
+ */
 module.exports = () => {
-    const options = global.options || {};
+    const fileName = genFileName(process.env.NODE_ENV);
 
-    return gulp.src(path.join(options.outputPath, options.fileName))
+    return gulp.src(path.join(outputPath, fileName))
         .pipe(minify({
             mangle: false,
             ext: {
                 min: '.min.js'
             }
         }))
-        .pipe(gulp.dest(options.outputPath));
+        .pipe(gulp.dest(outputPath));
 };

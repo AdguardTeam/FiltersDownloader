@@ -387,7 +387,7 @@ const FilterDownloader = (() => {
         try {
             let filterUrlOrigin;
             if (url && REGEXP_ABSOLUTE_URL.test(url)) {
-                filterUrlOrigin = parseURL(url).origin;
+                filterUrlOrigin = getFilterUrlOrigin(url)
             }
 
             return downloadFilterRules(url, filterUrlOrigin, definedProperties);
@@ -406,7 +406,8 @@ const FilterDownloader = (() => {
         if (typeof URL !== 'undefined') {
             return new URL(url);
         } else {
-            return require('url').parse(url, true);
+            let URL = require('url').URL;
+            return new URL(url);
         }
     };
 
