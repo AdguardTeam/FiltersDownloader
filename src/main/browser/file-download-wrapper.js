@@ -26,6 +26,17 @@ let FileDownloadWrapper = (() => {
     'use strict';
 
     /**
+     * If url protocol is not http or https return true, else false
+     * @param url
+     * @returns {boolean}
+     */
+    const isLocal = (url) => {
+        const parsedUrl = new URL(url);
+        const protocols = ['http:', 'https:'];
+        return !protocols.includes(parsedUrl.protocol);
+    };
+
+    /**
      * Executes async request
      *
      * @param url Url
@@ -47,9 +58,13 @@ let FileDownloadWrapper = (() => {
                     reject(new Error('Response is empty'));
                 }
 
-                const responseContentType = response.getResponseHeader('Content-Type');
-                if (!responseContentType || !responseContentType.includes(contentType)) {
-                    reject(new Error(`Response content type should be: "${contentType}"`));
+                // Don't check response headers if url is local,
+                // because edge extension doesn't provide headers for such url
+                if (!isLocal(response.responseURL)) {
+                    const responseContentType = response.getResponseHeader('Content-Type');
+                    if (!responseContentType || !responseContentType.includes(contentType)) {
+                        reject(new Error(`Response content type should be: "${contentType}"`));
+                    }
                 }
 
                 const lines = responseText.trim().split(/[\r\n]+/);
