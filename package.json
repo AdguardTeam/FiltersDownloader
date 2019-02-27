@@ -1,6 +1,6 @@
 {
   "name": "filters-downloader",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "description": "Compiles filters source files",
   "main": "index.js",
   "homepage": "http://adguard.com",

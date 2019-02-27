@@ -561,6 +561,20 @@ QUnit.test('Test filter downloader - nested includes', async (assert) => {
     assert.equal(resolve[4], 'test');
 });
 
+QUnit.test('Test filter downloader - not optimized includes', async (assert) => {
+    const FilterDownloader = require('../main/filter-downloader.js');
+    assert.ok(FilterDownloader);
+
+    let rules = await FilterDownloader.download(__dirname + '/resources/rules_not_optimized_include.txt', FilterCompilerConditionsConstants);
+    let resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(resolve);
+    assert.equal(resolve.length, 3);
+    assert.equal(resolve[0], 'test_main');
+    assert.equal(resolve[1], '!+ NOT_OPTIMIZED');
+    assert.equal(resolve[2], 'test');
+});
+
+
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     let rules;
 

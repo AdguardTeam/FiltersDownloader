@@ -49,6 +49,9 @@ const FilterDownloader = (() => {
     const CONDITION_BRACKET_CLOSE_CHAR = ")";
 
     const INCLUDE_DIRECTIVE = "!#include";
+    const INCLUDE_NOT_OPTIMIZED_DIRECTIVE = "!#include-not-optimized";
+
+    const NOT_OPTIMIZED_HINT = "!+ NOT_OPTIMIZED";
 
     const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
 
@@ -254,9 +257,29 @@ const FilterDownloader = (() => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
         } else {
-            const url = decodeURI(line.substring(INCLUDE_DIRECTIVE.length).trim());
+            let includeDirective = INCLUDE_DIRECTIVE;
+            if (line.indexOf(INCLUDE_NOT_OPTIMIZED_DIRECTIVE) === 0) {
+                includeDirective = INCLUDE_NOT_OPTIMIZED_DIRECTIVE;
+            }
+
+            const url = decodeURI(line.substring(includeDirective.length).trim());
             validateUrl(url, filterOrigin);
-            return downloadFilterRules(url, filterOrigin, definedProperties);
+            let resultPromise = downloadFilterRules(url, filterOrigin, definedProperties);
+
+            if (includeDirective !== INCLUDE_NOT_OPTIMIZED_DIRECTIVE) {
+                return resultPromise;
+            } else {
+                return resultPromise.then((values) => {
+                    let result = [];
+
+                    values.forEach(function (v) {
+                        result.push(NOT_OPTIMIZED_HINT);
+                        result.push(v);
+                    });
+
+                    return result;
+                });
+            }
         }
     };
 

@@ -27,10 +27,11 @@ Example:
 !#endif
 ```
 
-#### Include
+#### Include and Include-not-optimized
 The !#include directive supports only files from the same origin to make sure that the filter maintainer is in control of the specified file. The included file can also contain pre-processor directives (even other !#include directives).
 
 Ad blockers should consider the case of recursive !#include and implement a protection mechanism.
+The #include-not-optimized directive works the same as simple include but adds "!+ NOT_OPTIMIZED" hints for included rules.
 
 Examples:
 
@@ -44,6 +45,9 @@ Filter URL: https://example.org/path/filter.txt
 ! Valid (relative path):
 !#include /includedfile.txt
 !#include ../path2/includedfile.txt
+!
+! Valid (not_optimized relative)
+!#include-not-optimized /includedfile.txt
 !
 ! Invalid (another origin):
 !#include https://example.com/path/includedfile.txt
