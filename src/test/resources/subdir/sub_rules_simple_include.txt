@@ -1,0 +1,2 @@
+sub_test_main
+!#include sub_rules.txt
