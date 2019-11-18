@@ -561,6 +561,19 @@ QUnit.test('Test filter downloader - nested includes', async (assert) => {
     assert.equal(resolve[4], 'test');
 });
 
+QUnit.test('Test filter downloader - nested subdir includes', async (assert) => {
+    const FilterDownloader = require('../main/filter-downloader.js');
+    assert.ok(FilterDownloader);
+
+    let rules = await FilterDownloader.download(__dirname + '/resources/rules_nested_subdir_includes.txt', FilterCompilerConditionsConstants);
+    let resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(resolve);
+    assert.equal(resolve.length, 3);
+    assert.equal(resolve[0], 'test_parent');
+    assert.equal(resolve[1], 'test_main');
+    assert.equal(resolve[2], 'test');
+});
+
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     let rules;
 
