@@ -341,7 +341,9 @@ const FilterDownloader = (() => {
         }
 
         return FileDownloadWrapper.getExternalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
-            filterUrlOrigin = getFilterUrlOrigin(url, filterUrlOrigin);
+            // Filter origin could change in case url contains subdirectories
+            // https://github.com/AdguardTeam/FiltersRegistry/pull/256
+            filterUrlOrigin = getFilterUrlOrigin(url, null);
             return resolveIncludes(lines, filterUrlOrigin, definedProperties);
         });
     };
