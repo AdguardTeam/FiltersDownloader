@@ -234,9 +234,10 @@ const FilterDownloader = (() => {
             if (REGEXP_ABSOLUTE_URL.test(url)) {
 
                 // Include url is absolute
-                let origin = parseURL(url).origin;
-                if (origin !== filterUrlOrigin) {
-                    throw new Error('Include url is rejected with origin: ' + origin);
+                const urlOrigin = parseURL(url).origin;
+                const filterOrigin = parseURL(filterUrlOrigin).origin;
+                if (urlOrigin !== filterOrigin) {
+                    throw new Error('Include url is rejected with origin: ' + urlOrigin);
                 }
             }
         }
