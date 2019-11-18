@@ -12,6 +12,7 @@ const FilterCompilerConditionsConstants = {
 
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt';
 const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_simple_include.txt';
+const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/feature/hot-fix/src/test/resources/rules_nested_subdir_includes.txt';
 const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
@@ -40,6 +41,25 @@ QUnit.test('Test filter download from external resource with relative url', asyn
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[compiled.length-1], 'test');
+});
+
+QUnit.test('Test filter download from external resource with relative url and subdir', async (assert) => {
+    const FilterDownloader = require('../main/filter-downloader.js');
+    assert.ok(FilterDownloader);
+
+    let compiled;
+
+    try {
+        compiled = await FilterDownloader.download(URL2, FilterCompilerConditionsConstants);
+    } catch (e) {
+        console.log(e.message);
+    }
+
+    assert.ok(compiled);
+    assert.equal(compiled.length, 3);
+    assert.equal(compiled[0], 'test_parent');
+    assert.equal(compiled[1], 'sub_test_main');
+    assert.equal(compiled[2], 'sub_test');
 });
 
 QUnit.test('Test that not found link returns error ', async (assert) => {
@@ -570,8 +590,8 @@ QUnit.test('Test filter downloader - nested subdir includes', async (assert) => 
     assert.ok(resolve);
     assert.equal(resolve.length, 3);
     assert.equal(resolve[0], 'test_parent');
-    assert.equal(resolve[1], 'test_main');
-    assert.equal(resolve[2], 'test');
+    assert.equal(resolve[1], 'sub_test_main');
+    assert.equal(resolve[2], 'sub_test');
 });
 
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {

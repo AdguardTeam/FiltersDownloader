@@ -335,6 +335,7 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const externalDownload = (url, filterUrlOrigin, definedProperties) => {
+
         // getting absolute url for external file with relative url
         if (!REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
             url = `${filterUrlOrigin}/${url}`;
@@ -357,8 +358,14 @@ const FilterDownloader = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getLocalFile = (url, filterUrlOrigin, definedProperties) => {
+        if (filterUrlOrigin) {
+            url = `${filterUrlOrigin}/${url}`;
+        }
+
         filterUrlOrigin = getFilterUrlOrigin(url, filterUrlOrigin);
+
         return FileDownloadWrapper.getLocalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
+            filterUrlOrigin = getFilterUrlOrigin(url, null);
             return resolveIncludes(lines, filterUrlOrigin, definedProperties);
         });
     };
