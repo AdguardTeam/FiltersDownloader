@@ -1,2 +1,2 @@
-test_main
+sub_test_main
 !#include rules.txt
