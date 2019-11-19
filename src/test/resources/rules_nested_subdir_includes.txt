@@ -1,0 +1,2 @@
+test_parent
+!#include subdir/sub_rules_simple_include.txt
