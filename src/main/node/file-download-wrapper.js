@@ -61,7 +61,7 @@ module.exports = (() => {
         return new Promise((resolve, reject) => {
             executeRequestAsync(url).then((response) => {
                 if (response.status !== 200 && response.status !== 0) {
-                    reject(new Error("Response status is invalid: " + response.status));
+                    reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
                 }
 
                 const responseContentType = response.headers['content-type'];

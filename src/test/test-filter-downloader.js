@@ -69,7 +69,7 @@ QUnit.test('Test that not found link returns error ', async (assert) => {
     try {
         compiled = await FilterDownloader.download(URL404, FilterCompilerConditionsConstants);
     } catch (e) {
-        assert.equal(e.message, 'Response status is invalid: 404');
+        assert.equal(e.message, `Response status for url ${URL404} is invalid: 404`);
     }
 
     assert.notOk(compiled);
