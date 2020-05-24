@@ -49,7 +49,7 @@ let FileDownloadWrapper = (() => {
 
             const onRequestLoad = (response) => {
                 if (response.status !== 200 && response.status !== 0) {
-                    reject(new Error('Response status for url ' + url + ' is invalid: ' + response.status));
+                    reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
                 }
 
                 const responseText = response.responseText ? response.responseText : response.data;
