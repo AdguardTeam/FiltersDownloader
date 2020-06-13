@@ -40,7 +40,7 @@ module.exports = (() => {
     const executeRequestAsync = (url) => {
         return axios({
             method: 'get',
-            url: encodeURI(url),
+            url: url,
             headers: {
                 'Pragma': 'no-cache'
             },
