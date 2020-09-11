@@ -15,7 +15,6 @@
  * along with Adguard Browser Extension.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* global URL, require, FileDownloadWrapper */
 /**
  * The utility tool resolves preprocessor directives in filter content.
  *
@@ -29,14 +28,7 @@
  * More details:
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917
  */
-
-// Override FileDownload object for node environment
-if (typeof FileDownloadWrapper === 'undefined') {
-    //noinspection JSAnnotator
-    FileDownloadWrapper = require('./node/file-download-wrapper');
-}
-
-const FilterDownloader = (() => {
+const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     "use strict";
 
     const CONDITION_DIRECTIVE_START = "!#if";
@@ -247,7 +239,7 @@ const FilterDownloader = (() => {
      * Validates and resolves include directive
      *
      * @param {string} line
-     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?string} filterOrigin Filter file URL origin or null
      * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
@@ -265,7 +257,7 @@ const FilterDownloader = (() => {
      * Resolves include directives
      *
      * @param {Array} rules   array of rules
-     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?string} filterOrigin Filter file URL origin or null
      * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
@@ -428,8 +420,6 @@ const FilterDownloader = (() => {
         resolveIncludes: resolveIncludes,
         getFilterUrlOrigin: getFilterUrlOrigin
     };
-})();
+};
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = FilterDownloader;
-}
+module.exports = FiltersDownloaderCreator;

@@ -16,9 +16,9 @@
         log: {
             // log assertions overview
             assertions: false,
-            // log expected and actual values for failed tests
+            // log expected and actual values for failed __tests__
             errors: true,
-            // log tests overview
+            // log __tests__ overview
             tests: false,
             // log summary
             summary: true,
@@ -42,7 +42,7 @@
     };
 
     testRunner.run({
-        code: "./src/main/filter-downloader.js",
-        tests: "./src/test/test-filter-downloader.js"
+        code: "./src/index.js",
+        tests: "./__tests__/filters-downloader.test.js"
     }, testCallback);
 })();

@@ -22,7 +22,7 @@
  *
  * @type {{getLocalFile, getExternalFile}}
  */
-let FileDownloadWrapper = (() => {
+module.exports = (() => {
     'use strict';
 
     /**
