@@ -16,9 +16,9 @@
         log: {
             // log assertions overview
             assertions: false,
-            // log expected and actual values for failed __tests__
+            // log expected and actual values for failed tests
             errors: true,
-            // log __tests__ overview
+            // log tests overview
             tests: false,
             // log summary
             summary: true,
