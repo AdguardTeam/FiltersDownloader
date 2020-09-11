@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "axios": "^0.20.0"
+  },
+  "devDependencies": {
+    "node-qunit": "^1.0.0"
   }
 }

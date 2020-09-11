@@ -1,5 +1,3 @@
-/* globals require, QUnit */
-
 /**
  * @typedef {Object} assert
  * @property {function} equal
@@ -10,7 +8,7 @@
 (() => {
     "use strict";
 
-    const testRunner = require("qunit");
+    const testRunner = require("node-qunit");
 
     testRunner.setup({
         log: {
