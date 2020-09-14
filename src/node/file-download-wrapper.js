@@ -15,7 +15,6 @@
  * along with Adguard Browser Extension.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* global require */
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
@@ -34,7 +33,6 @@ module.exports = (() => {
      * Executes async request
      *
      * @param url Url
-     * @param contentType Content type
      * @returns {Promise}
      */
     const executeRequestAsync = (url) => {
