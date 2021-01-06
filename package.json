@@ -9,7 +9,7 @@
     "test": "node __tests__/testrunner.js"
   },
   "dependencies": {
-    "axios": "^0.20.0"
+    "axios": "^0.21.1"
   },
   "devDependencies": {
     "node-qunit": "^1.0.0"
