@@ -10,10 +10,10 @@ const FilterCompilerConditionsConstants = {
     adguard_ext_android_cb: false
 };
 
-const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules.txt';
-const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_simple_include.txt';
-const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/rules_nested_subdir_includes.txt';
-const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/src/test/resources/blabla.txt';
+const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules.txt';
+const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules_simple_include.txt';
+const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules_nested_subdir_includes.txt';
+const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__test__/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FiltersDownloader = require('../src');

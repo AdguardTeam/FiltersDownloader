@@ -43,53 +43,35 @@ module.exports = (() => {
      * @param contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsync = (url, contentType) => {
-
-        return new Promise((resolve, reject) => {
-
-            const onRequestLoad = (response) => {
-                if (response.status !== 200 && response.status !== 0) {
-                    reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
-                }
-
-                const responseText = response.responseText ? response.responseText : response.data;
-
-                if (!responseText) {
-                    reject(new Error('Response is empty'));
-                }
-
-                // Don't check response headers if url is local,
-                // because edge extension doesn't provide headers for such url
-                if (!isLocal(response.responseURL)) {
-                    const responseContentType = response.getResponseHeader('Content-Type');
-                    if (!responseContentType || !responseContentType.includes(contentType)) {
-                        reject(new Error(`Response content type should be: "${contentType}"`));
-                    }
-                }
-
-                const lines = responseText.trim().split(/[\r\n]+/);
-                resolve(lines);
-            };
-
-            const request = new XMLHttpRequest();
-
-            try {
-                request.open('GET', url);
-                request.setRequestHeader('Pragma', 'no-cache');
-                request.overrideMimeType(contentType);
-                request.mozBackgroundRequest = true;
-                request.onload = function () {
-                    onRequestLoad(request);
-                };
-                request.onerror = () => reject(new Error(`Request error happened: ${request.statusText || 'status text empty'}`));
-                request.onabort = () => reject(new Error(`Request was aborted with status text: ${request.statusText}`));
-                request.ontimeout = () => reject(new Error(`Request timed out with status text: ${request.statusText}`));
-
-                request.send(null);
-            } catch (ex) {
-                reject(ex);
+    const executeRequestAsync = async (url, contentType) => {
+        const response = await fetch(url, {
+            cache: 'no-cache',
+            headers: {
+                Pragma: 'no-cache',
+                'Content-Type': contentType,
             }
         });
+
+        if (response.status !== 200 && response.status !== 0) {
+            throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
+        }
+
+        // Don't check response headers if url is local,
+        // because edge extension doesn't provide headers for such url
+        if (!isLocal(response.url)) {
+            const responseContentType = response.headers.get('Content-Type');
+            if (!responseContentType || !responseContentType.includes(contentType)) {
+                throw new Error(`Response content type should be: "${contentType}"`);
+            }
+        }
+
+        const responseText = await response.text();
+
+        if (!responseText) {
+            throw new Error('Response is empty');
+        }
+
+        return responseText.trim().split(/[\r\n]+/);
     };
 
     /**
