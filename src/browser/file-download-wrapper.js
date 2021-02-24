@@ -37,13 +37,14 @@ module.exports = (() => {
     };
 
     /**
-     * Executes async request
+     * Executes async request via fetch
+     * fetch doesn't allow to download urls with file:// scheme
      *
      * @param url Url
      * @param contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsync = async (url, contentType) => {
+    const executeRequestAsyncFetch = async (url, contentType) => {
         const response = await fetch(url, {
             cache: 'no-cache',
             headers: {
@@ -75,13 +76,66 @@ module.exports = (() => {
     };
 
     /**
+     * Executes async request via XMLHttpRequest
+     * XMLHttpRequest is undefined in the service worker
+     *
+     * @param {string} url Url
+     * @param {string} contentType Content type
+     * @returns {Promise}
+     */
+    const executeRequestAsyncXhr = (url, contentType) => {
+        return new Promise((resolve, reject) => {
+            const onRequestLoad = (response) => {
+                if (response.status !== 200 && response.status !== 0) {
+                    reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
+                }
+
+                const responseText = response.responseText ? response.responseText : response.data;
+
+                if (!responseText) {
+                    reject(new Error('Response is empty'));
+                }
+                // Don't check response headers if url is local,
+                // because edge extension doesn't provide headers for such url
+                if (!isLocal(response.responseURL)) {
+                    const responseContentType = response.getResponseHeader('Content-Type');
+                    if (!responseContentType || !responseContentType.includes(contentType)) {
+                        reject(new Error(`Response content type should be: "${contentType}"`));
+                    }
+                }
+                const lines = responseText.trim().split(/[\r\n]+/);
+                resolve(lines);
+            };
+
+            const request = new XMLHttpRequest();
+
+            try {
+                request.open('GET', url);
+                request.setRequestHeader('Pragma', 'no-cache');
+                request.overrideMimeType(contentType);
+                request.mozBackgroundRequest = true;
+                request.onload = function () {
+                    onRequestLoad(request);
+                };
+                request.onerror = () => reject(new Error(`Request error happened: ${request.statusText || 'status text empty'}`));
+                request.onabort = () => reject(new Error(`Request was aborted with status text: ${request.statusText}`));
+                request.ontimeout = () => reject(new Error(`Request timed out with status text: ${request.statusText}`));
+
+                request.send(null);
+            } catch (ex) {
+                reject(ex);
+            }
+        });
+    };
+
+    /**
      * Downloads filter rules from external url
      *
      * @param {string} url Filter file absolute URL or relative path
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getExternalFile = (url) => {
-        return executeRequestAsync(url, 'text/plain');
+        return executeRequestAsyncFetch(url, 'text/plain');
     };
 
     /**
@@ -91,7 +145,10 @@ module.exports = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getLocalFile = (url) => {
-        return executeRequestAsync(url, 'text/plain');
+        if (typeof XMLHttpRequest !== 'undefined') {
+            return executeRequestAsyncXhr(url, 'text/plain');
+        }
+        throw new Error('XMLHttpRequest is undefined, getting local files inside service worker is not working');
     };
 
     return {
