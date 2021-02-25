@@ -37,16 +37,54 @@ module.exports = (() => {
     };
 
     /**
-     * Executes async request
+     * Executes async request via fetch
+     * fetch doesn't allow to download urls with file:// scheme
      *
      * @param url Url
      * @param contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsync = (url, contentType) => {
+    const executeRequestAsyncFetch = async (url, contentType) => {
+        const response = await fetch(url, {
+            cache: 'no-cache',
+            headers: {
+                Pragma: 'no-cache',
+                'Content-Type': contentType,
+            }
+        });
 
+        if (response.status !== 200 && response.status !== 0) {
+            throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
+        }
+
+        // Don't check response headers if url is local,
+        // because edge extension doesn't provide headers for such url
+        if (!isLocal(response.url)) {
+            const responseContentType = response.headers.get('Content-Type');
+            if (!responseContentType || !responseContentType.includes(contentType)) {
+                throw new Error(`Response content type should be: "${contentType}"`);
+            }
+        }
+
+        const responseText = await response.text();
+
+        if (!responseText) {
+            throw new Error('Response is empty');
+        }
+
+        return responseText.trim().split(/[\r\n]+/);
+    };
+
+    /**
+     * Executes async request via XMLHttpRequest
+     * XMLHttpRequest is undefined in the service worker
+     *
+     * @param {string} url Url
+     * @param {string} contentType Content type
+     * @returns {Promise}
+     */
+    const executeRequestAsyncXhr = (url, contentType) => {
         return new Promise((resolve, reject) => {
-
             const onRequestLoad = (response) => {
                 if (response.status !== 200 && response.status !== 0) {
                     reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
@@ -57,7 +95,6 @@ module.exports = (() => {
                 if (!responseText) {
                     reject(new Error('Response is empty'));
                 }
-
                 // Don't check response headers if url is local,
                 // because edge extension doesn't provide headers for such url
                 if (!isLocal(response.responseURL)) {
@@ -66,7 +103,6 @@ module.exports = (() => {
                         reject(new Error(`Response content type should be: "${contentType}"`));
                     }
                 }
-
                 const lines = responseText.trim().split(/[\r\n]+/);
                 resolve(lines);
             };
@@ -99,7 +135,7 @@ module.exports = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getExternalFile = (url) => {
-        return executeRequestAsync(url, 'text/plain');
+        return executeRequestAsyncFetch(url, 'text/plain');
     };
 
     /**
@@ -109,7 +145,10 @@ module.exports = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getLocalFile = (url) => {
-        return executeRequestAsync(url, 'text/plain');
+        if (typeof XMLHttpRequest !== 'undefined') {
+            return executeRequestAsyncXhr(url, 'text/plain');
+        }
+        throw new Error('XMLHttpRequest is undefined, getting local files inside service worker is not working');
     };
 
     return {
