@@ -598,10 +598,13 @@ QUnit.test('Test filter downloader - external download and includes with special
     const FilterDownloader = require('../src');
     assert.ok(FilterDownloader);
 
-    const filterOrigin = 'https://raw.githubusercontent.com/';
-    let rules = await FilterDownloader.download('https://raw.githubusercontent.com/DandelionSprout/adfilt/master/AnnoyancesList', FilterCompilerConditionsConstants);
+    const filterOrigin = 'https://testcases.adguard.com/';
+    let rules = await FilterDownloader.download('https://testcases.adguard.com/common-test-files/test-filter.txt', FilterCompilerConditionsConstants);
     let resolve = await FilterDownloader.resolveIncludes(rules, filterOrigin, FilterCompilerConditionsConstants);
     assert.ok(resolve);
+    assert.ok(resolve.length === 4);
+    assert.ok(resolve[0] === '||example1.org');
+    assert.ok(resolve[3] === '||example4.org');
 });
 
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
