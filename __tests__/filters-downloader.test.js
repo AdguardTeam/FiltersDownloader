@@ -594,6 +594,16 @@ QUnit.test('Test filter downloader - nested subdir includes', async (assert) => 
     assert.equal(resolve[2], 'sub_test');
 });
 
+QUnit.test('Test filter downloader - external download and includes with special characters', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    const filterOrigin = 'https://raw.githubusercontent.com/';
+    let rules = await FilterDownloader.download('https://raw.githubusercontent.com/DandelionSprout/adfilt/master/AnnoyancesList', FilterCompilerConditionsConstants);
+    let resolve = await FilterDownloader.resolveIncludes(rules, filterOrigin, FilterCompilerConditionsConstants);
+    assert.ok(resolve);
+});
+
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     let rules;
 
