@@ -1,0 +1,3 @@
+||example1.org
+||example2.org
+!#include subdir/worse filter's name, ever made.txt
