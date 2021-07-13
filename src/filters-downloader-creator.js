@@ -247,7 +247,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
         } else {
-            const url = decodeURI(line.substring(INCLUDE_DIRECTIVE.length).trim());
+            const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
             validateUrl(url, filterOrigin);
             return downloadFilterRules(url, filterOrigin, definedProperties);
         }
