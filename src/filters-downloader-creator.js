@@ -374,7 +374,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         if (filterUrlOrigin) {
             return filterUrlOrigin;
         } else {
-            return url.substring(0, url.lastIndexOf('/'));
+            let urlOrigin = url.substring(0, url.lastIndexOf('/'));
+
+            // DandelionSprout duplicates the filter directory in the include directive in his filters,
+            // so we have separate case to resolve origin url
+            if (urlOrigin.includes('https://raw.githubusercontent.com/DandelionSprout/')) {
+                return url.substring(0, urlOrigin.lastIndexOf('/'));
+            }
+
+            return urlOrigin;
         }
     };
 
