@@ -1,13 +1,22 @@
 {
   "name": "@adguard/filters-downloader",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Compiles filters source files",
   "main": "./src/index.js",
   "browser": "./src/index.browser.js",
-  "homepage": "https://adguard.com",
   "scripts": {
     "test": "node __tests__/testrunner.js"
   },
+  "author": "AdGuard",
+  "license": "GPL-3.0",
+  "repository": {
+      "type": "git",
+      "url": "git+https://github.com/AdguardTeam/FiltersDownloader.git"
+  },
+  "bugs": {
+      "url": "https://github.com/AdguardTeam/FiltersDownloader/issues"
+  },
+  "homepage": "https://github.com/AdguardTeam/FiltersDownloader#readme",
   "dependencies": {
     "axios": "^0.21.1"
   },
