@@ -5,7 +5,9 @@
   "main": "./src/index.js",
   "browser": "./src/index.browser.js",
   "scripts": {
-    "test": "node __tests__/testrunner.js"
+    "test": "node __tests__/testrunner.js",
+    "build": "node scripts/build-txt.js",
+    "increment": "yarn version --patch --no-git-tag-version"
   },
   "author": "AdGuard",
   "license": "GPL-3.0",
