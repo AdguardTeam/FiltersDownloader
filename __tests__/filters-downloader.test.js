@@ -14,6 +14,7 @@ const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/te
 const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_simple_include.txt';
 const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_nested_subdir_includes.txt';
 const URL3 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/test-filter.txt';
+const URL4 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_conditional_includes.txt';
 const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
@@ -634,8 +635,8 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     });
 });
 
-QUnit.test('Test filter downloader - "include" inside "if"', async (assert) => {
-    // case 1: positive condition and include with existing url
+QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
+    // case 1: positive condition and include existing url
     let rules = [
         'always_included_rule',
         '!#if adguard',
@@ -654,7 +655,7 @@ QUnit.test('Test filter downloader - "include" inside "if"', async (assert) => {
     assert.equal(compiled[1], 'test');
     assert.equal(compiled[2], 'if_adguard_included_rule');
 
-    // case 2: positive condition and include with non-existing url
+    // case 2: positive condition and include non-existing url
     rules = [
         'always_included_rule',
         '!#if adguard',
@@ -669,7 +670,7 @@ QUnit.test('Test filter downloader - "include" inside "if"', async (assert) => {
         assert.equal(e.message, `Response status for url ${URL404} is invalid: 404`);
     }
 
-    // case 3: negative condition and include with non-existing url
+    // case 3: negative condition and include non-existing url
     rules = [
         'always_included_rule',
         '!#if adguard_ext_firefox',
@@ -692,4 +693,16 @@ QUnit.test('Test filter downloader - "include" inside "if"', async (assert) => {
     compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 0);
+});
+
+QUnit.test('Test filter downloader - download filter with conditional includes', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    const downloaded = await FilterDownloader.download(URL4, FilterCompilerConditionsConstants);
+    assert.ok(downloaded);
+    assert.equal(downloaded.length, 3);
+    assert.equal(downloaded[0], 'test_main');
+    assert.equal(downloaded[1], 'test');
+    assert.equal(downloaded[2], 'example');
 });
