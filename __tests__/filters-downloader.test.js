@@ -633,3 +633,53 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         FilterDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants);
     });
 });
+
+QUnit.test('Test filter downloader - "include" inside "if"', async (assert) => {
+    // case 1: positive condition and include with existing url
+    let rules = [
+        'always_included_rule',
+        '!#if adguard',
+        `!#include ${URL0}`,
+        'if_adguard_included_rule',
+        '!#endif'
+    ];
+
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    let compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 3);
+    assert.equal(compiled[0], 'always_included_rule');
+    assert.equal(compiled[1], 'test');
+    assert.equal(compiled[2], 'if_adguard_included_rule');
+
+    // case 2: positive condition and include with non-existing url
+    rules = [
+        'always_included_rule',
+        '!#if adguard',
+        `!#include ${URL404}`,
+        'if_adguard_included_rule',
+        '!#endif'
+    ];
+
+    try {
+        await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    } catch (e) {
+        assert.equal(e.message, `Response status for url ${URL404} is invalid: 404`);
+    }
+
+    // case 3: negative condition and include with non-existing url
+    rules = [
+        'always_included_rule',
+        '!#if adguard_ext_firefox',
+        `!#include ${URL404}`,
+        'if_adguard_included_rule',
+        '!#endif'
+    ];
+
+    compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 1);
+    assert.equal(compiled[0], 'always_included_rule');
+});
