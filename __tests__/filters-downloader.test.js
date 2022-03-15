@@ -682,4 +682,14 @@ QUnit.test('Test filter downloader - "include" inside "if"', async (assert) => {
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
+
+    rules = [
+        '!#if non_existing_variable',
+        '!#include non_existing_file.txt',
+        '!#endif'
+    ];
+
+    compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 0);
 });
