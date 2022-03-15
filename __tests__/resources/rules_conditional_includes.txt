@@ -1,0 +1,9 @@
+!#if non_existing_variable
+!#include non_existing_file.txt
+!#endif
+!#if adguard
+!#include rules_simple_include.txt
+!#endif
+!#if !adguard_ext_firefox
+!#include rules_example.txt
+!#endif
