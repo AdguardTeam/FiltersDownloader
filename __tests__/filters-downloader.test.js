@@ -10,10 +10,11 @@ const FilterCompilerConditionsConstants = {
     adguard_ext_android_cb: false
 };
 
-const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules.txt';
-const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules_simple_include.txt';
-const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules_nested_subdir_includes.txt';
-const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__test__/resources/blabla.txt';
+const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules.txt';
+const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_simple_include.txt';
+const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_nested_subdir_includes.txt';
+const URL3 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/test-filter.txt';
+const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FiltersDownloader = require('../src');
@@ -592,6 +593,18 @@ QUnit.test('Test filter downloader - nested subdir includes', async (assert) => 
     assert.equal(resolve[0], 'test_parent');
     assert.equal(resolve[1], 'sub_test_main');
     assert.equal(resolve[2], 'sub_test');
+});
+
+QUnit.test('Test filter downloader - external download and includes with special characters', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    let rules = await FilterDownloader.download(URL3, FilterCompilerConditionsConstants);
+    let resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(resolve);
+    assert.equal(resolve.length, 4);
+    assert.equal(resolve[0], '||example1.org');
+    assert.equal(resolve[3], '||example4.org');
 });
 
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {

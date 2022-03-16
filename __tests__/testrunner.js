@@ -36,6 +36,10 @@
     const testCallback = function (err, report) {
         if (err) {
             console.error(err);
+            process.exit(1)
+        }
+        if (report.failed > 0) {
+            process.exit(1);
         }
     };
 

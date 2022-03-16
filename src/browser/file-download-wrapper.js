@@ -148,7 +148,10 @@ module.exports = (() => {
         if (typeof XMLHttpRequest !== 'undefined') {
             return executeRequestAsyncXhr(url, 'text/plain');
         }
-        throw new Error('XMLHttpRequest is undefined, getting local files inside service worker is not working');
+        if (typeof fetch !== 'undefined') {
+            return executeRequestAsyncFetch(url, 'text/plain');
+        }
+        throw new Error('XMLHttpRequest or fetch are undefined, getting local files inside service worker is not working');
     };
 
     return {

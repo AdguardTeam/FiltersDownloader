@@ -43,6 +43,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     const INCLUDE_DIRECTIVE = "!#include";
 
     const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
+    const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
 
     /**
      * Checks brackets in string
@@ -247,7 +248,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
         } else {
-            const url = decodeURI(line.substring(INCLUDE_DIRECTIVE.length).trim());
+            const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
             validateUrl(url, filterOrigin);
             return downloadFilterRules(url, filterOrigin, definedProperties);
         }
@@ -312,7 +313,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
-        if (REGEXP_ABSOLUTE_URL.test(url) || REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
+        if (REGEXP_EXTERNAL_ABSOLUTE_URL.test(url) || REGEXP_EXTERNAL_ABSOLUTE_URL.test(filterUrlOrigin)) {
             return externalDownload(url, filterUrlOrigin, definedProperties);
         } else {
             return getLocalFile(url, filterUrlOrigin, definedProperties);
@@ -388,7 +389,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     const download = (url, definedProperties) => {
         try {
             let filterUrlOrigin;
-            if (url && REGEXP_ABSOLUTE_URL.test(url)) {
+            if (url && REGEXP_EXTERNAL_ABSOLUTE_URL.test(url)) {
                 filterUrlOrigin = getFilterUrlOrigin(url)
             }
 
