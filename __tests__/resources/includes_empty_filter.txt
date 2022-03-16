@@ -1,0 +1,3 @@
+The test filter includes an empty filter
+
+!#include empty-filter.txt
