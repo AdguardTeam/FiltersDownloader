@@ -10,10 +10,12 @@ const FilterCompilerConditionsConstants = {
     adguard_ext_android_cb: false
 };
 
+// TODO remove test files and use local server for external downloading tests
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules.txt';
 const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_simple_include.txt';
 const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_nested_subdir_includes.txt';
 const URL3 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/test-filter.txt';
+const URL4 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_conditional_includes.txt';
 const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
@@ -632,4 +634,76 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     assert.throws(() => {
         FilterDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants);
     });
+});
+
+QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
+    // case 1: positive condition and include existing url
+    let rules = [
+        'always_included_rule',
+        '!#if adguard',
+        `!#include ${URL0}`,
+        'if_adguard_included_rule',
+        '!#endif'
+    ];
+
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    let compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 3);
+    assert.equal(compiled[0], 'always_included_rule');
+    assert.equal(compiled[1], 'test');
+    assert.equal(compiled[2], 'if_adguard_included_rule');
+
+    // case 2: positive condition and include non-existing url
+    rules = [
+        'always_included_rule',
+        '!#if adguard',
+        `!#include ${URL404}`,
+        'if_adguard_included_rule',
+        '!#endif'
+    ];
+
+    try {
+        await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    } catch (e) {
+        assert.equal(e.message, `Response status for url ${URL404} is invalid: 404`);
+    }
+
+    // case 3: negative condition and include non-existing url
+    rules = [
+        'always_included_rule',
+        '!#if adguard_ext_firefox',
+        `!#include ${URL404}`,
+        'if_adguard_included_rule',
+        '!#endif'
+    ];
+
+    compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 1);
+    assert.equal(compiled[0], 'always_included_rule');
+
+    rules = [
+        '!#if non_existing_variable',
+        '!#include non_existing_file.txt',
+        '!#endif'
+    ];
+
+    compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, 0);
+});
+
+QUnit.test('Test filter downloader - download filter with conditional includes', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    const downloaded = await FilterDownloader.download(URL4, FilterCompilerConditionsConstants);
+    assert.ok(downloaded);
+    assert.equal(downloaded.length, 3);
+    assert.equal(downloaded[0], 'test_main');
+    assert.equal(downloaded[1], 'test');
+    assert.equal(downloaded[2], 'example');
 });

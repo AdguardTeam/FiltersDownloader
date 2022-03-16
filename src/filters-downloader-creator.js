@@ -339,7 +339,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
             // Filter origin could change in case url contains subdirectories
             // https://github.com/AdguardTeam/FiltersRegistry/pull/256
             filterUrlOrigin = getFilterUrlOrigin(url, null);
-            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+
+            // Resolve 'if' conditions
+            const resolvedConditionsResult = resolveConditions(lines, definedProperties);
+
+            // Resolve 'includes' directives
+            return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
         });
     };
 
@@ -360,7 +365,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
 
         return FileDownloadWrapper.getLocalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
             filterUrlOrigin = getFilterUrlOrigin(url, null);
-            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+
+            // Resolve 'if' conditions
+            const resolvedConditionsResult = resolveConditions(lines, definedProperties);
+
+            // Resolve 'includes' directives
+            return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
         });
     };
 
