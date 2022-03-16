@@ -10,11 +10,12 @@ const FilterCompilerConditionsConstants = {
     adguard_ext_android_cb: false
 };
 
+// TODO remove test files and use local server for external downloading tests
 const URL0 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules.txt';
 const URL1 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_simple_include.txt';
 const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_nested_subdir_includes.txt';
 const URL3 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/test-filter.txt';
-const URL4 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_conditional_includes.txt';
+const URL4 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/master/__tests__/resources/rules_conditional_includes.txt';
 const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
