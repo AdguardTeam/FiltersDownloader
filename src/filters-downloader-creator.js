@@ -366,11 +366,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         return FileDownloadWrapper.getLocalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
             filterUrlOrigin = getFilterUrlOrigin(url, null);
 
-            // Resolve 'if' conditions
-            const resolvedConditionsResult = resolveConditions(lines, definedProperties);
+            if (definedProperties) {
+                // Resolve 'if' conditions and 'includes' directives
+                const resolvedConditionsResult = resolveConditions(lines, definedProperties);
+                return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
+            }
 
-            // Resolve 'includes' directives
-            return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
+            // Resolve only 'includes' directives
+            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
         });
     };
 
