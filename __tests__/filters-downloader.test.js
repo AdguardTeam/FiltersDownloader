@@ -17,6 +17,8 @@ const URL2 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/te
 const URL3 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/test-filter.txt';
 const URL4 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/rules_conditional_includes.txt';
 const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt';
+const URL_EMPTY = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/empty-filter.txt';
+const URL_INCLUDES_EMPTY = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__tests__/resources/includes_empty_filter.txt';
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FiltersDownloader = require('../src');
@@ -43,7 +45,7 @@ QUnit.test('Test filter download from external resource with relative url', asyn
 
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
-    assert.equal(compiled[compiled.length-1], 'test');
+    assert.equal(compiled[compiled.length - 1], 'test');
 });
 
 QUnit.test('Test filter download from external resource with relative url and subdir', async (assert) => {
@@ -437,10 +439,10 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
     rules = [
         'zero_level_rule',
         '!#if adguard',
-            'first_level_condition',
-            '!#if adguard',
-                'second_level_condition',
-            '!#endif',
+        'first_level_condition',
+        '!#if adguard',
+        'second_level_condition',
+        '!#endif',
         '!#endif'
     ];
 
@@ -457,13 +459,13 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
     rules = [
         'zero_level_rule',
         '!#if adguard',
-            'first_level_condition',
-            '!#if adguard',
-                'second_level_condition',
-                '!#if !adguard',
-                    'third_level_condition',
-                '!#endif',
-            '!#endif',
+        'first_level_condition',
+        '!#if adguard',
+        'second_level_condition',
+        '!#if !adguard',
+        'third_level_condition',
+        '!#endif',
+        '!#endif',
         '!#endif'
     ];
 
@@ -477,13 +479,13 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
     rules = [
         'zero_level_rule',
         '!#if adguard',
-            'first_level_condition',
-            '!#if adguard',
-                'second_level_1_condition',
-            '!#endif',
-            '!#if adguard',
-                'second_level_2_condition',
-            '!#endif',
+        'first_level_condition',
+        '!#if adguard',
+        'second_level_1_condition',
+        '!#endif',
+        '!#if adguard',
+        'second_level_2_condition',
+        '!#endif',
         '!#endif'
     ];
 
@@ -706,4 +708,22 @@ QUnit.test('Test filter downloader - download filter with conditional includes',
     assert.equal(downloaded[0], 'test_main');
     assert.equal(downloaded[1], 'test');
     assert.equal(downloaded[2], 'example');
+});
+
+QUnit.test('Test empty filter downloader', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+    assert.rejects(FilterDownloader.download(URL_EMPTY, FilterCompilerConditionsConstants), 'Response is empty')
+});
+
+QUnit.test('Test filter downloader includes an empty filter', async (assert) => {
+    const FiltersDownloader = require('../src');
+    assert.ok(FiltersDownloader);
+
+    let compiled = await FiltersDownloader.download(URL_INCLUDES_EMPTY, FilterCompilerConditionsConstants);
+
+    assert.ok(compiled);
+    assert.equal(compiled.length, 2);
+    assert.equal(compiled[0], 'The test filter includes an empty filter');
+    assert.equal(compiled[1], '');
 });

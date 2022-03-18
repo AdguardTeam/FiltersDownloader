@@ -68,10 +68,6 @@ module.exports = (() => {
 
         const responseText = await response.text();
 
-        if (!responseText) {
-            throw new Error('Response is empty');
-        }
-
         return responseText.trim().split(/[\r\n]+/);
     };
 
@@ -92,9 +88,6 @@ module.exports = (() => {
 
                 const responseText = response.responseText ? response.responseText : response.data;
 
-                if (!responseText) {
-                    reject(new Error('Response is empty'));
-                }
                 // Don't check response headers if url is local,
                 // because edge extension doesn't provide headers for such url
                 if (!isLocal(response.responseURL)) {

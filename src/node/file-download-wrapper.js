@@ -69,9 +69,6 @@ module.exports = (() => {
 
                 const responseText = response.responseText ? response.responseText : response.data;
 
-                if (!responseText) {
-                    reject(new Error("Response is empty"));
-                }
                 resolve(responseText.trim().split(/[\r\n]+/));
             }).catch(err => {
                 reject(err);

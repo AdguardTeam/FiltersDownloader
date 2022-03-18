@@ -23,6 +23,6 @@
     "axios": "^0.21.1"
   },
   "devDependencies": {
-    "node-qunit": "^1.0.0"
+    "node-qunit": "^2.0.0"
   }
 }

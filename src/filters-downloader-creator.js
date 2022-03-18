@@ -139,7 +139,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
             const innerExpression = expression.substring(openBracketIndex + 1, endBracketIndex);
             const innerResult = resolveExpression(innerExpression, definedProperties);
             const resolvedInner = expression.substring(0, openBracketIndex) +
-                    innerResult + expression.substring(endBracketIndex + 1);
+                innerResult + expression.substring(endBracketIndex + 1);
 
             return resolveExpression(resolvedInner, definedProperties);
         }
@@ -152,10 +152,10 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         const indexOfNotOperator = expression.indexOf(CONDITION_OPERATOR_NOT);
 
         if (indexOfOrOperator !== -1) {
-            result  = resolveExpression(expression.substring(0, indexOfOrOperator - 1), definedProperties) ||
+            result = resolveExpression(expression.substring(0, indexOfOrOperator - 1), definedProperties) ||
                 resolveExpression(expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length), definedProperties);
         } else if (indexOfAndOperator !== -1) {
-            result  = resolveExpression(expression.substring(0, indexOfAndOperator - 1), definedProperties) &&
+            result = resolveExpression(expression.substring(0, indexOfAndOperator - 1), definedProperties) &&
                 resolveExpression(expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length), definedProperties);
         } else if (indexOfNotOperator === 0) {
             result = !resolveExpression(expression.substring(CONDITION_OPERATOR_NOT.length), definedProperties);
@@ -396,14 +396,21 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const download = (url, definedProperties) => {
+    const download = async (url, definedProperties) => {
         try {
             let filterUrlOrigin;
             if (url && REGEXP_EXTERNAL_ABSOLUTE_URL.test(url)) {
                 filterUrlOrigin = getFilterUrlOrigin(url)
             }
 
-            return downloadFilterRules(url, filterUrlOrigin, definedProperties);
+            const response = await downloadFilterRules(url, filterUrlOrigin, definedProperties);
+
+            // only included filters can be empty
+            if (response && response.join().trim() == '') {
+                throw new Error("Response is empty");
+            }
+
+            return response;
         } catch (ex) {
             return Promise.reject(ex);
         }
