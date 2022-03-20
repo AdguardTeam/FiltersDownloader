@@ -346,8 +346,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
                 return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
             }
 
-            // Resolve only 'includes' directives
-            return resolveIncludes(lines, filterUrlOrigin, definedProperties);
+            return lines;
         });
     };
 
