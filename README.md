@@ -3,6 +3,7 @@
 ## Filters downloader package
 
 This utility tool resolves preprocessor directives in filter content.
+Conditions and includes will be resolved only if 'definedProperties' are provided for `compile` or `download` methods.
 
 ### Directives syntax
 
