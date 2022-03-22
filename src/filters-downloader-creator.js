@@ -185,6 +185,10 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * @param definedProperties
      */
     const resolveConditions = (rules, definedProperties) => {
+        if (!definedProperties) {
+            return rules;
+        }
+
         let result = [];
 
         for (let i = 0; i < rules.length; i++) {
@@ -340,10 +344,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
             // https://github.com/AdguardTeam/FiltersRegistry/pull/256
             filterUrlOrigin = getFilterUrlOrigin(url, null);
 
-            // Resolve 'if' conditions
+            // Resolve 'if' conditions and 'includes' directives
             const resolvedConditionsResult = resolveConditions(lines, definedProperties);
-
-            // Resolve 'includes' directives
             return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
         });
     };
@@ -366,10 +368,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         return FileDownloadWrapper.getLocalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
             filterUrlOrigin = getFilterUrlOrigin(url, null);
 
-            // Resolve 'if' conditions
+            // Resolve 'if' conditions and 'includes' directives
             const resolvedConditionsResult = resolveConditions(lines, definedProperties);
-
-            // Resolve 'includes' directives
             return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
         });
     };
