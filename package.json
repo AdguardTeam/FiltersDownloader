@@ -3,7 +3,17 @@
   "version": "1.1.12",
   "description": "Compiles filters source files",
   "main": "./src/index.js",
-  "browser": "./src/index.browser.js",
+  "typings": "./src/index.d.ts",
+  "exports": {
+    "./browser": "./src/index.browser.js"
+  },
+  "typesVersions": {
+    "*": {
+      "browser": [
+        "src/index.d.ts"
+      ]
+    }
+  },
   "scripts": {
     "test": "node __tests__/testrunner.js",
     "build": "node scripts/build-txt.js",
