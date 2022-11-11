@@ -5,6 +5,7 @@
   "main": "./src/index.js",
   "typings": "./src/index.d.ts",
   "exports": {
+    ".": "./src/index.js",
     "./browser": "./src/index.browser.js"
   },
   "typesVersions": {
