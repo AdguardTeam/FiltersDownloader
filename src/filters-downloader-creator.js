@@ -266,33 +266,31 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const resolveIncludes = (rules, filterOrigin, definedProperties) => {
-        const dfds = [];
+    const resolveIncludes = async (rules, filterOrigin, definedProperties) => {
+        const promises = rules.map(rule => {
+            return resolveInclude(rule, filterOrigin, definedProperties);
+        });
 
-        for (let rule of rules) {
-            dfds.push(resolveInclude(rule, filterOrigin, definedProperties));
+        let result = [];
+        // We do not use here Promise.all because it freezes the chromium browsers and electron built on it, if there
+        // are more than 1_100_00 promises. Also, we consider that wa can afford promises to be resolved sequentially.
+        for (let i = 0; i < promises.length; i++) {
+            const resolved = await promises[i];
+            if (Array.isArray(resolved)) {
+                result = result.concat(resolved);
+            } else {
+                result.push(resolved);
+            }
         }
 
-        return Promise.all(dfds).then((values) => {
-            let result = [];
-
-            values.forEach(function (v) {
-                if (Array.isArray(v)) {
-                    result = result.concat(v);
-                } else {
-                    result.push(v);
-                }
-            });
-
-            return result;
-        });
+        return result;
     };
 
     /**
      * Compiles filter content
      *
      * @param {Array} rules Array of strings
-     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?string} filterOrigin Filter file URL origin or null
      * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
@@ -378,7 +376,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * Get the `filterUrlOrigin` from url for relative path resolve
      *
      * @param {string} url Filter file URL
-     * @param {string|null} filterUrlOrigin  existing origin url
+     * @param {string|null} [filterUrlOrigin]  existing origin url
      * @returns {string} valid origin url
      */
     const getFilterUrlOrigin = (url, filterUrlOrigin) => {

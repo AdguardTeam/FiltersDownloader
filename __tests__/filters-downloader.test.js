@@ -623,9 +623,7 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         '!#include resources/not_found_file.txt'
     ];
 
-    assert.throws(() => {
-        FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
-    });
+    assert.rejects(FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants));
 
     // different origin
     rules = [
@@ -633,9 +631,7 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         '!#include http://filters.adtidy.org/windows/filters/14.txt'
     ];
 
-    assert.throws(() => {
-        FilterDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants);
-    });
+    assert.rejects(FilterDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
 });
 
 QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
