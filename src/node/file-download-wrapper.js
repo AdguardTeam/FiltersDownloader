@@ -27,24 +27,20 @@ const fs = require('fs');
  * @type {{getLocalFile, getExternalFile}}
  */
 module.exports = (() => {
-    "use strict";
-
     /**
      * Executes async request
      *
      * @param url Url
      * @returns {Promise}
      */
-    const executeRequestAsync = (url) => {
-        return axios({
-            method: 'get',
-            url: url,
-            headers: {
-                'Pragma': 'no-cache'
-            },
-            validateStatus: null,
-        });
-    };
+    const executeRequestAsync = (url) => axios({
+        method: 'get',
+        url,
+        headers: {
+            Pragma: 'no-cache',
+        },
+        validateStatus: null,
+    });
 
     /**
      * Downloads filter rules from external url
@@ -53,7 +49,6 @@ module.exports = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getExternalFile = (url) => {
-
         const contentType = 'text/plain';
 
         return new Promise((resolve, reject) => {
@@ -70,7 +65,7 @@ module.exports = (() => {
                 const responseText = response.responseText ? response.responseText : response.data;
 
                 resolve(responseText.trim().split(/[\r\n]+/));
-            }).catch(err => {
+            }).catch((err) => {
                 reject(err);
             });
         });
@@ -90,7 +85,7 @@ module.exports = (() => {
     };
 
     return {
-        getLocalFile: getLocalFile,
-        getExternalFile: getExternalFile
-    }
+        getLocalFile,
+        getExternalFile,
+    };
 })();

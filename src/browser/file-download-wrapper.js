@@ -23,8 +23,6 @@
  * @type {{getLocalFile, getExternalFile}}
  */
 module.exports = (() => {
-    'use strict';
-
     /**
      * If url protocol is not http or https return true, else false
      * @param url
@@ -50,7 +48,7 @@ module.exports = (() => {
             headers: {
                 Pragma: 'no-cache',
                 'Content-Type': contentType,
-            }
+            },
         });
 
         if (response.status !== 200 && response.status !== 0) {
@@ -79,47 +77,53 @@ module.exports = (() => {
      * @param {string} contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsyncXhr = (url, contentType) => {
-        return new Promise((resolve, reject) => {
-            const onRequestLoad = (response) => {
-                if (response.status !== 200 && response.status !== 0) {
-                    reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
-                }
-
-                const responseText = response.responseText ? response.responseText : response.data;
-
-                // Don't check response headers if url is local,
-                // because edge extension doesn't provide headers for such url
-                if (!isLocal(response.responseURL)) {
-                    const responseContentType = response.getResponseHeader('Content-Type');
-                    if (!responseContentType || !responseContentType.includes(contentType)) {
-                        reject(new Error(`Response content type should be: "${contentType}"`));
-                    }
-                }
-                const lines = responseText.trim().split(/[\r\n]+/);
-                resolve(lines);
-            };
-
-            const request = new XMLHttpRequest();
-
-            try {
-                request.open('GET', url);
-                request.setRequestHeader('Pragma', 'no-cache');
-                request.overrideMimeType(contentType);
-                request.mozBackgroundRequest = true;
-                request.onload = function () {
-                    onRequestLoad(request);
-                };
-                request.onerror = () => reject(new Error(`Request error happened: ${request.statusText || 'status text empty'}`));
-                request.onabort = () => reject(new Error(`Request was aborted with status text: ${request.statusText}`));
-                request.ontimeout = () => reject(new Error(`Request timed out with status text: ${request.statusText}`));
-
-                request.send(null);
-            } catch (ex) {
-                reject(ex);
+    const executeRequestAsyncXhr = (url, contentType) => new Promise((resolve, reject) => {
+        const onRequestLoad = (response) => {
+            if (response.status !== 200 && response.status !== 0) {
+                reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
             }
-        });
-    };
+
+            const responseText = response.responseText ? response.responseText : response.data;
+
+            // Don't check response headers if url is local,
+            // because edge extension doesn't provide headers for such url
+            if (!isLocal(response.responseURL)) {
+                const responseContentType = response.getResponseHeader('Content-Type');
+                if (!responseContentType || !responseContentType.includes(contentType)) {
+                    reject(new Error(`Response content type should be: "${contentType}"`));
+                }
+            }
+            const lines = responseText.trim().split(/[\r\n]+/);
+            resolve(lines);
+        };
+
+        // eslint-disable-next-line no-undef
+        const request = new XMLHttpRequest();
+
+        try {
+            request.open('GET', url);
+            request.setRequestHeader('Pragma', 'no-cache');
+            request.overrideMimeType(contentType);
+            request.mozBackgroundRequest = true;
+            // eslint-disable-next-line func-names
+            request.onload = function () {
+                onRequestLoad(request);
+            };
+            request.onerror = () => reject(
+                new Error(`Request error happened: ${request.statusText || 'status text empty'}`),
+            );
+            request.onabort = () => reject(
+                new Error(`Request was aborted with status text: ${request.statusText}`),
+            );
+            request.ontimeout = () => reject(
+                new Error(`Request timed out with status text: ${request.statusText}`),
+            );
+
+            request.send(null);
+        } catch (ex) {
+            reject(ex);
+        }
+    });
 
     /**
      * Downloads filter rules from external url
@@ -127,9 +131,7 @@ module.exports = (() => {
      * @param {string} url Filter file absolute URL or relative path
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const getExternalFile = (url) => {
-        return executeRequestAsyncFetch(url, 'text/plain');
-    };
+    const getExternalFile = (url) => executeRequestAsyncFetch(url, 'text/plain');
 
     /**
      * Get filter rules from local path
@@ -144,11 +146,12 @@ module.exports = (() => {
         if (typeof fetch !== 'undefined') {
             return executeRequestAsyncFetch(url, 'text/plain');
         }
+        // eslint-disable-next-line max-len
         throw new Error('XMLHttpRequest or fetch are undefined, getting local files inside service worker is not working');
     };
 
     return {
-        getLocalFile: getLocalFile,
-        getExternalFile: getExternalFile,
+        getLocalFile,
+        getExternalFile,
     };
 })();

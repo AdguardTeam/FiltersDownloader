@@ -1,39 +1,43 @@
 {
-  "name": "@adguard/filters-downloader",
-  "version": "1.1.16",
-  "description": "Compiles filters source files",
-  "main": "./src/index.js",
-  "typings": "./src/index.d.ts",
-  "exports": {
-    ".": "./src/index.js",
-    "./browser": "./src/index.browser.js"
-  },
-  "typesVersions": {
-    "*": {
-      "browser": [
-        "src/index.d.ts"
-      ]
+    "name": "@adguard/filters-downloader",
+    "version": "1.1.16",
+    "description": "Compiles filters source files",
+    "main": "./src/index.js",
+    "typings": "./src/index.d.ts",
+    "exports": {
+        ".": "./src/index.js",
+        "./browser": "./src/index.browser.js"
+    },
+    "typesVersions": {
+        "*": {
+            "browser": [
+                "src/index.d.ts"
+            ]
+        }
+    },
+    "scripts": {
+        "build": "node scripts/build-txt.js",
+        "test": "node __tests__/testrunner.js",
+        "lint": "eslint .",
+        "increment": "yarn version --patch --no-git-tag-version"
+    },
+    "author": "AdGuard",
+    "license": "GPL-3.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/AdguardTeam/FiltersDownloader.git"
+    },
+    "bugs": {
+        "url": "https://github.com/AdguardTeam/FiltersDownloader/issues"
+    },
+    "homepage": "https://github.com/AdguardTeam/FiltersDownloader#readme",
+    "dependencies": {
+        "axios": "^0.21.1"
+    },
+    "devDependencies": {
+        "eslint": "^8.50.0",
+        "eslint-config-airbnb-base": "^15.0.0",
+        "eslint-plugin-import": "^2.28.1",
+        "node-qunit": "^2.0.0"
     }
-  },
-  "scripts": {
-    "test": "node __tests__/testrunner.js",
-    "build": "node scripts/build-txt.js",
-    "increment": "yarn version --patch --no-git-tag-version"
-  },
-  "author": "AdGuard",
-  "license": "GPL-3.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AdguardTeam/FiltersDownloader.git"
-  },
-  "bugs": {
-    "url": "https://github.com/AdguardTeam/FiltersDownloader/issues"
-  },
-  "homepage": "https://github.com/AdguardTeam/FiltersDownloader#readme",
-  "dependencies": {
-    "axios": "^0.21.1"
-  },
-  "devDependencies": {
-    "node-qunit": "^2.0.0"
-  }
 }

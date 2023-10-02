@@ -19,9 +19,11 @@
  * The utility tool resolves preprocessor directives in filter content.
  *
  * Directives syntax:
- * !#if, !#endif - filters maintainers can use these conditions to supply different rules depending on the ad blocker type.
- * condition - just like in some popular programming languages, pre-processor conditions are based on constants declared by ad blockers. Ad blocker authors define on their own what exact constants do they declare.
- * !#include - this directive allows to include contents of a specified file into the filter.
+ * - `!#if`, `!#endif` — filters maintainers can use these conditions to supply different rules
+ *   depending on the ad blocker type.
+ * - `condition` — just like in some popular programming languages, pre-processor conditions are based on constants
+ *   declared by ad blockers. Ad blocker authors define on their own what exact constants do they declare.
+ * - `!#include` — this directive allows to include contents of a specified file into the filter.
  *
  * Condition constants should be declared in FilterCompilerConditionsConstants
  *
@@ -29,18 +31,16 @@
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917
  */
 const FiltersDownloaderCreator = (FileDownloadWrapper) => {
-    "use strict";
+    const CONDITION_DIRECTIVE_START = '!#if';
+    const CONDITION_DIRECTIVE_END = '!#endif';
 
-    const CONDITION_DIRECTIVE_START = "!#if";
-    const CONDITION_DIRECTIVE_END = "!#endif";
+    const CONDITION_OPERATOR_NOT = '!';
+    const CONDITION_OPERATOR_AND = '&&';
+    const CONDITION_OPERATOR_OR = '||';
+    const CONDITION_BRACKET_OPEN_CHAR = '(';
+    const CONDITION_BRACKET_CLOSE_CHAR = ')';
 
-    const CONDITION_OPERATOR_NOT = "!";
-    const CONDITION_OPERATOR_AND = "&&";
-    const CONDITION_OPERATOR_OR = "||";
-    const CONDITION_BRACKET_OPEN_CHAR = "(";
-    const CONDITION_BRACKET_CLOSE_CHAR = ")";
-
-    const INCLUDE_DIRECTIVE = "!#include";
+    const INCLUDE_DIRECTIVE = '!#include';
 
     const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
@@ -52,13 +52,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      */
     const checkBracketsBalance = (str) => {
         let depth = 0;
-        for (let i in str) {
+        // TODO: remove eslint exception later
+        // eslint-disable-next-line guard-for-in, no-restricted-syntax
+        for (const i in str) {
             if (str[i] === CONDITION_BRACKET_OPEN_CHAR) {
                 // if the char is an opening parenthesis then we increase the depth
-                depth++;
+                depth += 1;
             } else if (str[i] === CONDITION_BRACKET_CLOSE_CHAR) {
                 // if the char is an closing parenthesis then we decrease the depth
-                depth--;
+                depth -= 1;
             }
             //  if the depth is negative we have a closing parenthesis
             //  before any matching opening parenthesis
@@ -75,6 +77,37 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     };
 
     /**
+     * Parse url
+     *
+     * @param {string} url
+     * @returns {object}  parsed url data
+     */
+    const parseURL = (url) => {
+        // eslint-disable-next-line no-use-before-define
+        if (typeof URL !== 'undefined') {
+            // eslint-disable-next-line no-use-before-define
+            return new URL(url);
+        }
+        // eslint-disable-next-line global-require
+        const { URL } = require('url');
+        return new URL(url);
+    };
+
+    /**
+     * Get the `filterUrlOrigin` from url for relative path resolve
+     *
+     * @param {string} url Filter file URL
+     * @param {string|null} [filterUrlOrigin]  existing origin url
+     * @returns {string} valid origin url
+     */
+    const getFilterUrlOrigin = (url, filterUrlOrigin) => {
+        if (filterUrlOrigin) {
+            return filterUrlOrigin;
+        }
+        return url.substring(0, url.lastIndexOf('/'));
+    };
+
+    /**
      * Finds end of condition block started with startIndex
      *
      * @param rules
@@ -82,12 +115,11 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      */
     const findConditionEnd = (rules, startIndex) => {
         const stack = [];
-        for (let j = startIndex; j < rules.length; j++) {
-            let internalRule = rules[j];
+        for (let j = startIndex; j < rules.length; j += 1) {
+            const internalRule = rules[j];
 
             if (internalRule.startsWith(CONDITION_DIRECTIVE_START)) {
                 stack.push(CONDITION_DIRECTIVE_START);
-
             } else if (internalRule.startsWith(CONDITION_DIRECTIVE_END)) {
                 if (stack.length > 0) {
                     stack.pop();
@@ -111,35 +143,35 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
             throw new Error('Invalid directives: Empty condition');
         }
 
-        let trim = expression.trim();
-        return trim === "true" || definedProperties[trim];
+        const trim = expression.trim();
+        return trim === 'true' || definedProperties[trim];
     };
 
     /**
      * Calculates conditional expression
      *
-     * @param expression
+     * @param rawExpression
      * @param definedProperties
      */
-    const resolveExpression = (expression, definedProperties) => {
-        if (!expression) {
+    const resolveExpression = (rawExpression, definedProperties) => {
+        if (!rawExpression) {
             throw new Error('Invalid directives: Empty condition');
         }
 
-        expression = expression.trim();
+        const expression = rawExpression.trim();
 
         if (!checkBracketsBalance(expression)) {
-            throw new Error('Invalid directives: Incorrect brackets: ' + expression);
+            throw new Error(`Invalid directives: Incorrect brackets: ${expression}`);
         }
 
-        //Replace bracketed expressions
+        // Replace bracketed expressions
         const openBracketIndex = expression.lastIndexOf(CONDITION_BRACKET_OPEN_CHAR);
         if (openBracketIndex !== -1) {
             const endBracketIndex = expression.indexOf(CONDITION_BRACKET_CLOSE_CHAR, openBracketIndex);
             const innerExpression = expression.substring(openBracketIndex + 1, endBracketIndex);
             const innerResult = resolveExpression(innerExpression, definedProperties);
-            const resolvedInner = expression.substring(0, openBracketIndex) +
-                innerResult + expression.substring(endBracketIndex + 1);
+            const resolvedInner = expression.substring(0, openBracketIndex)
+                + innerResult + expression.substring(endBracketIndex + 1);
 
             return resolveExpression(resolvedInner, definedProperties);
         }
@@ -152,11 +184,21 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         const indexOfNotOperator = expression.indexOf(CONDITION_OPERATOR_NOT);
 
         if (indexOfOrOperator !== -1) {
-            result = resolveExpression(expression.substring(0, indexOfOrOperator - 1), definedProperties) ||
-                resolveExpression(expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length), definedProperties);
+            result = resolveExpression(
+                expression.substring(0, indexOfOrOperator - 1),
+                definedProperties,
+            ) || resolveExpression(
+                expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length),
+                definedProperties,
+            );
         } else if (indexOfAndOperator !== -1) {
-            result = resolveExpression(expression.substring(0, indexOfAndOperator - 1), definedProperties) &&
-                resolveExpression(expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length), definedProperties);
+            result = resolveExpression(
+                expression.substring(0, indexOfAndOperator - 1),
+                definedProperties,
+            ) && resolveExpression(
+                expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length),
+                definedProperties,
+            );
         } else if (indexOfNotOperator === 0) {
             result = !resolveExpression(expression.substring(CONDITION_OPERATOR_NOT.length), definedProperties);
         } else {
@@ -191,18 +233,18 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
 
         let result = [];
 
-        for (let i = 0; i < rules.length; i++) {
-            let rule = rules[i];
+        for (let i = 0; i < rules.length; i += 1) {
+            const rule = rules[i];
 
             if (rule.indexOf(CONDITION_DIRECTIVE_START) === 0) {
-                let endLineIndex = findConditionEnd(rules, i + 1);
+                const endLineIndex = findConditionEnd(rules, i + 1);
                 if (endLineIndex === -1) {
-                    throw new Error('Invalid directives: Condition end not found: ' + rule);
+                    throw new Error(`Invalid directives: Condition end not found: ${rule}`);
                 }
 
-                let conditionValue = resolveCondition(rule, definedProperties);
+                const conditionValue = resolveCondition(rule, definedProperties);
                 if (conditionValue) {
-                    let rulesUnderCondition = rules.slice(i + 1, endLineIndex);
+                    const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
                     // Resolve inner conditions in recursion
                     result = result.concat(resolveConditions(rulesUnderCondition, definedProperties));
                 }
@@ -211,7 +253,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
                 i = endLineIndex;
             } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
                 // Found condition end without start
-                throw new Error('Invalid directives: Found unexpected condition end: ' + rule);
+                throw new Error(`Invalid directives: Found unexpected condition end: ${rule}`);
             } else {
                 result.push(rule);
             }
@@ -226,15 +268,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * @param url
      * @param filterUrlOrigin
      */
-    const validateUrl = function (url, filterUrlOrigin) {
+    const validateUrl = (url, filterUrlOrigin) => {
         if (filterUrlOrigin) {
             if (REGEXP_ABSOLUTE_URL.test(url)) {
-
                 // Include url is absolute
                 const urlOrigin = parseURL(url).origin;
                 const filterOrigin = parseURL(filterUrlOrigin).origin;
                 if (urlOrigin !== filterOrigin) {
-                    throw new Error('Include url is rejected with origin: ' + urlOrigin);
+                    throw new Error(`Include url is rejected with origin: ${urlOrigin}`);
                 }
             }
         }
@@ -245,17 +286,18 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      *
      * @param {string} line
      * @param {?string} filterOrigin Filter file URL origin or null
-     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {?object} definedProperties An object with the defined properties.
+     * These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const resolveInclude = function (line, filterOrigin, definedProperties) {
+    const resolveInclude = (line, filterOrigin, definedProperties) => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
-        } else {
-            const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
-            validateUrl(url, filterOrigin);
-            return downloadFilterRules(url, filterOrigin, definedProperties);
         }
+        const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
+        validateUrl(url, filterOrigin);
+        // eslint-disable-next-line no-use-before-define
+        return downloadFilterRules(url, filterOrigin, definedProperties);
     };
 
     /**
@@ -263,18 +305,18 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      *
      * @param {Array} rules   array of rules
      * @param {?string} filterOrigin Filter file URL origin or null
-     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {?object} definedProperties An object with the defined properties.
+     * These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const resolveIncludes = async (rules, filterOrigin, definedProperties) => {
-        const promises = rules.map(rule => {
-            return resolveInclude(rule, filterOrigin, definedProperties);
-        });
+        const promises = rules.map((rule) => resolveInclude(rule, filterOrigin, definedProperties));
 
         let result = [];
         // We do not use here Promise.all because it freezes the chromium browsers and electron built on it, if there
         // are more than 1_100_00 promises. Also, we consider that wa can afford promises to be resolved sequentially.
-        for (let i = 0; i < promises.length; i++) {
+        for (let i = 0; i < promises.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
             const resolved = await promises[i];
             if (Array.isArray(resolved)) {
                 result = result.concat(resolved);
@@ -287,11 +329,42 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     };
 
     /**
+     * Downloads filter rules from external url
+     *
+     * @param {string} url Filter file absolute URL or relative path
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?object} definedProperties An object with the defined properties.
+     * These properties might be used in pre-processor directives (`#if`, etc)
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     */
+    const externalDownload = (url, filterUrlOrigin, definedProperties) => {
+        // getting absolute url for external file with relative url
+        if (!REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
+            // TODO: remove eslint exception later
+            // eslint-disable-next-line no-param-reassign
+            url = `${filterUrlOrigin}/${url}`;
+        }
+
+        return FileDownloadWrapper.getExternalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
+            // Filter origin could change in case url contains subdirectories
+            // https://github.com/AdguardTeam/FiltersRegistry/pull/256
+            // TODO: remove eslint exception later
+            // eslint-disable-next-line no-param-reassign
+            filterUrlOrigin = getFilterUrlOrigin(url, null);
+
+            // Resolve 'if' conditions and 'includes' directives
+            const resolvedConditionsResult = resolveConditions(lines, definedProperties);
+            return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
+        });
+    };
+
+    /**
      * Compiles filter content
      *
      * @param {Array} rules Array of strings
      * @param {?string} filterOrigin Filter file URL origin or null
-     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {?object} definedProperties An object with the defined properties.
+     * These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const compile = (rules, filterOrigin, definedProperties) => {
@@ -307,48 +380,6 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     };
 
     /**
-     * Downloads filter rules from url
-     *
-     * @param {string} url Filter file URL
-     * @param {?string} filterUrlOrigin Filter file URL origin or null
-     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
-     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
-     */
-    const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
-        if (REGEXP_EXTERNAL_ABSOLUTE_URL.test(url) || REGEXP_EXTERNAL_ABSOLUTE_URL.test(filterUrlOrigin)) {
-            return externalDownload(url, filterUrlOrigin, definedProperties);
-        } else {
-            return getLocalFile(url, filterUrlOrigin, definedProperties);
-        }
-    };
-
-    /**
-     * Downloads filter rules from external url
-     *
-     * @param {string} url Filter file absolute URL or relative path
-     * @param {?string} filterUrlOrigin Filter file URL origin or null
-     * @param {?object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
-     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
-     */
-    const externalDownload = (url, filterUrlOrigin, definedProperties) => {
-
-        // getting absolute url for external file with relative url
-        if (!REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin)) {
-            url = `${filterUrlOrigin}/${url}`;
-        }
-
-        return FileDownloadWrapper.getExternalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
-            // Filter origin could change in case url contains subdirectories
-            // https://github.com/AdguardTeam/FiltersRegistry/pull/256
-            filterUrlOrigin = getFilterUrlOrigin(url, null);
-
-            // Resolve 'if' conditions and 'includes' directives
-            const resolvedConditionsResult = resolveConditions(lines, definedProperties);
-            return resolveIncludes(resolvedConditionsResult, filterUrlOrigin, definedProperties);
-        });
-    };
-
-    /**
      * Get filter rules from local path
      *
      * @param {string} url local path
@@ -358,12 +389,18 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      */
     const getLocalFile = (url, filterUrlOrigin, definedProperties) => {
         if (filterUrlOrigin) {
+            // TODO: remove eslint exception later
+            // eslint-disable-next-line no-param-reassign
             url = `${filterUrlOrigin}/${url}`;
         }
 
+        // TODO: remove eslint exception later
+        // eslint-disable-next-line no-param-reassign
         filterUrlOrigin = getFilterUrlOrigin(url, filterUrlOrigin);
 
         return FileDownloadWrapper.getLocalFile(url, filterUrlOrigin, definedProperties).then((lines) => {
+            // TODO: remove eslint exception later
+            // eslint-disable-next-line no-param-reassign
             filterUrlOrigin = getFilterUrlOrigin(url, null);
 
             // Resolve 'if' conditions and 'includes' directives
@@ -373,39 +410,41 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     };
 
     /**
-     * Get the `filterUrlOrigin` from url for relative path resolve
+     * Downloads filter rules from url
      *
      * @param {string} url Filter file URL
-     * @param {string|null} [filterUrlOrigin]  existing origin url
-     * @returns {string} valid origin url
+     * @param {?string} filterUrlOrigin Filter file URL origin or null
+     * @param {?object} definedProperties An object with the defined properties.
+     * These properties might be used in pre-processor directives (`#if`, etc)
+     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const getFilterUrlOrigin = (url, filterUrlOrigin) => {
-        if (filterUrlOrigin) {
-            return filterUrlOrigin;
-        } else {
-            return url.substring(0, url.lastIndexOf('/'));
+    const downloadFilterRules = (url, filterUrlOrigin, definedProperties) => {
+        if (REGEXP_EXTERNAL_ABSOLUTE_URL.test(url) || REGEXP_EXTERNAL_ABSOLUTE_URL.test(filterUrlOrigin)) {
+            return externalDownload(url, filterUrlOrigin, definedProperties);
         }
+        return getLocalFile(url, filterUrlOrigin, definedProperties);
     };
 
     /**
      * Downloads a specified filter and interpretes all the pre-processor directives from there.
      *
      * @param {string} url Filter file URL
-     * @param {Object} definedProperties An object with the defined properties. These properties might be used in pre-processor directives (`#if`, etc)
+     * @param {Object} definedProperties An object with the defined properties.
+     * These properties might be used in pre-processor directives (`#if`, etc)
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const download = async (url, definedProperties) => {
         try {
             let filterUrlOrigin;
             if (url && REGEXP_EXTERNAL_ABSOLUTE_URL.test(url)) {
-                filterUrlOrigin = getFilterUrlOrigin(url)
+                filterUrlOrigin = getFilterUrlOrigin(url);
             }
 
             const response = await downloadFilterRules(url, filterUrlOrigin, definedProperties);
 
             // only included filters can be empty
-            if (response && response.join().trim() == '') {
-                throw new Error("Response is empty");
+            if (response && response.join().trim() === '') {
+                throw new Error('Response is empty');
             }
 
             return response;
@@ -414,27 +453,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         }
     };
 
-    /**
-     * Parse url
-     *
-     * @param {string} url
-     * @returns {object}  parsed url data
-     */
-    const parseURL = (url) => {
-        if (typeof URL !== 'undefined') {
-            return new URL(url);
-        } else {
-            let URL = require('url').URL;
-            return new URL(url);
-        }
-    };
-
     return {
-        compile: compile,
-        download: download,
-        resolveConditions: resolveConditions,
-        resolveIncludes: resolveIncludes,
-        getFilterUrlOrigin: getFilterUrlOrigin
+        compile,
+        download,
+        resolveConditions,
+        resolveIncludes,
+        getFilterUrlOrigin,
     };
 };
 

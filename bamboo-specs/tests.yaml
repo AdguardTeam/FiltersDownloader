@@ -35,6 +35,8 @@ Test:
             yarn install ${bamboo.varsYarn}
             ls -al
 
+            yarn lint
+
             yarn test
 
             rm -rf node_modules
