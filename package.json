@@ -19,7 +19,14 @@
         "build": "node scripts/build-txt.js",
         "test": "node __tests__/testrunner.js",
         "lint": "eslint .",
+        "lint-staged": "lint-staged",
+        "prepare": "husky install",
         "increment": "yarn version --patch --no-git-tag-version"
+    },
+    "lint-staged": {
+        "{src,scripts,__tests__}/**/*.js": [
+            "eslint"
+        ]
     },
     "author": "AdGuard",
     "license": "GPL-3.0",
@@ -38,6 +45,8 @@
         "eslint": "^8.50.0",
         "eslint-config-airbnb-base": "^15.0.0",
         "eslint-plugin-import": "^2.28.1",
+        "husky": "^8.0.3",
+        "lint-staged": "^14.0.1",
         "node-qunit": "^2.0.0"
     }
 }
