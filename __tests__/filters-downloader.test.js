@@ -1,4 +1,4 @@
-/* global QUnit */
+/* global QUnit, assert */
 /* eslint-disable global-require */
 
 const FilterCompilerConditionsConstants = {
@@ -25,6 +25,22 @@ const URL_INCLUDES_EMPTY = `${TEST_FILTER_LIST_BASE}/includes_empty_filter.txt`;
 
 // eslint-disable-next-line max-len
 const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt';
+
+/**
+ * Checks the result of `FiltersDownloader.resolveConditions()` for the `actual` rules
+ * with the {@link FilterCompilerConditionsConstants} config
+ * against the `expected` rules.
+ *
+ * @param {object} FiltersDownloader FiltersDownloader object with resolveConditions().
+ * @param {string[]} actual Input rules.
+ * @param {string[]} expected Expected output rules.
+ */
+const expectResolvedConditionsRules = (FiltersDownloader, actual, expected) => {
+    const compiled = FiltersDownloader.resolveConditions(actual, FilterCompilerConditionsConstants);
+    assert.ok(compiled);
+    assert.equal(compiled.length, expected.length);
+    assert.deepEqual(compiled, expected);
+};
 
 QUnit.test('Test filter downloader', async (assert) => {
     const FiltersDownloader = require('../src');
@@ -505,6 +521,9 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
 });
 
 QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
     let rules;
 
     rules = [
@@ -513,10 +532,6 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'invalid_if_space',
         '!#endif',
     ];
-
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
-
     assert.throws(() => {
         FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
@@ -526,7 +541,17 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         '!#if adguard',
         'missing_endif',
     ];
+    assert.throws(() => {
+        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    });
 
+    rules = [
+        'always_included_rule',
+        '!#if adguard',
+        'if_rule',
+        '!#else',
+        'missing_endif',
+    ];
     assert.throws(() => {
         FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
@@ -536,7 +561,15 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'invalid_endif',
         '!#endif',
     ];
+    assert.throws(() => {
+        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    });
 
+    rules = [
+        'always_included_rule',
+        '!#else',
+        'invalid_else',
+    ];
     assert.throws(() => {
         FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
@@ -547,7 +580,18 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'invalid_condition',
         '!#endif',
     ];
+    assert.throws(() => {
+        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    });
 
+    rules = [
+        'always_included_rule',
+        '!#if adguard_ext_chromium',
+        'if_chromium_rule',
+        '!#elseif adguard_ext_firefox',
+        'invalid_else',
+        '!#endif',
+    ];
     assert.throws(() => {
         FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
@@ -558,7 +602,6 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'invalid_condition_brackets',
         '!#endif',
     ];
-
     assert.throws(() => {
         FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
@@ -736,4 +779,368 @@ QUnit.test('Test filter downloader includes an empty filter', async (assert) => 
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'The test filter includes an empty filter');
     assert.equal(compiled[1], '');
+});
+
+QUnit.test('Test filter downloader - simple "if" conditions with "else" branch', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    let actual;
+    let expected;
+
+    // case 1
+    actual = [
+        'always_included_rule',
+        '!#if (adguard)',
+        'adguard_included_rule',
+        '!#else',
+        'non_adguard_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'adguard_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 2
+    actual = [
+        'always_included_rule',
+        '!#if !adguard',
+        'non_adguard_included_rule',
+        '!#else',
+        'adguard_included_rule_1',
+        'adguard_included_rule_2',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'adguard_included_rule_1',
+        'adguard_included_rule_2',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 3
+    actual = [
+        'always_included_rule',
+        '!#if !!adguard',
+        'adguard_included_rule',
+        '!#else',
+        'non_adguard_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'adguard_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 4
+    actual = [
+        'always_included_rule',
+        '!#if adguard',
+        'adguard_included_rule',
+        '!#else',
+        'non_adguard_included_rule_1',
+        '!#endif',
+        '!#if adguard_ext_chromium',
+        'adguard_ext_chromium_included_rule',
+        '!#else',
+        'non_adguard_included_rule_2',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'adguard_included_rule',
+        'adguard_ext_chromium_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 5
+    actual = [
+        'always_included_rule',
+        '!#if !adguard',
+        'non_adguard_included_rule_1',
+        '!#else',
+        'adguard_included_rule',
+        '!#endif',
+        '!#if !adguard_ext_chromium',
+        'non_adguard_included_rule_2',
+        '!#else',
+        'adguard_ext_chromium_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'adguard_included_rule',
+        'adguard_ext_chromium_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+});
+
+QUnit.test('Test filter downloader - logical "if" conditions with "else" branch', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    let actual;
+    let expected;
+
+    // true && true = true
+    actual = [
+        'always_included_rule',
+        '!#if adguard && adguard_ext_chromium',
+        'adguard_included_rule',
+        '!#else',
+        'non_adguard_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'adguard_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // true && false = false
+    actual = [
+        'always_included_rule',
+        '!#if adguard && adguard_ext_opera',
+        'adguard_ext_opera_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'else_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // true || false = true
+    actual = [
+        'always_included_rule',
+        '!#if adguard || adguard_ext_opera',
+        'if_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'if_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // true && false || true = true
+    actual = [
+        'always_included_rule',
+        '!#if (adguard && adguard_ext_opera || adguard_ext_chromium)',
+        'if_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'if_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // true && false && true = false
+    actual = [
+        'always_included_rule',
+        '!#if adguard && adguard_ext_opera && adguard_ext_chromium',
+        'if_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'else_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // false && true || true = true
+    actual = [
+        'always_included_rule',
+        '!#if adguard_ext_opera && adguard || adguard_ext_chromium',
+        'if_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'if_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // false || true && true = true
+    actual = [
+        'always_included_rule',
+        '!#if adguard_ext_opera || adguard && adguard_ext_chromium',
+        'if_adguard_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'if_adguard_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // !true && !true = false
+    actual = [
+        'always_included_rule',
+        '!#if !adguard && !adguard_ext_chromium',
+        'if_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'else_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // !(true && true) = false
+    actual = [
+        'always_included_rule',
+        '!#if !(adguard && adguard_ext_chromium)',
+        'if_included_rule',
+        '!#else',
+        'else_included_rule',
+        '!#endif',
+    ];
+    expected = [
+        'always_included_rule',
+        'else_included_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+});
+
+QUnit.test('Test filter downloader - nested if conditions with else branch', async (assert) => {
+    const FilterDownloader = require('../src');
+    assert.ok(FilterDownloader);
+
+    let actual;
+    let expected;
+
+    // case 1 -- two nested levels
+    actual = [
+        'zero_level_rule',
+        '!#if adguard',
+        'if_first_level_rule',
+        '!#if adguard_ext_chromium',
+        'if_second_level_rule',
+        '!#else',
+        'else_second_level_rule',
+        '!#endif',
+        '!#else',
+        'else_first_level_rule',
+        '!#endif',
+    ];
+    expected = [
+        'zero_level_rule',
+        'if_first_level_rule',
+        'if_second_level_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 2 -- three nested levels
+    actual = [
+        'zero_level_rule',
+        '!#if adguard',
+        'if_first_level_rule',
+        '!#if adguard_ext_chromium',
+        'if_second_level_rule',
+        '!#if !adguard_ext_firefox',
+        'if_third_level_rule',
+        '!#else',
+        'else_third_level_rule',
+        '!#endif',
+        '!#else',
+        'else_second_level_rule',
+        '!#endif',
+        '!#else',
+        'else_first_level_rule',
+        '!#endif',
+    ];
+    expected = [
+        'zero_level_rule',
+        'if_first_level_rule',
+        'if_second_level_rule',
+        'if_third_level_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 3 -- two nested levels but with few inner if conditions
+    actual = [
+        'zero_level_rule',
+        '!#if adguard',
+        'if_first_level_rule',
+        '!#if adguard_ext_chromium',
+        'if_second_level_rule_1',
+        '!#else',
+        'else_second_level_rule_1',
+        '!#endif',
+        '!#if !adguard_ext_firefox',
+        'if_second_level_rule_2',
+        '!#else',
+        'else_second_level_rule_2',
+        '!#endif',
+        '!#else',
+        'else_first_level_rule',
+        '!#endif',
+    ];
+    expected = [
+        'zero_level_rule',
+        'if_first_level_rule',
+        'if_second_level_rule_1',
+        'if_second_level_rule_2',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 4 -- two nested levels but else branch rules are included in the inner if condition
+    actual = [
+        'zero_level_rule',
+        '!#if adguard',
+        'if_first_level_rule',
+        '!#if adguard_ext_firefox',
+        'if_second_level_rule',
+        '!#else',
+        'else_second_level_rule',
+        '!#endif',
+        '!#else',
+        'else_first_level_rule',
+        '!#endif',
+    ];
+    expected = [
+        'zero_level_rule',
+        'if_first_level_rule',
+        'else_second_level_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+
+    // case 5 -- two nested levels but inner if condition is skipped
+    actual = [
+        'zero_level_rule',
+        '!#if !adguard',
+        'if_first_level_rule',
+        '!#if adguard_ext_firefox',
+        'if_second_level_rule',
+        '!#else',
+        'else_second_level_rule',
+        '!#endif',
+        '!#else',
+        'else_first_level_rule',
+        '!#endif',
+    ];
+    expected = [
+        'zero_level_rule',
+        'else_first_level_rule',
+    ];
+    expectResolvedConditionsRules(FilterDownloader, actual, expected);
 });

@@ -6,37 +6,61 @@ This utility tool resolves preprocessor directives in filter content.
 
 ### Directives syntax
 
-```
+```adblock
 !#if condition
 Anything goes here
 !#include URL_or_a_relative_path
 !#endif
 ```
 
-- !#if, !#endif - filters maintainers can use these conditions to supply different rules depending on the ad blocker type.
-- condition - just like in some popular programming languages, pre-processor conditions are based on constants declared by ad blockers. Ad blocker authors define on their own what exact constants do they declare.
-- !#include - this directive allows to include contents of a specified file into the filter.
+or with an `else` branch:
 
-#### Logical Conditions
-When an adblocker encounters an !#if directive, followed eventually by an !#endif directive, it will compile the code between the directives only if the specified condition is true. Condition supports all the basic logical operators.
+```adblock
+!#if condition
+!#include URL_or_a_relative_path
+!#else
+!#include another_URL_or_a_relative_path
+!#endif
+```
+
+- `!#if`, `!#else`, `!#endif` — filters maintainers can use these conditions
+  to supply different rules depending on the ad blocker type.
+- `condition` — just like in some popular programming languages,
+  pre-processor conditions are based on constants declared by ad blockers.
+  Ad blocker authors define on their own what exact constants do they declare.
+- `!#include` — this directive allows to include contents of a specified file into the filter.
+
+#### Logical conditions
+
+When an adblocker encounters an `!#if` directive and no `!#else` directive,
+it will compile the code between `!#if` and `!#endif` only if the specified condition is true.
+
+If there is an `!#else` directive, the code between `!#if` and `!#else` will be compiled if the condition is true,
+otherwise the code between `!#else` and `!#endif` will be compiled.
+
+Condition supports all the basic logical operators, i.e. `&&`, `||`, `!` and parentheses.
 
 Example:
-```
+
+```adblock
 !#if (adguard && !adguard_ext_safari)
 ||example.org^$third-party
 !#endif
 ```
 
 #### Include
-The !#include directive supports only files from the same origin to make sure that the filter maintainer is in control of the specified file. The included file can also contain pre-processor directives (even other !#include directives).
+
+The `!#include` directive supports only files from the same origin
+to make sure that the filter maintainer is in control of the specified file.
+The included file can also contain pre-processor directives (even other !#include directives).
 
 Ad blockers should consider the case of recursive !#include and implement a protection mechanism.
 
 Examples:
 
-Filter URL: https://example.org/path/filter.txt
+Filter URL: `https://example.org/path/filter.txt`
 
-```
+```adblock
 !
 ! Valid (same origin):
 !#include https://example.org/path/includedfile.txt
@@ -50,16 +74,18 @@ Filter URL: https://example.org/path/filter.txt
 ```
 
 ## Build
+
 To build one file for browser environment:
-```
+
+```bash
 yarn build
 ```
 
-See `/build` for results.
+See `build/` directory for results.
 
 ## Usage
 
-```
+```js
 const FilterCompilerConditionsConstants = {
     adguard: true,
     ....
@@ -86,6 +112,6 @@ promise.then((compiled) => {
 
 ## Tests
 
-```
+```bash
 yarn test
 ```

@@ -31,7 +31,8 @@
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917
  */
 const FiltersDownloaderCreator = (FileDownloadWrapper) => {
-    const CONDITION_DIRECTIVE_START = '!#if';
+    const CONDITION_IF_DIRECTIVE_START = '!#if';
+    const CONDITION_ELSE_DIRECTIVE_START = '!#else';
     const CONDITION_DIRECTIVE_END = '!#endif';
 
     const CONDITION_OPERATOR_NOT = '!';
@@ -110,21 +111,26 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     /**
      * Finds end of condition block started with startIndex
      *
-     * @param rules
-     * @param startIndex
+     * @param {string[]} rules Array of all rules.
+     * @param {string} endDirective End directive for the condition block — `!#else` or `!#endif`.
+     * @param {number} startIndex Index of the start for presumed condition block.
+     * @param {number} endIndex Index of the end for presumed condition block,
+     * needed for `!#else` directive if index of `!#endif` was found before to limit the search.
+     *
+     * @returns {number} Index of the end of the condition block for the `endDirective`.
      */
-    const findConditionEnd = (rules, startIndex) => {
+    const findConditionBlockEnd = (rules, endDirective, startIndex, endIndex) => {
         const stack = [];
-        for (let j = startIndex; j < rules.length; j += 1) {
-            const internalRule = rules[j];
+        for (let i = startIndex; i < endIndex; i += 1) {
+            const rule = rules[i];
 
-            if (internalRule.startsWith(CONDITION_DIRECTIVE_START)) {
-                stack.push(CONDITION_DIRECTIVE_START);
-            } else if (internalRule.startsWith(CONDITION_DIRECTIVE_END)) {
+            if (rule.startsWith(CONDITION_IF_DIRECTIVE_START)) {
+                stack.push(CONDITION_IF_DIRECTIVE_START);
+            } else if (rule.startsWith(endDirective)) {
                 if (stack.length > 0) {
                     stack.pop();
                 } else {
-                    return j;
+                    return i;
                 }
             }
         }
@@ -133,10 +139,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     };
 
     /**
-     * Resolves constant expression
+     * Resolves constant expression.
      *
-     * @param expression
-     * @param definedProperties
+     * @param {string} expression
+     * @param {object} [definedProperties]
+     *
+     * @returns {boolean} True if expression is `'true'`
+     * or there is a property with the same name in `definedProperties` which is set to true,
+     * false otherwise.
      */
     const resolveConditionConstant = (expression, definedProperties) => {
         if (!expression) {
@@ -150,8 +160,11 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     /**
      * Calculates conditional expression
      *
-     * @param rawExpression
-     * @param definedProperties
+     * @param {string} rawExpression Conditional expression.
+     * @param {object} [definedProperties] Object with the defined properties
+     * where keys are platform names and values are booleans.
+     *
+     * @returns {boolean} Result of the expression
      */
     const resolveExpression = (rawExpression, definedProperties) => {
         if (!rawExpression) {
@@ -215,7 +228,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
      * @param definedProperties
      */
     const resolveCondition = (directive, definedProperties) => {
-        const expression = directive.substring(CONDITION_DIRECTIVE_START.length).trim();
+        const expression = directive.substring(CONDITION_IF_DIRECTIVE_START.length).trim();
 
         return resolveExpression(expression, definedProperties);
     };
@@ -223,8 +236,10 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     /**
      * Resolves conditions directives
      *
-     * @param rules
-     * @param definedProperties
+     * @param {string} rules Input array of rules.
+     * @param {object} [definedProperties] Object with the defined properties.
+     *
+     * @returns {string[]} Array of rules.
      */
     const resolveConditions = (rules, definedProperties) => {
         if (!definedProperties) {
@@ -236,23 +251,56 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         for (let i = 0; i < rules.length; i += 1) {
             const rule = rules[i];
 
-            if (rule.indexOf(CONDITION_DIRECTIVE_START) === 0) {
-                const endLineIndex = findConditionEnd(rules, i + 1);
+            if (rule.indexOf(CONDITION_IF_DIRECTIVE_START) === 0) {
+                const endLineIndex = findConditionBlockEnd(
+                    rules,
+                    CONDITION_DIRECTIVE_END,
+                    i + 1,
+                    rules.length,
+                );
                 if (endLineIndex === -1) {
                     throw new Error(`Invalid directives: Condition end not found: ${rule}`);
                 }
 
-                const conditionValue = resolveCondition(rule, definedProperties);
-                if (conditionValue) {
-                    const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
-                    // Resolve inner conditions in recursion
-                    result = result.concat(resolveConditions(rulesUnderCondition, definedProperties));
+                const elseLineIndex = findConditionBlockEnd(
+                    rules,
+                    CONDITION_ELSE_DIRECTIVE_START,
+                    i + 1,
+                    endLineIndex,
+                );
+                const isConditionMatched = resolveCondition(rule, definedProperties);
+
+                // if there is no 'else' branch for the condition
+                if (elseLineIndex === -1) {
+                    if (isConditionMatched) {
+                        const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
+                        // Resolve inner conditions in recursion
+                        result = result.concat(resolveConditions(rulesUnderCondition, definedProperties));
+                    }
+                } else {
+                    // check if there is something after !#else
+                    if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
+                        throw new Error(`Invalid directives: Found invalid !#else: ${rule}`);
+                    }
+
+                    if (isConditionMatched) {
+                        const rulesForConditionTrue = rules.slice(i + 1, elseLineIndex);
+                        // Resolve inner conditions in recursion
+                        result = result.concat(resolveConditions(rulesForConditionTrue, definedProperties));
+                    } else {
+                        const rulesForConditionFalse = rules.slice(elseLineIndex + 1, endLineIndex);
+                        // Resolve inner conditions in recursion
+                        result = result.concat(resolveConditions(rulesForConditionFalse, definedProperties));
+                    }
                 }
 
                 // Skip to the end of block
                 i = endLineIndex;
+            } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
+                // Found !#else without !#if
+                throw new Error(`Invalid directives: Found unexpected condition else branch: ${rule}`);
             } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
-                // Found condition end without start
+                // Found !#endif without !#if
                 throw new Error(`Invalid directives: Found unexpected condition end: ${rule}`);
             } else {
                 result.push(rule);

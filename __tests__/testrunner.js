@@ -29,7 +29,7 @@
             testing: false,
         },
         // max amount of ms child can be blocked, after that we assume running an infinite loop
-        maxBlockDuration: 50000,
+        maxBlockDuration: 50 * 1000, // 50 seconds
     });
 
     const testCallback = (err, report) => {
@@ -40,6 +40,7 @@
         if (report.failed > 0) {
             process.exit(1);
         }
+        console.log('\n✅  Tests completed successfully!\n');
     };
 
     testRunner.run({
