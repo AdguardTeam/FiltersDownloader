@@ -28,6 +28,9 @@
             "eslint"
         ]
     },
+    "engines": {
+        "node": ">=18"
+    },
     "author": "AdGuard",
     "license": "GPL-3.0",
     "repository": {

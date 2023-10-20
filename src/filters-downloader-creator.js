@@ -78,20 +78,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
     };
 
     /**
-     * Parse url
+     * Parses url and returns its origin.
      *
-     * @param {string} url
-     * @returns {object}  parsed url data
+     * @param {string} url URL to parse.
+     *
+     * @returns {string} URL origin if url can be parsed.
+     * @throws {Error} If url cannot be parsed.
      */
-    const parseURL = (url) => {
-        // eslint-disable-next-line no-use-before-define
-        if (typeof URL !== 'undefined') {
-            // eslint-disable-next-line no-use-before-define
-            return new URL(url);
+    const getUrlOrigin = (url) => {
+        try {
+            const { origin } = new URL(url);
+            return origin;
+        } catch (e) {
+            throw new Error(`Invalid url: '${url}'`);
         }
-        // eslint-disable-next-line global-require
-        const { URL } = require('url');
-        return new URL(url);
     };
 
     /**
@@ -320,8 +320,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper) => {
         if (filterUrlOrigin) {
             if (REGEXP_ABSOLUTE_URL.test(url)) {
                 // Include url is absolute
-                const urlOrigin = parseURL(url).origin;
-                const filterOrigin = parseURL(filterUrlOrigin).origin;
+                const urlOrigin = getUrlOrigin(url);
+                const filterOrigin = getUrlOrigin(filterUrlOrigin);
                 if (urlOrigin !== filterOrigin) {
                     throw new Error(`Include url is rejected with origin: ${urlOrigin}`);
                 }
