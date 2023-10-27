@@ -27,5 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Too large filter list including [AdGuardForSafari#720](https://github.com/AdguardTeam/AdGuardForSafari/issues/720).
 
 
+[1.1.21]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.20...v1.1.21
 [1.1.20]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.15...v1.1.20
 [1.1.15]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.14...v1.1.15
