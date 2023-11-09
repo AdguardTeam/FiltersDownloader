@@ -29,5 +29,6 @@ module.exports = {
                 ignoreComments: false,
             },
         ],
+        'arrow-body-style': 'off',
     },
 };

@@ -14,6 +14,11 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Adguard Browser Extension.  If not, see <http://www.gnu.org/licenses/>.
  */
+const {
+    isContentTypeSupported,
+    getContentTypeError,
+    PREFERRED_CONTENT_TYPE,
+} = require('../common/content-type');
 
 /**
  * As it is not possible to use one library in node and browser environments,
@@ -39,15 +44,14 @@ module.exports = (() => {
      * fetch doesn't allow to download urls with file:// scheme
      *
      * @param url Url
-     * @param contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsyncFetch = async (url, contentType) => {
+    const executeRequestAsyncFetch = async (url) => {
         const response = await fetch(url, {
             cache: 'no-cache',
             headers: {
                 Pragma: 'no-cache',
-                'Content-Type': contentType,
+                'Content-Type': PREFERRED_CONTENT_TYPE,
             },
         });
 
@@ -56,11 +60,11 @@ module.exports = (() => {
         }
 
         // Don't check response headers if url is local,
-        // because edge extension doesn't provide headers for such url
+        // because the edge extension doesn't provide headers for such url
         if (!isLocal(response.url)) {
             const responseContentType = response.headers.get('Content-Type');
-            if (!responseContentType || !responseContentType.includes(contentType)) {
-                throw new Error(`Response content type should be: "${contentType}"`);
+            if (!isContentTypeSupported(responseContentType)) {
+                throw getContentTypeError();
             }
         }
 
@@ -74,10 +78,9 @@ module.exports = (() => {
      * XMLHttpRequest is undefined in the service worker
      *
      * @param {string} url Url
-     * @param {string} contentType Content type
      * @returns {Promise}
      */
-    const executeRequestAsyncXhr = (url, contentType) => new Promise((resolve, reject) => {
+    const executeRequestAsyncXhr = (url) => new Promise((resolve, reject) => {
         const onRequestLoad = (response) => {
             if (response.status !== 200 && response.status !== 0) {
                 reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
@@ -86,11 +89,11 @@ module.exports = (() => {
             const responseText = response.responseText ? response.responseText : response.data;
 
             // Don't check response headers if url is local,
-            // because edge extension doesn't provide headers for such url
+            // because the edge extension doesn't provide headers for such url
             if (!isLocal(response.responseURL)) {
                 const responseContentType = response.getResponseHeader('Content-Type');
-                if (!responseContentType || !responseContentType.includes(contentType)) {
-                    reject(new Error(`Response content type should be: "${contentType}"`));
+                if (!isContentTypeSupported(responseContentType)) {
+                    reject(getContentTypeError());
                 }
             }
             const lines = responseText.trim().split(/[\r\n]+/);
@@ -103,7 +106,7 @@ module.exports = (() => {
         try {
             request.open('GET', url);
             request.setRequestHeader('Pragma', 'no-cache');
-            request.overrideMimeType(contentType);
+            request.overrideMimeType(PREFERRED_CONTENT_TYPE);
             request.mozBackgroundRequest = true;
             // eslint-disable-next-line func-names
             request.onload = function () {
@@ -131,7 +134,7 @@ module.exports = (() => {
      * @param {string} url Filter file absolute URL or relative path
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
-    const getExternalFile = (url) => executeRequestAsyncFetch(url, 'text/plain');
+    const getExternalFile = (url) => executeRequestAsyncFetch(url);
 
     /**
      * Get filter rules from local path
@@ -141,10 +144,10 @@ module.exports = (() => {
      */
     const getLocalFile = (url) => {
         if (typeof XMLHttpRequest !== 'undefined') {
-            return executeRequestAsyncXhr(url, 'text/plain');
+            return executeRequestAsyncXhr(url);
         }
         if (typeof fetch !== 'undefined') {
-            return executeRequestAsyncFetch(url, 'text/plain');
+            return executeRequestAsyncFetch(url);
         }
         // eslint-disable-next-line max-len
         throw new Error('XMLHttpRequest or fetch are undefined, getting local files inside service worker is not working');

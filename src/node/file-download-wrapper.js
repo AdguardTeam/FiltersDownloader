@@ -18,6 +18,7 @@
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const { isContentTypeSupported, getContentTypeError } = require('../common/content-type');
 
 /**
  * As it is not possible to use one library in node and browser environments,
@@ -49,8 +50,6 @@ module.exports = (() => {
      * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const getExternalFile = (url) => {
-        const contentType = 'text/plain';
-
         return new Promise((resolve, reject) => {
             executeRequestAsync(url).then((response) => {
                 if (response.status !== 200 && response.status !== 0) {
@@ -58,8 +57,9 @@ module.exports = (() => {
                 }
 
                 const responseContentType = response.headers['content-type'];
-                if (!responseContentType || !responseContentType.includes(contentType)) {
-                    reject(new Error(`Response content type should be: "${contentType}"`));
+
+                if (!isContentTypeSupported(responseContentType)) {
+                    reject(getContentTypeError());
                 }
 
                 const responseText = response.responseText ? response.responseText : response.data;
