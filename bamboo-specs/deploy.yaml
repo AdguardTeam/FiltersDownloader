@@ -15,6 +15,9 @@ npmjs:
   tasks:
     - checkout:
         force-clean-build: 'true'
+    - artifact-download:
+        artifacts:
+          - name: filters-downloader.tgz
     - script:
         interpreter: SHELL
         scripts:
@@ -22,16 +25,14 @@ npmjs:
             set -e
             set -x
 
-            yarn install ${bamboo.varsYarn}
+            # Fix mixed logs
+            exec 2>&1
 
             ls -la
 
             export NPM_TOKEN=${bamboo.npmSecretToken}
             echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-            npm publish --access public
-
-            # cleanup
-            rm -rf node_modules
+            npm publish filters-downloader.tgz --access public
   requirements:
     - adg-docker: 'true'
   notifications:

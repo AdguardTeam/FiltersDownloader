@@ -32,6 +32,11 @@ Test:
             set -x
             set -e
 
+            # Fix mixed logs
+            exec 2>&1
+
+            yarn build
+            # Call build before test because test will operate with files from dist
             yarn install ${bamboo.varsYarn}
             ls -al
 

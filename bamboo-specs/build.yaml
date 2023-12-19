@@ -31,10 +31,16 @@ Build:
           - |-
             set -x
             set -e
+
+            # Fix mixed logs
+            exec 2>&1
+
             ls -al
 
             yarn install ${bamboo.varsYarn}
             yarn build
+
+            yarn pack --filename filters-downloader.tgz
 
             rm -rf node_modules
     - inject-variables:
@@ -46,6 +52,11 @@ Build:
         configuration:
           selectedRepository: defaultRepository
           tagName: v${bamboo.inject.version}
+  artifacts:
+    - name: filters-downloader.tgz
+      pattern: filters-downloader.tgz
+      shared: true
+      required: true
   requirements:
     - adg-docker: 'true'
 
