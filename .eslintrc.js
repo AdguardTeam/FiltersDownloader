@@ -1,3 +1,5 @@
+const path = require('path');
+
 module.exports = {
     root: true,
     env: {
@@ -5,30 +7,76 @@ module.exports = {
         commonjs: true,
         es2021: true,
     },
-    extends: [
-        'eslint:recommended',
-        'airbnb-base',
-        // TODO: add later
-        // 'plugin:jsdoc/recommended',
-    ],
+    parser: '@typescript-eslint/parser',
     parserOptions: {
-        ecmaVersion: 12,
+        tsconfigRootDir: path.join(__dirname),
+        project: 'tsconfig.json',
     },
+    plugins: [
+        'import',
+        '@typescript-eslint',
+    ],
+    extends: [
+        'airbnb-base',
+        'airbnb-typescript/base',
+        'plugin:jsdoc/recommended',
+    ],
+    ignorePatterns: [
+        'dist',
+    ],
     rules: {
-        indent: ['error', 4],
-        'no-console': 'off',
-        'import/no-extraneous-dependencies': 'off',
-        'max-len': [
+        indent: 'off',
+        'arrow-body-style': 'off',
+        'max-len': ['error', { code: 120, ignoreUrls: true }],
+        'no-new': 'off',
+        'no-continue': 'off',
+        'no-restricted-syntax': ['error', 'LabeledStatement', 'WithStatement'],
+        'no-constant-condition': ['error', { checkLoops: false }],
+        'no-param-reassign': 'off',
+
+        'import/prefer-default-export': 'off',
+        'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+        'import/no-cycle': 'off',
+        'import/export': 'off',
+
+        '@typescript-eslint/indent': ['error', 4, {
+            SwitchCase: 1,
+            ignoredNodes: ['TSTypeParameterInstantiation'],
+        }],
+        '@typescript-eslint/no-non-null-assertion': 'off',
+        '@typescript-eslint/interface-name-prefix': 'off',
+        '@typescript-eslint/explicit-function-return-type': 'error',
+
+        // types described in ts
+        'jsdoc/require-param-type': 'off',
+        'jsdoc/no-undefined-types': 'off',
+        'jsdoc/require-returns-type': 'off',
+        'jsdoc/tag-lines': 'off',
+        'jsdoc/require-throws': 'error',
+        'jsdoc/check-tag-names': ['error', { definedTags: ['jest-environment'] }],
+        'jsdoc/require-jsdoc': [
             'error',
             {
-                code: 120,
-                comments: 120,
-                tabWidth: 4,
-                ignoreUrls: false,
-                ignoreTrailingComments: false,
-                ignoreComments: false,
+                contexts: [
+                    'ClassDeclaration',
+                    'ClassProperty',
+                    'FunctionDeclaration',
+                    'MethodDefinition',
+                ],
             },
         ],
-        'arrow-body-style': 'off',
+        'jsdoc/require-description': [
+            'error',
+            {
+                contexts: [
+                    'ClassDeclaration',
+                    'ClassProperty',
+                    'FunctionDeclaration',
+                    'MethodDefinition',
+                ],
+            },
+        ],
+        'jsdoc/require-description-complete-sentence': ['error'],
+        'jsdoc/require-returns': ['error'],
     },
 };

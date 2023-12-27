@@ -1,4 +1,4 @@
-# AG Filters
+# Filters Downloader
 
 ## Filters downloader package
 
@@ -85,10 +85,16 @@ See `build/` directory for results.
 
 ## Usage
 
+### Installation
+
+```
+yarn add @adguard/filters-downloader
+```
+
 ```js
 const FilterCompilerConditionsConstants = {
     adguard: true,
-    ....
+    // ...
     adguard_ext_android_cb: false
 };
 
@@ -108,10 +114,24 @@ promise.then((compiled) => {
     // Error
 });
 
+// downloadWithRaw - downloads filter, applies patches if possible and resolves conditionals
+const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(
+    url,
+    {
+        force: false,
+        rawFilter: prevRawFilter,
+    },
+);
 ```
 
 ## Tests
 
 ```bash
 yarn test
+```
+
+## Linter
+
+```bash
+yarn lint
 ```

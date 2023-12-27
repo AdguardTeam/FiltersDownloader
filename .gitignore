@@ -3,4 +3,7 @@
 node_modules
 *.iml
 build
+dist
 .DS_Store
+.eslintcache
+yarn-error.log

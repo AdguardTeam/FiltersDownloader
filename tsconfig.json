@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.build.json",
+    "include": [
+        "src",
+        "__tests__",
+        "_qunit_tests_",
+        "scripts/build-txt.ts",
+        "rollup.config.ts",
+        ".eslintrc.js",
+        "jest.config.ts"
+    ]
+}

@@ -1,11 +1,5 @@
-/**
- * @typedef {Object} assert
- * @property {function} equal
- * @property {function} ok
- * @property {function} notOk
- */
-
-(() => {
+/* eslint-disable no-console */
+((): void => {
     // eslint-disable-next-line global-require
     const testRunner = require('node-qunit');
 
@@ -32,7 +26,7 @@
         maxBlockDuration: 50 * 1000, // 50 seconds
     });
 
-    const testCallback = (err, report) => {
+    const testCallback = (err: Error, report: any): void => {
         if (err) {
             console.error(err);
             process.exit(1);
@@ -44,7 +38,7 @@
     };
 
     testRunner.run({
-        code: './src/index.js',
-        tests: './__tests__/filters-downloader.test.js',
+        code: './dist/index.js',
+        tests: './_qunit_tests_/filters-downloader.test.js',
     }, testCallback);
 })();

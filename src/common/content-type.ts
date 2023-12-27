@@ -2,7 +2,6 @@ const PREFERRED_CONTENT_TYPE = 'text/plain';
 
 /**
  * Supported content types.
- * @type {(string|string)[]}
  */
 const SUPPORTED_CONTENT_TYPES = [
     PREFERRED_CONTENT_TYPE,
@@ -12,22 +11,29 @@ const SUPPORTED_CONTENT_TYPES = [
 
 /**
  * Returns content type error.
- * @returns {Error}
+ *
+ * @returns Error with description of supported content types.
  */
-const getContentTypeError = () => {
+const getContentTypeError = (): Error => {
     return new Error(`Response content type should be one of: "${SUPPORTED_CONTENT_TYPES.join(', ')}"`);
 };
 
 /**
  * Checks if the content type is supported.
- * @param contentTypeHeader content type header
- * @returns {boolean} true if is supported
+ *
+ * @param contentTypeHeader Content type header.
+ *
+ * @returns True if supported.
  */
-const isContentTypeSupported = (contentTypeHeader) => {
+const isContentTypeSupported = (contentTypeHeader: string | null): boolean => {
     if (!contentTypeHeader) {
         return false;
     }
     return SUPPORTED_CONTENT_TYPES.some((ct) => contentTypeHeader.includes(ct));
 };
 
-module.exports = { getContentTypeError, isContentTypeSupported, PREFERRED_CONTENT_TYPE };
+export {
+    getContentTypeError,
+    isContentTypeSupported,
+    PREFERRED_CONTENT_TYPE,
+};

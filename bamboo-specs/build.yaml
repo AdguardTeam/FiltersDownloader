@@ -37,7 +37,14 @@ Build:
 
             ls -al
 
-            yarn install ${bamboo.varsYarn}
+            # Exclude '--ignore-platform' from yarn arguments to fix build
+            originalValue="$bamboo_varsYarn"
+
+            # Use sed to replace "--ignore-platform" with an empty string
+            modifiedValue=$(echo "$originalValue" | sed 's/--ignore-optional//g')
+
+            # Call build before test because test will operate with files from dist
+            yarn install ${modifiedValue}
             yarn build
 
             yarn pack --filename filters-downloader.tgz

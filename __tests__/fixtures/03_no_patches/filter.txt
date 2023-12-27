@@ -1,0 +1,4 @@
+! Title: Simple Example List
+! Version: v1.0.2
+||example.net^
+!#include filter_2.txt

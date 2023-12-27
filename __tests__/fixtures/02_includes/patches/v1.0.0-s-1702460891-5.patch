@@ -1,0 +1,6 @@
+d2 3
+a4 4
+! Version: v1.0.2
+! Diff-Path: patches/v1.0.1-s-1702460925-5.patch
+||example.net^
+!#include ./filter_2.txt

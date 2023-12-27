@@ -1,6 +1,6 @@
-/* global QUnit, assert */
+// TODO rewrite this tests to jest
+/* eslint-disable no-console */
 /* eslint-disable global-require */
-
 const FilterCompilerConditionsConstants = {
     adguard: true,
     adguard_ext_chromium: true,
@@ -34,8 +34,14 @@ const URL404 = 'https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/
  * @param {object} FiltersDownloader FiltersDownloader object with resolveConditions().
  * @param {string[]} actual Input rules.
  * @param {string[]} expected Expected output rules.
+ * @param assert Assert.
  */
-const expectResolvedConditionsRules = (FiltersDownloader, actual, expected) => {
+const expectResolvedConditionsRules = (
+    FiltersDownloader: any,
+    actual: string[],
+    expected: string[],
+    assert: any,
+): void => {
     const compiled = FiltersDownloader.resolveConditions(actual, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, expected.length);
@@ -43,7 +49,7 @@ const expectResolvedConditionsRules = (FiltersDownloader, actual, expected) => {
 };
 
 QUnit.test('Test filter downloader', async (assert) => {
-    const FiltersDownloader = require('../src');
+    const { FiltersDownloader } = require('../dist');
     assert.ok(FiltersDownloader);
 
     const compiled = await FiltersDownloader.download(URL0, FilterCompilerConditionsConstants);
@@ -54,15 +60,15 @@ QUnit.test('Test filter downloader', async (assert) => {
 });
 
 QUnit.test('Test filter download from external resource with relative url', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     let compiled;
 
     try {
-        compiled = await FilterDownloader.download(URL1, FilterCompilerConditionsConstants);
+        compiled = await FiltersDownloader.download(URL1, FilterCompilerConditionsConstants);
     } catch (e) {
-        console.log(e.message);
+        console.log((e as Error).message);
     }
 
     assert.ok(compiled);
@@ -71,15 +77,15 @@ QUnit.test('Test filter download from external resource with relative url', asyn
 });
 
 QUnit.test('Test filter download from external resource with relative url and subdir', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     let compiled;
 
     try {
-        compiled = await FilterDownloader.download(URL2, FilterCompilerConditionsConstants);
+        compiled = await FiltersDownloader.download(URL2, FilterCompilerConditionsConstants);
     } catch (e) {
-        console.log(e.message);
+        console.log((e as Error).message);
     }
 
     assert.ok(compiled);
@@ -90,13 +96,13 @@ QUnit.test('Test filter download from external resource with relative url and su
 });
 
 QUnit.test('Test that not found link returns error ', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
     let compiled;
     try {
-        compiled = await FilterDownloader.download(URL404, FilterCompilerConditionsConstants);
+        compiled = await FiltersDownloader.download(URL404, FilterCompilerConditionsConstants);
     } catch (e) {
-        assert.equal(e.message, `Response status for url ${URL404} is invalid: 404`);
+        assert.equal((e as Error).message, `Response status for url ${URL404} is invalid: 404`);
     }
 
     assert.notOk(compiled);
@@ -113,10 +119,10 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         '!#endif',
     ];
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -129,7 +135,7 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -141,7 +147,7 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -154,7 +160,7 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -170,7 +176,7 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 3);
     assert.equal(compiled[0], 'always_included_rule');
@@ -186,10 +192,10 @@ QUnit.test('Test filter downloader - unsupported conditions', async (assert) => 
         '!#endif',
     ];
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    const compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    const compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'test');
@@ -207,10 +213,10 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -224,7 +230,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -237,7 +243,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -251,7 +257,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -265,7 +271,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -278,7 +284,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -291,7 +297,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -305,7 +311,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -319,7 +325,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -333,7 +339,7 @@ QUnit.test('Test filter downloader - logical "if" conditions', async (assert) =>
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -350,10 +356,10 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -367,7 +373,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -381,7 +387,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -394,7 +400,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -407,7 +413,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -420,7 +426,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -434,7 +440,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 2);
     assert.equal(compiled[0], 'always_included_rule');
@@ -448,7 +454,7 @@ QUnit.test('Test filter downloader - "if" conditions brackets', async (assert) =
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -468,10 +474,10 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
         '!#endif',
     ];
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 3);
     assert.equal(compiled[0], 'zero_level_rule');
@@ -491,7 +497,7 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 3);
     assert.equal(compiled[0], 'zero_level_rule');
@@ -511,7 +517,7 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
         '!#endif',
     ];
 
-    compiled = FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 4);
     assert.equal(compiled[0], 'zero_level_rule');
@@ -521,10 +527,10 @@ QUnit.test('Test filter downloader - nested if conditions', async (assert) => {
 });
 
 QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    let rules;
+    let rules: string[];
 
     rules = [
         'always_included_rule',
@@ -533,7 +539,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         '!#endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -542,7 +548,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'missing_endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -553,7 +559,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'missing_endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -562,7 +568,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         '!#endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -571,7 +577,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         'invalid_else',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -581,7 +587,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         '!#endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -593,7 +599,7 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         '!#endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 
     rules = [
@@ -603,19 +609,19 @@ QUnit.test('Test filter downloader - invalid "if" conditions', async (assert) =>
         '!#endif',
     ];
     assert.throws(() => {
-        FilterDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     });
 });
 
 QUnit.test('Test filter downloader - simple includes', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    const rules = await FilterDownloader.download(
+    const rules = await FiltersDownloader.download(
         `${__dirname}/resources/rules_simple_include.txt`,
         FilterCompilerConditionsConstants,
     );
-    const resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    const resolve = await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
     assert.ok(resolve);
     assert.equal(resolve.length, 2);
     assert.equal(resolve[0], 'test_main');
@@ -623,14 +629,14 @@ QUnit.test('Test filter downloader - simple includes', async (assert) => {
 });
 
 QUnit.test('Test filter downloader - nested includes', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    const rules = await FilterDownloader.download(
+    const rules = await FiltersDownloader.download(
         `${__dirname}/resources/rules_nested_includes.txt`,
         FilterCompilerConditionsConstants,
     );
-    const resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    const resolve = await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
     assert.ok(resolve);
     assert.equal(resolve.length, 5);
     assert.equal(resolve[0], 'test_parent');
@@ -641,14 +647,14 @@ QUnit.test('Test filter downloader - nested includes', async (assert) => {
 });
 
 QUnit.test('Test filter downloader - nested subdir includes', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    const rules = await FilterDownloader.download(
+    const rules = await FiltersDownloader.download(
         `${__dirname}/resources/rules_nested_subdir_includes.txt`,
         FilterCompilerConditionsConstants,
     );
-    const resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    const resolve = await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
     assert.ok(resolve);
     assert.equal(resolve.length, 3);
     assert.equal(resolve[0], 'test_parent');
@@ -657,11 +663,11 @@ QUnit.test('Test filter downloader - nested subdir includes', async (assert) => 
 });
 
 QUnit.test('Test filter downloader - external download and includes with special characters', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    const rules = await FilterDownloader.download(URL3, FilterCompilerConditionsConstants);
-    const resolve = await FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    const rules = await FiltersDownloader.download(URL3, FilterCompilerConditionsConstants);
+    const resolve = await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
     assert.ok(resolve);
     assert.equal(resolve.length, 4);
     assert.equal(resolve[0], '||example1.org');
@@ -671,8 +677,8 @@ QUnit.test('Test filter downloader - external download and includes with special
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     let rules;
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     // non existing file
     rules = [
@@ -680,7 +686,7 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         '!#include resources/not_found_file.txt',
     ];
 
-    assert.rejects(FilterDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants));
+    assert.rejects(FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants));
 
     // different origin
     rules = [
@@ -688,7 +694,7 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         '!#include http://filters.adtidy.org/windows/filters/14.txt',
     ];
 
-    assert.rejects(FilterDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
+    assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
 });
 
 QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
@@ -701,10 +707,10 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
         '!#endif',
     ];
 
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    let compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    let compiled = await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 3);
     assert.equal(compiled[0], 'always_included_rule');
@@ -721,9 +727,9 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
     ];
 
     try {
-        await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+        await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     } catch (e) {
-        assert.equal(e.message, `Response status for url ${URL404} is invalid: 404`);
+        assert.equal((e as Error).message, `Response status for url ${URL404} is invalid: 404`);
     }
 
     // case 3: negative condition and include non-existing url
@@ -735,7 +741,7 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
         '!#endif',
     ];
 
-    compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    compiled = await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 1);
     assert.equal(compiled[0], 'always_included_rule');
@@ -746,16 +752,16 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
         '!#endif',
     ];
 
-    compiled = await FilterDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    compiled = await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     assert.ok(compiled);
     assert.equal(compiled.length, 0);
 });
 
 QUnit.test('Test filter downloader - download filter with conditional includes', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
-    const downloaded = await FilterDownloader.download(URL4, FilterCompilerConditionsConstants);
+    const downloaded = await FiltersDownloader.download(URL4, FilterCompilerConditionsConstants);
     assert.ok(downloaded);
     assert.equal(downloaded.length, 3);
     assert.equal(downloaded[0], 'test_main');
@@ -764,13 +770,13 @@ QUnit.test('Test filter downloader - download filter with conditional includes',
 });
 
 QUnit.test('Test empty filter downloader', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
-    assert.rejects(FilterDownloader.download(URL_EMPTY, FilterCompilerConditionsConstants), 'Response is empty');
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
+    assert.rejects(FiltersDownloader.download(URL_EMPTY, FilterCompilerConditionsConstants), 'Response is empty');
 });
 
 QUnit.test('Test filter downloader includes an empty filter', async (assert) => {
-    const FiltersDownloader = require('../src');
+    const { FiltersDownloader } = require('../dist');
     assert.ok(FiltersDownloader);
 
     const compiled = await FiltersDownloader.download(URL_INCLUDES_EMPTY, FilterCompilerConditionsConstants);
@@ -782,8 +788,8 @@ QUnit.test('Test filter downloader includes an empty filter', async (assert) => 
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions with "else" branch', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     let actual;
     let expected;
@@ -801,7 +807,7 @@ QUnit.test('Test filter downloader - simple "if" conditions with "else" branch',
         'always_included_rule',
         'adguard_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 2
     actual = [
@@ -818,7 +824,7 @@ QUnit.test('Test filter downloader - simple "if" conditions with "else" branch',
         'adguard_included_rule_1',
         'adguard_included_rule_2',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 3
     actual = [
@@ -833,7 +839,7 @@ QUnit.test('Test filter downloader - simple "if" conditions with "else" branch',
         'always_included_rule',
         'adguard_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 4
     actual = [
@@ -854,7 +860,7 @@ QUnit.test('Test filter downloader - simple "if" conditions with "else" branch',
         'adguard_included_rule',
         'adguard_ext_chromium_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 5
     actual = [
@@ -875,12 +881,12 @@ QUnit.test('Test filter downloader - simple "if" conditions with "else" branch',
         'adguard_included_rule',
         'adguard_ext_chromium_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 });
 
 QUnit.test('Test filter downloader - logical "if" conditions with "else" branch', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     let actual;
     let expected;
@@ -898,7 +904,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'adguard_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // true && false = false
     actual = [
@@ -913,7 +919,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'else_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // true || false = true
     actual = [
@@ -928,7 +934,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'if_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // true && false || true = true
     actual = [
@@ -943,7 +949,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'if_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // true && false && true = false
     actual = [
@@ -958,7 +964,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'else_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // false && true || true = true
     actual = [
@@ -973,7 +979,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'if_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // false || true && true = true
     actual = [
@@ -988,7 +994,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'if_adguard_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // !true && !true = false
     actual = [
@@ -1003,7 +1009,7 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'else_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // !(true && true) = false
     actual = [
@@ -1018,12 +1024,12 @@ QUnit.test('Test filter downloader - logical "if" conditions with "else" branch'
         'always_included_rule',
         'else_included_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 });
 
 QUnit.test('Test filter downloader - nested if conditions with else branch', async (assert) => {
-    const FilterDownloader = require('../src');
-    assert.ok(FilterDownloader);
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     let actual;
     let expected;
@@ -1047,7 +1053,7 @@ QUnit.test('Test filter downloader - nested if conditions with else branch', asy
         'if_first_level_rule',
         'if_second_level_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 2 -- three nested levels
     actual = [
@@ -1074,7 +1080,7 @@ QUnit.test('Test filter downloader - nested if conditions with else branch', asy
         'if_second_level_rule',
         'if_third_level_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 3 -- two nested levels but with few inner if conditions
     actual = [
@@ -1101,7 +1107,7 @@ QUnit.test('Test filter downloader - nested if conditions with else branch', asy
         'if_second_level_rule_1',
         'if_second_level_rule_2',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 4 -- two nested levels but else branch rules are included in the inner if condition
     actual = [
@@ -1122,7 +1128,7 @@ QUnit.test('Test filter downloader - nested if conditions with else branch', asy
         'if_first_level_rule',
         'else_second_level_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 
     // case 5 -- two nested levels but inner if condition is skipped
     actual = [
@@ -1142,5 +1148,5 @@ QUnit.test('Test filter downloader - nested if conditions with else branch', asy
         'zero_level_rule',
         'else_first_level_rule',
     ];
-    expectResolvedConditionsRules(FilterDownloader, actual, expected);
+    expectResolvedConditionsRules(FiltersDownloader, actual, expected, assert);
 });

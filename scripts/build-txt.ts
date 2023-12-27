@@ -5,7 +5,7 @@ const { version } = require('../package.json');
 const PATH = '../build';
 const FILENAME = 'build.txt';
 
-const main = () => {
+const main = (): void => {
     const content = `version=${version}`;
     const dir = path.resolve(__dirname, PATH);
 
