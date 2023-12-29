@@ -7,12 +7,11 @@
   resolved "https://registry.yarnpkg.com/@aashutoshrathi/word-wrap/-/word-wrap-1.2.6.tgz#bd9154aec9983f77b3a034ecaa015c2e4201f6cf"
   integrity sha512-1Yjs2SvM8TflER/OD3cOjhWWOZb58A2t7wpE2S9XfBYTiIl+XFhQG2bjy4Pu1I+EAlCNUzRDYDdFwFYUKvXcIA==
 
-"@adguard/diff-builder@1.0.7":
-  version "1.0.7"
-  resolved "https://registry.yarnpkg.com/@adguard/diff-builder/-/diff-builder-1.0.7.tgz#2542fb28fbd127f05650c74ff94c901e2dcc5af5"
-  integrity sha512-maeGTktyhbqQa8NtZJIZ76f8o+Gj1J9chyvB4s5lfD+gClOMBynZJbPlzW1skjdL3swO/rP4BOL+SWz1Oro4tw==
+"@adguard/diff-builder@1.0.8":
+  version "1.0.8"
+  resolved "https://registry.yarnpkg.com/@adguard/diff-builder/-/diff-builder-1.0.8.tgz#7650f184b1a1e975b39ab4d4422d63a967f047bd"
+  integrity sha512-KNcMTqZgP3Dmh7GFT1Rl/ZXFbzWjx+IKwn6MkO2BhRvYjl1X5fPL7OQeNf9SPOd5dzilSSO9kTQSbwjzSre3SA==
   dependencies:
-    axios "^1.6.0"
     commander "^11.1.0"
     crypto-js "^4.2.0"
     diff "5.1.0"
@@ -1428,7 +1427,7 @@ available-typed-arrays@^1.0.5:
   resolved "https://registry.yarnpkg.com/available-typed-arrays/-/available-typed-arrays-1.0.5.tgz#92f95616501069d07d10edb2fc37d3e1c65123b7"
   integrity sha512-DMD0KiN46eipeziST1LPP/STfDU0sufISXmjSgvVsoU2tqxctQeASejWcfNtxYKqETM1UxQ8sp2OrSBWpHY6sw==
 
-axios@1.6.2, axios@^1.6.0:
+axios@1.6.2:
   version "1.6.2"
   resolved "https://registry.yarnpkg.com/axios/-/axios-1.6.2.tgz#de67d42c755b571d3e698df1b6504cde9b0ee9f2"
   integrity sha512-7i24Ri4pmDRfJTR7LDBhsOTtcm+9kjX5WiY1X3wIisx6G9So3pfMkEiU7emUBe46oceVImccTEM3k6C5dbVW8A==
