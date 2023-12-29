@@ -7,10 +7,10 @@
   resolved "https://registry.yarnpkg.com/@aashutoshrathi/word-wrap/-/word-wrap-1.2.6.tgz#bd9154aec9983f77b3a034ecaa015c2e4201f6cf"
   integrity sha512-1Yjs2SvM8TflER/OD3cOjhWWOZb58A2t7wpE2S9XfBYTiIl+XFhQG2bjy4Pu1I+EAlCNUzRDYDdFwFYUKvXcIA==
 
-"@adguard/diff-builder@1.0.1":
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@adguard/diff-builder/-/diff-builder-1.0.1.tgz#f1477f81c0c2c6af5c59bd2eb1f8853e6019fac7"
-  integrity sha512-pVGLSqluwrlNeW89U4izaLI1/Ock6SF5AtmMn83kZyL81/xy4G3zCBUvs98gRp6GvP9n3Tf3Ciaf5DmWFkvY6w==
+"@adguard/diff-builder@1.0.7":
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/@adguard/diff-builder/-/diff-builder-1.0.7.tgz#2542fb28fbd127f05650c74ff94c901e2dcc5af5"
+  integrity sha512-maeGTktyhbqQa8NtZJIZ76f8o+Gj1J9chyvB4s5lfD+gClOMBynZJbPlzW1skjdL3swO/rP4BOL+SWz1Oro4tw==
   dependencies:
     axios "^1.6.0"
     commander "^11.1.0"
@@ -969,11 +969,6 @@
   integrity sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==
   dependencies:
     "@types/node" "*"
-
-"@types/crypto-js@^4.2.1":
-  version "4.2.1"
-  resolved "https://registry.yarnpkg.com/@types/crypto-js/-/crypto-js-4.2.1.tgz#480edd76991a63050cb88db1a8840758c55a7135"
-  integrity sha512-FSPGd9+OcSok3RsM0UZ/9fcvMOXJ1ENE/ZbLfOPlBWj7BgXtEAM8VYfTtT760GiLbQIMoVozwVuisjvsVwqYWw==
 
 "@types/estree@*", "@types/estree@^1.0.0":
   version "1.0.5"
