@@ -477,9 +477,9 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         line: string,
         filterOrigin?: string,
         definedProperties?: DefinedExpressions,
-    ): Promise<string[]> => {
+    ): Promise<string | string[]> => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
-            return Promise.resolve([line]);
+            return Promise.resolve(line);
         }
         const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
         validateUrl(url, filterOrigin);
