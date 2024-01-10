@@ -739,6 +739,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     }
 
     /**
+     * Splits filter by lines.
+     * @param filter Filter to split.
+     * @returns Array of strings.
+     */
+    const splitFilter = (filter: string): string[] => {
+        return filter.trim().split(/[\r\n]+/);
+    };
+
+    /**
      * Downloads filter rules from a URL without resolving pre-processor directives.
      *
      * @param url Filter file URL.
@@ -776,20 +785,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         // if nothing changed, then return result as is
         if (rawFilter === options.rawFilter) {
             return {
-                filter: rawFilter.split('\n'),
-                rawFilter: options.rawFilter.split('\n'),
+                filter: splitFilter(rawFilter),
+                rawFilter: splitFilter(options.rawFilter),
             };
         }
 
         const resolveResult = await resolveConditionsAndIncludes(
-            rawFilter.split('\n'),
+            splitFilter(rawFilter),
             options,
             filterUrlOrigin,
         );
 
         return {
             filter: resolveResult,
-            rawFilter: rawFilter.split('\n'),
+            rawFilter: splitFilter(rawFilter),
         };
     };
 

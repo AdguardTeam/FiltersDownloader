@@ -35,9 +35,9 @@ describe('FiltersDownloader', () => {
                     'utf-8',
                 );
                 const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(url, { rawFilter: prevFilter });
-                expect(filter).toEqual(curFilter.split('\n'));
+                expect(filter).toEqual(curFilter.trim().split(/[\r\n]+/));
                 // since there are no any includes, they are the same
-                expect(rawFilter).toEqual(curFilter.split('\n'));
+                expect(rawFilter).toEqual(curFilter.trim().split(/[\r\n]+/));
             });
 
             it('applies conditions after patches', async () => {
