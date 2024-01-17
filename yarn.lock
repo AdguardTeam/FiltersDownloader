@@ -7,14 +7,14 @@
   resolved "https://registry.yarnpkg.com/@aashutoshrathi/word-wrap/-/word-wrap-1.2.6.tgz#bd9154aec9983f77b3a034ecaa015c2e4201f6cf"
   integrity sha512-1Yjs2SvM8TflER/OD3cOjhWWOZb58A2t7wpE2S9XfBYTiIl+XFhQG2bjy4Pu1I+EAlCNUzRDYDdFwFYUKvXcIA==
 
-"@adguard/diff-builder@1.0.12":
-  version "1.0.12"
-  resolved "https://registry.yarnpkg.com/@adguard/diff-builder/-/diff-builder-1.0.12.tgz#fde4ede5aa02547dc7649a5c2f4c0f30c54ba016"
-  integrity sha512-VJ7GAT4FujDeG64U7B0ZusIYBFSpR4OfpkDLwWFrNTDD5PbtfHExGEVVzshsgnWA5CMGnD0rNyOiHvB9oz7Uyg==
+"@adguard/diff-builder@1.0.13":
+  version "1.0.13"
+  resolved "https://registry.yarnpkg.com/@adguard/diff-builder/-/diff-builder-1.0.13.tgz#240891d36e1209774d20096519cadadcd470dfd6"
+  integrity sha512-pqoYGQuDSFQPeZ+Z/yJfZoLtsyTolH/lpmm9fmREpJDMKA5c7piWiNeMj3ldht8I6VQQ6z3SZXofHmTbDO9FAw==
   dependencies:
     commander "^11.1.0"
     crypto-js "^4.2.0"
-    diff "git+https://github.com/kpdecker/jsdiff.git#c6498e3"
+    diff "git+https://github.com/105th/jsdiff.git#2be2e7df90e8eebd99f0385c7b1dc16c2f4dcc1a"
 
 "@ampproject/remapping@^2.2.0":
   version "2.2.1"
@@ -1899,9 +1899,9 @@ diff@^4.0.1:
   resolved "https://registry.yarnpkg.com/diff/-/diff-4.0.2.tgz#60f3aecb89d5fae520c11aa19efc2bb982aade7d"
   integrity sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==
 
-"diff@git+https://github.com/kpdecker/jsdiff.git#c6498e3":
-  version "5.1.0"
-  resolved "git+https://github.com/kpdecker/jsdiff.git#c6498e36e10c04dcf3c15c2db55feb784c22aeed"
+"diff@git+https://github.com/105th/jsdiff.git#2be2e7df90e8eebd99f0385c7b1dc16c2f4dcc1a":
+  version "5.1.1"
+  resolved "git+https://github.com/105th/jsdiff.git#2be2e7df90e8eebd99f0385c7b1dc16c2f4dcc1a"
 
 dir-glob@^3.0.1:
   version "3.0.1"
