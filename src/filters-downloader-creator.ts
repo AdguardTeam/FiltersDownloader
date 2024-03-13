@@ -16,6 +16,7 @@
  */
 
 import { DiffUpdater } from '@adguard/diff-builder/diff-updater';
+import { isValidChecksum } from './checksum';
 
 /**
  * The utility tool resolves preprocessor directives in filter content.
@@ -40,10 +41,32 @@ import { DiffUpdater } from '@adguard/diff-builder/diff-updater';
  * @interface IFileDownloader
  */
 interface IFileDownloader {
-    getLocalFile: (url: string, filterUrlOrigin: string) => Promise<string[]>,
-    getExternalFile: (url: string) => Promise<string[]>,
+    getLocalFile: (url: string, filterUrlOrigin: string) => Promise<string>,
+    getExternalFile: (url: string) => Promise<string>,
 }
 
+interface DownloadOptions {
+    resolveDirectives: boolean,
+    /**
+     * These properties might be used in pre-processor directives (`#if`, etc.). They are used to resolve conditions.
+     */
+    definedExpressions?: DefinedExpressions,
+    filterOrigin?: string,
+    validateChecksum?: boolean,
+    validateChecksumStrict?: boolean
+}
+
+/**
+ * These options were added separately to the download method to support backward compatibility.
+ */
+interface LegacyDownloadOptions {
+    validateChecksum?: boolean,
+    validateChecksumStrict?: boolean
+}
+
+/**
+ * Options interface for the downloadWithRaw method.
+ */
 interface DownloadWithRawOptions {
     /**
      * A boolean flag that, when set to true, indicates that the filter
@@ -67,6 +90,38 @@ interface DownloadWithRawOptions {
      * It is disabled (set to false) by default, but could be useful for troubleshooting and debugging.
      */
     verbose?: boolean
+
+    /**
+     * Option to run validation of checksum of the downloaded filter. If checksum was not found in the file, it will
+     * not throw error unless validateChecksumStrict is set to true.
+     */
+    validateChecksum?: boolean
+
+    /**
+     * Whether checksum validation should throw error or no if checksum was not found in the file.
+     * If it is true, it will throw error if checksum was not found in the file.
+     */
+    validateChecksumStrict?: boolean
+}
+
+/**
+ * This method downloads filter rules from a specified URL and applies the defined expressions to resolve conditions.
+ */
+interface DownloadInterface {
+    (
+        /**
+         * The absolute URL from which the filter is to be downloaded.
+         */
+        url: string,
+        /**
+         * An object containing defined expressions for condition resolution.
+         */
+        definedExpressions?: DefinedExpressions,
+        /**
+         * The options/configuration to be applied while downloading the filter.
+         */
+        options?: LegacyDownloadOptions
+    ): Promise<string[]>
 }
 
 /**
@@ -123,7 +178,7 @@ export interface DownloadResult {
  */
 interface IFiltersDownloader {
     compile: (rules: string[], filterOrigin?: string, expressions?: DefinedExpressions) => Promise<string[]>;
-    download: (url: string, expressions?: DefinedExpressions) => Promise<string[]>;
+    download: DownloadInterface;
     downloadWithRaw: DownloadWithRawInterface;
     resolveConditions: (rules: string[], expressions?: DefinedExpressions) => string[];
     resolveIncludes: (rules: string[], filterOrigin?: string, expressions?: DefinedExpressions) => Promise<string[]>;
@@ -197,7 +252,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     };
 
     /**
-     * Get the `filterUrlOrigin` from url for relative path resolve.
+     * Get the `filterOrigin` from url for relative path resolve.
      *
      * @param url Filter file URL.
      * @param filterUrlOrigin Existing origin url.
@@ -251,14 +306,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * on defined properties.
      *
      * @param expression The conditional expression to resolve.
-     * @param definedProperties An object containing defined properties for evaluation.
+     * @param definedExpressions An object containing defined properties for evaluation.
      *
      * @throws Throws an error if the expression is empty.
      *
      * @returns Returns `true` if the expression evaluates to `true` or a defined
      * property exists; otherwise, returns `false`.
      */
-    const resolveConditionConstant = (expression: string, definedProperties?: DefinedExpressions): boolean => {
+    const resolveConditionConstant = (expression: string, definedExpressions?: DefinedExpressions): boolean => {
         if (!expression) {
             throw new Error('Invalid directives: Empty condition');
         }
@@ -270,7 +325,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         }
 
         const expressionAsKey = trimmedExpression as keyof DefinedExpressions;
-        if (definedProperties?.[expressionAsKey] === true) {
+        if (definedExpressions?.[expressionAsKey] === true) {
             return true;
         }
 
@@ -468,15 +523,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * Validates and resolves include directive.
      *
      * @param line Line with directive.
-     * @param {?string} filterOrigin Filter file URL origin or null.
-     * @param {?object} definedProperties An object with the defined properties.
+     * @param filterOrigin Filter file URL origin or undefined.
+     * @param definedExpressions An object with the defined properties.
      * These properties might be used in pre-processor directives (`#if`, etc.).
-     * @returns {Promise} A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     * @returns A promise that returns string with rules if resolved and Error if rejected.
      */
     const resolveInclude = async (
         line: string,
         filterOrigin?: string,
-        definedProperties?: DefinedExpressions,
+        definedExpressions?: DefinedExpressions,
     ): Promise<string | string[]> => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
@@ -485,7 +540,11 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         validateUrl(url, filterOrigin);
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const { filter } = await downloadFilterRules(url, true, filterOrigin, definedProperties);
+        const { filter } = await downloadFilterRules(url, {
+            filterOrigin,
+            definedExpressions,
+            resolveDirectives: true,
+        });
 
         const MAX_LINES_TO_SCAN = 50;
         // Math.min inside for loop, because filter.length changes
@@ -531,44 +590,62 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     };
 
     /**
+     * Normalizes filter content. And splits it by lines.
+     * @param file Filter content.
+     *
+     * @returns Array of strings.
+     */
+    const normalizeFilterContent = (file: string): string[] => {
+        return file
+            .trim()
+            .split(/[\r\n]+/);
+    };
+
+    /**
      * Downloads filter rules from an external URL or a local path and resolves
      * pre-processor directives.
      *
      * @param url Filter file absolute URL or relative path.
-     * @param filterUrlOrigin Filter file URL origin or null.
-     * @param definedProperties An object with the defined properties.
-     * These properties might be used in pre-processor directives (`#if`, etc.).
-     * @param resolveDirectives Whether to resolve pre-processor directives.
+     * @param downloadOptions Options to be applied while downloading the filter.
      *
      * @returns A promise that returns an array of strings with rules when
      * resolved or an Error if rejected.
+     * @throws Error if validateChecksum flag is true and checksum is invalid.
      */
     const externalDownload = async (
         url: string,
-        filterUrlOrigin?: string,
-        definedProperties?: DefinedExpressions,
-        resolveDirectives?: boolean,
+        downloadOptions?: DownloadOptions,
     ): Promise<DownloadResult> => {
+        const filterUrlOrigin = downloadOptions?.filterOrigin;
+
         const filterUrl = !REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin || '')
             // getting absolute url for external file with relative url
             ? `${filterUrlOrigin}/${url}`
             : url;
 
-        if (!resolveDirectives) {
-            const filter = await FileDownloadWrapper.getExternalFile(filterUrl);
+        const file = await FileDownloadWrapper.getExternalFile(filterUrl);
+
+        if (downloadOptions && downloadOptions.validateChecksum) {
+            if (!isValidChecksum(file, downloadOptions.validateChecksumStrict)) {
+                throw new Error('Invalid checksum');
+            }
+        }
+
+        const filter = normalizeFilterContent(file);
+
+        if (!downloadOptions?.resolveDirectives) {
             return {
                 filter,
                 rawFilter: filter,
             };
         }
 
-        const filter = await FileDownloadWrapper.getExternalFile(filterUrl);
         const urlOrigin = getFilterUrlOrigin(filterUrl);
-        const conditionsResult = resolveConditions(filter, definedProperties);
+        const conditionsResult = resolveConditions(filter, downloadOptions.definedExpressions);
         const includesResult = await resolveIncludes(
             conditionsResult,
             urlOrigin,
-            definedProperties,
+            downloadOptions.definedExpressions,
         );
 
         return {
@@ -601,41 +678,46 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     /**
      * Gets filter rules from a local path and resolves pre-processor directives.
      *
-     * @param url Local path.
-     * @param filterUrlOrigin Origin path.
-     * @param definedProperties An object with the defined properties.
-     * @param resolveDirectives Whether to resolve pre-processor directives.
-     *
+     * @param url Path to the local file.
+     * @param downloadOptions Options to be applied while downloading the filter.
      * @returns A promise that returns an array of strings with rules when resolved or an Error if rejected.
+     * @throws Error if validateChecksum flag is true and checksum is invalid.
      */
     const getLocalFile = async (
         url: string,
-        filterUrlOrigin?: string,
-        definedProperties?: DefinedExpressions,
-        resolveDirectives?: boolean,
+        downloadOptions: DownloadOptions,
     ): Promise<DownloadResult> => {
-        const urlToLoad = filterUrlOrigin
-            ? `${filterUrlOrigin}/${url}`
+        const { filterOrigin } = downloadOptions;
+
+        const urlToLoad = filterOrigin
+            ? `${filterOrigin}/${url}`
             : url;
 
-        const origin = getFilterUrlOrigin(urlToLoad, filterUrlOrigin);
+        const origin = getFilterUrlOrigin(urlToLoad, filterOrigin);
+        const rawFilterContent = await FileDownloadWrapper.getLocalFile(urlToLoad, origin);
 
-        if (!resolveDirectives) {
-            const filter = await FileDownloadWrapper.getLocalFile(urlToLoad, origin);
+        if (downloadOptions && downloadOptions.validateChecksum) {
+            if (!isValidChecksum(rawFilterContent, downloadOptions.validateChecksumStrict)) {
+                throw new Error('Invalid checksum');
+            }
+        }
+
+        const filterContent = normalizeFilterContent(rawFilterContent);
+
+        if (!downloadOptions?.resolveDirectives) {
             return {
-                filter,
-                rawFilter: filter,
+                filter: filterContent,
+                rawFilter: filterContent,
             };
         }
 
-        const rawFilter = await FileDownloadWrapper.getLocalFile(urlToLoad, origin);
         const urlOrigin = getFilterUrlOrigin(urlToLoad);
         // Resolve 'if' conditions and 'includes' directives
-        const conditionsResult = resolveConditions(rawFilter, definedProperties);
-        const includesResult = await resolveIncludes(conditionsResult, urlOrigin, definedProperties);
+        const conditionsResult = resolveConditions(filterContent, downloadOptions.definedExpressions);
+        const includesResult = await resolveIncludes(conditionsResult, urlOrigin, downloadOptions.definedExpressions);
         return {
             filter: includesResult,
-            rawFilter,
+            rawFilter: filterContent,
         };
     };
 
@@ -643,9 +725,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * Downloads filter rules from a URL and resolves pre-processor directives.
      *
      * @param url Filter file URL.
-     * @param resolveDirectives Whether to resolve pre-processor directives.
-     * @param filterUrlOrigin Filter file URL origin or null.
-     * @param definedProperties An object with the defined properties.
+     * @param downloadOptions
      * These properties might be used in pre-processor directives (`#if`, etc.).
      *
      * @returns A promise that returns an array of strings with rules when
@@ -653,31 +733,45 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      */
     const downloadFilterRules = (
         url: string,
-        resolveDirectives: boolean = true,
-        filterUrlOrigin?: string,
-        definedProperties?: DefinedExpressions,
+        downloadOptions: DownloadOptions,
     ): Promise<DownloadResult> => {
-        if (REGEXP_EXTERNAL_ABSOLUTE_URL.test(url) || REGEXP_EXTERNAL_ABSOLUTE_URL.test(filterUrlOrigin || '')) {
-            return externalDownload(url, filterUrlOrigin, definedProperties, resolveDirectives);
+        if (
+            REGEXP_EXTERNAL_ABSOLUTE_URL.test(url)
+            || REGEXP_EXTERNAL_ABSOLUTE_URL.test(downloadOptions.filterOrigin || '')
+        ) {
+            return externalDownload(url, downloadOptions);
         }
-        return getLocalFile(url, filterUrlOrigin, definedProperties, resolveDirectives);
+        return getLocalFile(url, downloadOptions);
     };
 
     /**
      * Downloads a specified filter and resolves all the pre-processor directives from there.
      *
-     * @param url Filter file URL.
-     * @param definedProperties An object with the defined properties.
+     * @param url The URL of the filter to download.
+     * @param definedExpressions An object with the defined properties.
      * These properties might be used in pre-processor directives (`#if`, etc.).
+     * @param options Options to be applied while downloading the filter.
+     *
      * @returns A promise that resolves with a list of rules and rejects with an error if unable to download.
+     * @throws Error if validateChecksum flag is true and checksum is invalid.
      */
-    const download = async (url: string, definedProperties?: DefinedExpressions): Promise<string[]> => {
+    const download = async (
+        url: string,
+        definedExpressions?: DefinedExpressions,
+        options?: LegacyDownloadOptions,
+    ): Promise<string[]> => {
         let filterUrlOrigin;
         if (url && REGEXP_EXTERNAL_ABSOLUTE_URL.test(url)) {
             filterUrlOrigin = getFilterUrlOrigin(url);
         }
 
-        const result = await downloadFilterRules(url, true, filterUrlOrigin, definedProperties);
+        const result = await downloadFilterRules(url, {
+            filterOrigin: filterUrlOrigin,
+            definedExpressions,
+            resolveDirectives: true,
+            validateChecksum: options?.validateChecksum,
+            validateChecksumStrict: options?.validateChecksumStrict,
+        });
 
         // only included filters can be empty
         if (result.filter && result.filter.join().trim() === '') {
@@ -723,8 +817,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             filterUrlOrigin = getFilterUrlOrigin(url);
         }
 
-        // `false` for not resolving directives
-        const result = await downloadFilterRules(url, false, filterUrlOrigin);
+        const result = await downloadFilterRules(url, {
+            filterOrigin: filterUrlOrigin,
+            definedExpressions: options.definedExpressions,
+            // `false` for not resolving directives
+            resolveDirectives: false,
+            validateChecksum: options.validateChecksum,
+            validateChecksumStrict: options.validateChecksumStrict,
+        });
+
         // only included filters can be empty
         if (result.filter && result.filter.join().trim() === '') {
             throw new Error('Response is empty');
@@ -754,6 +855,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param options Options to be applied while downloading the filter.
      * @returns A promise that returns an array of strings with rules when
      * resolved or an Error if rejected.
+     * @throws Error if validateChecksum flag is true and checksum is invalid.
      */
     const downloadWithRaw: DownloadWithRawInterface = async (url, options) => {
         options.verbose ??= false;
@@ -779,7 +881,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
         // applyPatch returns null if there is no Diff-Path in the filter metadata
         if (rawFilter === null) {
-            return downloadAndProcess(url, options);
+            const downloadResult = await downloadAndProcess(url, options);
+            return downloadResult;
         }
 
         // if nothing changed, then return result as is

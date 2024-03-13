@@ -81,7 +81,7 @@ To build one file for browser environment:
 yarn build
 ```
 
-See `build/` directory for results.
+See `./dist` directory for results.
 
 ## Usage
 

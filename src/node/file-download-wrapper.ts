@@ -41,10 +41,9 @@ const executeRequestAsync = (url: string): Promise<any> => axios({
  * Downloads filter rules from external url.
  *
  * @param url Filter file absolute URL or relative path.
- * @returns A promise that returns {string} with rules when if resolved and
- * {Error} if rejected.
+ * @returns A promise that returns string with rules when if resolved and Error if rejected.
  */
-const getExternalFile = (url: string): Promise<string[]> => {
+const getExternalFile = (url: string): Promise<string> => {
     return new Promise((resolve, reject) => {
         executeRequestAsync(url)
             .then((response) => {
@@ -60,11 +59,7 @@ const getExternalFile = (url: string): Promise<string[]> => {
 
                 const responseText = response.responseText ? response.responseText : response.data;
 
-                const lines = responseText
-                    .trim()
-                    .split(/[\r\n]+/);
-
-                resolve(lines);
+                resolve(responseText);
             }).catch((err) => {
                 reject(err);
             });
@@ -72,17 +67,15 @@ const getExternalFile = (url: string): Promise<string[]> => {
 };
 
 /**
- * Get filter rules from local path.
+ * Get filter rules from the local path.
  *
  * @param url Local path.
  * @param filterUrlOrigin Origin path.
- * @returns A promise that returns {string} with rules when if resolved and
- * {Error} if rejected.
+ * @returns A promise that returns string with rules when if resolved and Error if rejected.
  */
-const getLocalFile = (url: string, filterUrlOrigin: string): Promise<string[]> => {
+const getLocalFile = (url: string, filterUrlOrigin: string): Promise<string> => {
     const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
-    const lines = file.trim().split(/[\r\n]+/);
-    return Promise.resolve(lines);
+    return Promise.resolve(file);
 };
 
 export {

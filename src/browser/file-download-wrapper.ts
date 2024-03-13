@@ -38,15 +38,15 @@ const isLocal = (url: string): boolean => {
 };
 
 /**
- * Executes async request via fetch
- * fetch doesn't allow to download urls with file:// scheme.
+ * Executes async request via fetch.
+ * Fetch doesn't allow downloading urls with file:// scheme.
  *
  * @param url URL.
  *
  * @returns Promise which will be resolved with string content of request
  * divided by '/r?/n'.
  */
-const executeRequestAsyncFetch = async (url: string): Promise<string[]> => {
+const executeRequestAsyncFetch = async (url: string): Promise<string> => {
     const response = await fetch(url, {
         cache: 'no-cache',
         headers: {
@@ -68,13 +68,7 @@ const executeRequestAsyncFetch = async (url: string): Promise<string[]> => {
         }
     }
 
-    const responseText = await response.text();
-
-    const lines = responseText
-        .trim()
-        .split(/[\r\n]+/);
-
-    return lines;
+    return response.text();
 };
 
 /**
@@ -82,13 +76,11 @@ const executeRequestAsyncFetch = async (url: string): Promise<string[]> => {
  * from the given URL.
  *
  * @param url The URL of the file to retrieve.
- * @returns A Promise that resolves to an array of strings representing
- * the lines of the file.
+ * @returns A Promise that resolves to a string representing data from the file.
  * @throws Throws an error if the response status is invalid,
- * the Content-Type is unsupported,
- * or if there's an error during the request.
+ * the Content-Type is unsupported, or if there's an error during the request.
  */
-const executeRequestAsyncXhr = (url: string): Promise<string[]> => new Promise((resolve, reject) => {
+const executeRequestAsyncXhr = (url: string): Promise<string> => new Promise((resolve, reject) => {
     const onRequestLoad = (response: XMLHttpRequest): void => {
         if (response.status !== 200 && response.status !== 0) {
             reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
@@ -108,11 +100,7 @@ const executeRequestAsyncXhr = (url: string): Promise<string[]> => new Promise((
             }
         }
 
-        const lines = responseText
-            .trim()
-            .split(/[\r\n]+/);
-
-        resolve(lines);
+        resolve(responseText);
     };
 
     const request = new XMLHttpRequest();
@@ -147,21 +135,20 @@ const executeRequestAsyncXhr = (url: string): Promise<string[]> => new Promise((
  * Downloads filter rules from external url.
  *
  * @param url Filter file absolute URL or relative path.
- * @returns A promise that returns array of string rules when resolved
+ * @returns A promise that returns string of rules when resolved
  * and error if rejected.
  */
-const getExternalFile = (url: string): Promise<string[]> => executeRequestAsyncFetch(url);
+const getExternalFile = (url: string): Promise<string> => executeRequestAsyncFetch(url);
 
 /**
  * Retrieves a local file content asynchronously using XMLHttpRequest or fetch API.
  *
  * @param url The URL of the local file to retrieve.
- * @returns A Promise that resolves to an array of strings representing
- * the lines of the file.
+ * @returns A Promise that resolves to string representing the content of the file.
  * @throws Throws an error if neither XMLHttpRequest nor fetch is available or
  * if getting local files inside a service worker is not supported.
  */
-const getLocalFile = (url: string): Promise<string[]> => {
+const getLocalFile = (url: string): Promise<string> => {
     if (typeof XMLHttpRequest !== 'undefined') {
         return executeRequestAsyncXhr(url);
     }
