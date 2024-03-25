@@ -114,8 +114,9 @@ promise.then((compiled) => {
     // Error
 });
 
-// downloadWithRaw - downloads filter, applies patches if possible and resolves conditionals
-const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(
+// The downloadWithRaw() method downloads a filter, applies patches if possible and resolves conditionals;
+// if patch applying fails, isPatchUpdateFailed will be true.
+const { filter, rawFilter, isPatchUpdateFailed } = await FiltersDownloader.downloadWithRaw(
     url,
     {
         force: false,

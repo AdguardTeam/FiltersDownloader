@@ -15,7 +15,7 @@
  * along with AdGuard Browser Extension.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { DiffUpdater } from '@adguard/diff-builder/diff-updater';
+import { DiffUpdater, UnacceptableResponseError } from '@adguard/diff-builder/diff-updater';
 import { isValidChecksum } from './checksum';
 
 /**
@@ -164,10 +164,18 @@ export interface DownloadResult {
      * Might be the same as raw filter if no conditions or includes were resolved.
      */
     filter: string[];
+
     /**
      * The raw filter, which is the filter before any conditions are applied or inclusions resolved.
      */
     rawFilter: string[];
+
+    /**
+     * Flag to indicate if the patch update failed.
+     *
+     * @see {@link https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2717}
+     */
+    isPatchUpdateFailed?: boolean;
 }
 
 /**
@@ -853,9 +861,13 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      *
      * @param url Filter file URL.
      * @param options Options to be applied while downloading the filter.
+     *
      * @returns A promise that returns an array of strings with rules when
      * resolved or an Error if rejected.
-     * @throws Error if validateChecksum flag is true and checksum is invalid.
+     *
+     * @throws An error if
+     * - validateChecksum flag is true and checksum is invalid;
+     * - DiffUpdater.applyPatch() fails and the thrown error is not {@link UnacceptableResponseError}.
      */
     const downloadWithRaw: DownloadWithRawInterface = async (url, options) => {
         options.verbose ??= false;
@@ -873,11 +885,26 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             return downloadAndProcess(url, options);
         }
 
-        const rawFilter = await DiffUpdater.applyPatch({
-            filterUrl: url,
-            filterContent: options.rawFilter,
-            verbose: options.verbose,
-        });
+        let rawFilter: string | null = '';
+
+        try {
+            rawFilter = await DiffUpdater.applyPatch({
+                filterUrl: url,
+                filterContent: options.rawFilter,
+                verbose: options.verbose,
+            });
+        } catch (e) {
+            if (e instanceof UnacceptableResponseError) {
+                return {
+                    filter: splitFilter(options.rawFilter),
+                    rawFilter: splitFilter(options.rawFilter),
+                    isPatchUpdateFailed: true,
+                };
+            }
+
+            // if the error is not UnacceptableResponseError, then rethrow it further
+            throw e;
+        }
 
         // applyPatch returns null if there is no Diff-Path in the filter metadata
         if (rawFilter === null) {
@@ -888,7 +915,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         // if nothing changed, then return result as is
         if (rawFilter === options.rawFilter) {
             return {
-                filter: splitFilter(rawFilter),
+                filter: splitFilter(options.rawFilter),
                 rawFilter: splitFilter(options.rawFilter),
             };
         }
