@@ -168,7 +168,7 @@ export interface DownloadResult {
     /**
      * The raw filter, which is the filter before any conditions are applied or inclusions resolved.
      */
-    rawFilter: string[];
+    rawFilter: string;
 
     /**
      * Flag to indicate if the patch update failed.
@@ -598,15 +598,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     };
 
     /**
-     * Normalizes filter content. And splits it by lines.
-     * @param file Filter content.
-     *
+     * Splits filter by lines.
+     * @param filter Filter to split.
      * @returns Array of strings.
      */
-    const normalizeFilterContent = (file: string): string[] => {
-        return file
-            .trim()
-            .split(/[\r\n]+/);
+    const splitFilter = (filter: string): string[] => {
+        return filter.trim().split(/[\r\n]+/);
     };
 
     /**
@@ -631,20 +628,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             ? `${filterUrlOrigin}/${url}`
             : url;
 
-        const file = await FileDownloadWrapper.getExternalFile(filterUrl);
+        const rawFilter = await FileDownloadWrapper.getExternalFile(filterUrl);
 
         if (downloadOptions && downloadOptions.validateChecksum) {
-            if (!isValidChecksum(file, downloadOptions.validateChecksumStrict)) {
+            if (!isValidChecksum(rawFilter, downloadOptions.validateChecksumStrict)) {
                 throw new Error('Invalid checksum');
             }
         }
 
-        const filter = normalizeFilterContent(file);
+        const filter = splitFilter(rawFilter);
 
         if (!downloadOptions?.resolveDirectives) {
             return {
                 filter,
-                rawFilter: filter,
+                rawFilter,
             };
         }
 
@@ -658,7 +655,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
         return {
             filter: includesResult,
-            rawFilter: filter,
+            rawFilter,
         };
     };
 
@@ -702,20 +699,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             : url;
 
         const origin = getFilterUrlOrigin(urlToLoad, filterOrigin);
-        const rawFilterContent = await FileDownloadWrapper.getLocalFile(urlToLoad, origin);
+        const rawFilter = await FileDownloadWrapper.getLocalFile(urlToLoad, origin);
 
         if (downloadOptions && downloadOptions.validateChecksum) {
-            if (!isValidChecksum(rawFilterContent, downloadOptions.validateChecksumStrict)) {
+            if (!isValidChecksum(rawFilter, downloadOptions.validateChecksumStrict)) {
                 throw new Error('Invalid checksum');
             }
         }
 
-        const filterContent = normalizeFilterContent(rawFilterContent);
+        const filterContent = splitFilter(rawFilter);
 
         if (!downloadOptions?.resolveDirectives) {
             return {
                 filter: filterContent,
-                rawFilter: filterContent,
+                rawFilter,
             };
         }
 
@@ -725,7 +722,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const includesResult = await resolveIncludes(conditionsResult, urlOrigin, downloadOptions.definedExpressions);
         return {
             filter: includesResult,
-            rawFilter: filterContent,
+            rawFilter,
         };
     };
 
@@ -799,11 +796,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @returns A Promise that resolves to the result of resolving the includes.
      */
     async function resolveConditionsAndIncludes(
-        rawFilter: string[],
+        rawFilter: string,
         options: DownloadWithRawOptions,
         filterUrlOrigin?: string,
     ): Promise<string[]> {
-        const resolvedConditionsResult = resolveConditions(rawFilter, options.definedExpressions);
+        const filter = splitFilter(rawFilter);
+        const resolvedConditionsResult = resolveConditions(filter, options.definedExpressions);
         return resolveIncludes(
             resolvedConditionsResult,
             filterUrlOrigin,
@@ -848,15 +846,6 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     }
 
     /**
-     * Splits filter by lines.
-     * @param filter Filter to split.
-     * @returns Array of strings.
-     */
-    const splitFilter = (filter: string): string[] => {
-        return filter.trim().split(/[\r\n]+/);
-    };
-
-    /**
      * Downloads filter rules from a URL without resolving pre-processor directives.
      *
      * @param url Filter file URL.
@@ -897,7 +886,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             if (e instanceof UnacceptableResponseError) {
                 return {
                     filter: splitFilter(options.rawFilter),
-                    rawFilter: splitFilter(options.rawFilter),
+                    rawFilter: options.rawFilter,
                     isPatchUpdateFailed: true,
                 };
             }
@@ -916,19 +905,19 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         if (rawFilter === options.rawFilter) {
             return {
                 filter: splitFilter(options.rawFilter),
-                rawFilter: splitFilter(options.rawFilter),
+                rawFilter: options.rawFilter,
             };
         }
 
         const resolveResult = await resolveConditionsAndIncludes(
-            splitFilter(rawFilter),
+            rawFilter,
             options,
             filterUrlOrigin,
         );
 
         return {
             filter: resolveResult,
-            rawFilter: splitFilter(rawFilter),
+            rawFilter,
         };
     };
 

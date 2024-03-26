@@ -37,7 +37,7 @@ describe('FiltersDownloader', () => {
                 const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(url, { rawFilter: prevFilter });
                 expect(filter).toEqual(curFilter.trim().split(/[\r\n]+/));
                 // since there are no any includes, they are the same
-                expect(rawFilter).toEqual(curFilter.trim().split(/[\r\n]+/));
+                expect(rawFilter).toEqual(curFilter);
             });
 
             it('applies conditions after patches', async () => {
@@ -55,13 +55,11 @@ describe('FiltersDownloader', () => {
                     '||example.net^',
                     '||included.com^',
                 ];
-                const expectedRawFilter = [
-                    '! Title: Diff Updates Simple Example List',
-                    '! Version: v1.0.2',
-                    '! Diff-Path: patches/v1.0.1-s-1702460925-5.patch',
-                    '||example.net^',
-                    '!#include ./filter_2.txt',
-                ];
+                const expectedRawFilter = `! Title: Diff Updates Simple Example List
+! Version: v1.0.2
+! Diff-Path: patches/v1.0.1-s-1702460925-5.patch
+||example.net^
+!#include ./filter_2.txt`;
                 expect(filter).toEqual(expectedFilter);
                 expect(rawFilter).toEqual(expectedRawFilter);
             });
@@ -102,13 +100,12 @@ describe('FiltersDownloader', () => {
                     '||example.net^',
                     '||included.com^',
                 ];
-                const expectedRawFilter = [
-                    '! Title: Diff Updates Simple Example List',
-                    '! Version: v1.0.2',
-                    '! Diff-Path: patches/v1.0.1-s-1702460925-5.patch',
-                    '||example.net^',
-                    '!#include filter_2.txt',
-                ];
+                const expectedRawFilter = `! Title: Diff Updates Simple Example List
+! Version: v1.0.2
+! Diff-Path: patches/v1.0.1-s-1702460925-5.patch
+||example.net^
+!#include filter_2.txt
+`;
                 expect(filter).toEqual(expectedFilter);
                 expect(rawFilter).toEqual(expectedRawFilter);
                 // Assert that each URL was fetched only once
@@ -161,12 +158,11 @@ describe('FiltersDownloader', () => {
                     '||example.net^',
                     '||included.com^',
                 ];
-                const expectedRawFilter = [
-                    '! Title: Simple Example List',
-                    '! Version: v1.0.2',
-                    '||example.net^',
-                    '!#include filter_2.txt',
-                ];
+                const expectedRawFilter = `! Title: Simple Example List
+! Version: v1.0.2
+||example.net^
+!#include filter_2.txt
+`;
                 expect(filter).toEqual(expectedFilter);
                 expect(rawFilter).toEqual(expectedRawFilter);
                 // Assert that each URL was fetched only once
@@ -221,12 +217,11 @@ describe('FiltersDownloader', () => {
                     '! Version: v1.0.0',
                     '||included2.com^',
                 ];
-                const expectedRawFilter = [
-                    '! Title: Simple Example List',
-                    '! Version: v1.0.2',
-                    '||example.net^',
-                    '!#include filter_2.txt',
-                ];
+                const expectedRawFilter = `! Title: Simple Example List
+! Version: v1.0.2
+||example.net^
+!#include filter_2.txt
+`;
                 expect(filter).toEqual(expectedFilter);
                 expect(rawFilter).toEqual(expectedRawFilter);
                 // Assert that each URL was fetched only once
