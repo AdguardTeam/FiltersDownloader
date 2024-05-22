@@ -547,12 +547,18 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
         validateUrl(url, filterOrigin);
 
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const { filter } = await downloadFilterRules(url, {
-            filterOrigin,
-            definedExpressions,
-            resolveDirectives: true,
-        });
+        let filter: string[];
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            const downloadResult = await downloadFilterRules(url, {
+                filterOrigin,
+                definedExpressions,
+                resolveDirectives: true,
+            });
+            filter = downloadResult.filter;
+        } catch (error) {
+            throw new Error(`Failed to resolve the include directive: '${line}'`, { cause: error });
+        }
 
         const MAX_LINES_TO_SCAN = 50;
         // Math.min inside for loop, because filter.length changes

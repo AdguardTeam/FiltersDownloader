@@ -60,8 +60,9 @@ const getExternalFile = (url: string): Promise<string> => {
                 const responseText = response.responseText ? response.responseText : response.data;
 
                 resolve(responseText);
-            }).catch((err) => {
-                reject(err);
+            }).catch((error) => {
+                const updatedError = new Error(`Failed to request url '${url}'`, { cause: error });
+                reject(updatedError);
             });
     });
 };

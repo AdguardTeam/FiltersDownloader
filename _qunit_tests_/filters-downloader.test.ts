@@ -686,7 +686,10 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         '!#include resources/not_found_file.txt',
     ];
 
-    assert.rejects(FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants));
+    assert.rejects(
+        FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
+        "Failed to resolve the include directive: '!#include resources/not_found_file.txt'",
+    );
 
     // different origin
     rules = [
@@ -729,7 +732,11 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
     try {
         await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     } catch (e) {
-        assert.equal((e as Error).message, `Response status for url ${URL404} is invalid: 404`);
+        assert.equal(
+            (e as Error).message,
+            // eslint-disable-next-line max-len
+            `Failed to resolve the include directive: '!#include ${URL404}'`,
+        );
     }
 
     // case 3: negative condition and include non-existing url
