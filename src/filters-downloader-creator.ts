@@ -534,7 +534,9 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param filterOrigin Filter file URL origin or undefined.
      * @param definedExpressions An object with the defined properties.
      * These properties might be used in pre-processor directives (`#if`, etc.).
+     *
      * @returns A promise that returns string with rules if resolved and Error if rejected.
+     * @throws Error if failed to resolve the include directive.
      */
     const resolveInclude = async (
         line: string,
