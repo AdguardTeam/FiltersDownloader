@@ -152,6 +152,7 @@ interface DownloadWithRawInterface {
 interface DefinedExpressions {
     adguard?: boolean,
     adguard_ext_chromium?: boolean,
+    adguard_ext_chromium_mv3?: boolean,
     adguard_ext_firefox?: boolean,
     adguard_ext_edge?: boolean,
     adguard_ext_safari?: boolean,
