@@ -7,6 +7,8 @@ const SUPPORTED_CONTENT_TYPES = [
     PREFERRED_CONTENT_TYPE,
     // https://github.com/AdguardTeam/AdguardBrowserExtension/issues/1723
     'text/html',
+    // https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2908
+    'application/octet-stream',
 ];
 
 /**
