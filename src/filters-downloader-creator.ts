@@ -534,6 +534,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param line Line with directive.
      * @param filterOrigin Filter file URL origin or undefined.
      * @param definedExpressions An object with the defined properties.
+     * @param context Previous lines for better error messages.
      * These properties might be used in pre-processor directives (`#if`, etc.).
      *
      * @returns A promise that returns string with rules if resolved and Error if rejected.
@@ -543,6 +544,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         line: string,
         filterOrigin?: string,
         definedExpressions?: DefinedExpressions,
+        context?: string,
     ): Promise<string | string[]> => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
@@ -560,7 +562,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             });
             filter = downloadResult.filter;
         } catch (error) {
-            throw new Error(`Failed to resolve the include directive: '${line}'`, { cause: error });
+            if (error instanceof Error) {
+                throw new Error(`Error: Failed to resolve the include directive '${line}'
+URL: '${filterOrigin}'
+Context:
+${context}
+\t${line}`);
+            } else {
+                throw new Error(`Unknown error: ${error}`);
+            }
         }
 
         const MAX_LINES_TO_SCAN = 50;
@@ -584,15 +594,24 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @returns A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const resolveIncludes = async (
-        rules: string [],
+        rules: string[],
         filterOrigin?: string,
         definedExpressions?: DefinedExpressions,
     ): Promise<string[]> => {
-        const promises = rules.map((rule) => resolveInclude(rule, filterOrigin, definedExpressions));
+        // number of lines before the directive to show in case of error message
+        const LINES_BEFORE_DIRECTIVE = 3;
+        const promises = rules.map((rule, index) => {
+            // context need for better error messages
+            // we show 3 lines before the directive in new line with tabulation
+            const context = rules
+                .slice(Math.max(0, index - LINES_BEFORE_DIRECTIVE), index)
+                .map((line) => `\t${line}`).join('\n');
+            return resolveInclude(rule, filterOrigin, definedExpressions, context);
+        });
 
         let result: string[] = [];
         // We do not use here Promise.all because it freezes the Chromium browsers and electron built on it, if there
-        // are more than 1_100_00 promises. Also, we consider that wa can afford promises to be resolved sequentially.
+        // are more than 1_100_00 promises. Also, we consider that we can afford promises to be resolved sequentially.
         for (let i = 0; i < promises.length; i += 1) {
             // eslint-disable-next-line no-await-in-loop
             const resolved = await promises[i];

@@ -683,21 +683,48 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
     // non existing file
     rules = [
         'always_included_rule',
+        '||example.com',
+        '||example.org',
         '!#include resources/not_found_file.txt',
     ];
 
-    assert.rejects(
-        FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
-        "Failed to resolve the include directive: '!#include resources/not_found_file.txt'",
-    );
+    try {
+        await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    } catch (e) {
+        assert.equal((
+            e as Error)
+            .message, `Error: Failed to resolve the include directive '!#include resources/not_found_file.txt'
+URL: 'null'
+Context:
+\talways_included_rule
+\t||example.com
+\t||example.org
+\t!#include resources/not_found_file.txt`);
+    }
 
     // different origin
     rules = [
         'always_included_rule',
+        'included_rule',
+        '||example.org^',
+        '||example.com^',
         '!#include http://filters.adtidy.org/windows/filters/14.txt',
     ];
 
     assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
+
+    try {
+        await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
+    } catch (e) {
+        assert.equal((
+            e as Error).message, `Error: Failed to resolve the include directive '!#include http://filters.adtidy.org/windows/filters/14.txt'
+URL: 'null'
+Context:
+\tincluded_rule
+\t||example.org^
+\t||example.com^
+\t!#include http://filters.adtidy.org/windows/filters/14.txt`);
+    }
 });
 
 QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
@@ -732,11 +759,11 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
     try {
         await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
     } catch (e) {
-        assert.equal(
-            (e as Error).message,
-            // eslint-disable-next-line max-len
-            `Failed to resolve the include directive: '!#include ${URL404}'`,
-        );
+        assert.equal((e as Error).message, `Error: Failed to resolve the include directive '!#include ${URL404}'
+URL: 'null'
+Context:
+\talways_included_rule
+\t!#include ${URL404}`);
     }
 
     // case 3: negative condition and include non-existing url
