@@ -601,7 +601,7 @@ ${context}
         // number of lines before the directive to show in case of error message
         const LINES_BEFORE_DIRECTIVE = 3;
         const promises = rules.map((rule, index) => {
-            // context need for better error messages
+            // context is needed for better error messages
             // we show 3 lines before the directive in new line with tabulation
             const context = rules
                 .slice(Math.max(0, index - LINES_BEFORE_DIRECTIVE), index)
