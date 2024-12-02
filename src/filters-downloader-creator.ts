@@ -248,7 +248,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         url?: string,
     ): string => {
         const errorText = `
-            Error: ${message} '${directive}'
+            ${message} '${directive}'
             ${url ? `URL: '${url}'` : ''}
             Context:
                 ${contextLines}
@@ -649,7 +649,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         } catch (error) {
             if (error instanceof Error) {
                 const errorMessage = createErrorMessage(
-                    'Error: Failed to resolve the include directive',
+                    'Failed to resolve the include directive',
                     line,
                     context,
                     filterOrigin,

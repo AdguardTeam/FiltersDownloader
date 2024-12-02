@@ -715,7 +715,7 @@ QUnit.test('Test filter downloader - invalid includes', async (assert) => {
         '!#include resources/not_found_file.txt',
     ];
 
-    assert.rejects(
+    await assert.rejects(
         FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
         `Error: Failed to resolve the include directive '!#include resources/not_found_file.txt'
 Context:
@@ -734,19 +734,25 @@ Context:
         '!#include http://filters.adtidy.org/windows/filters/14.txt',
     ];
 
-    assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
+    await assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
 
-    try {
-        await FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants);
-    } catch (e) {
-        assert.equal((
-            e as Error).message, `Error: Failed to resolve the include directive '!#include http://filters.adtidy.org/windows/filters/14.txt'
+    rules = [
+        'always_included_rule',
+        'included_rule',
+        '||example.org^',
+        '||example.com^',
+        '!#include',
+    ];
+
+    await assert.rejects(
+        FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
+        `Failed to resolve the include directive '!#include'
 Context:
-\tincluded_rule
-\t||example.org^
-\t||example.com^
-\t!#include http://filters.adtidy.org/windows/filters/14.txt`);
-    }
+        included_rule
+        ||example.org^
+        ||example.com^
+        !#include`,
+    );
 });
 
 QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
