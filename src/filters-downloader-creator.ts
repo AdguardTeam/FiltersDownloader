@@ -251,7 +251,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             Error: ${message} '${directive}'
             ${url ? `URL: '${url}'` : ''}
             Context:
-                \t${contextLines}
+                ${contextLines}
                 \t${directive}`;
 
         return `${dedent(errorText)}\n`;
@@ -496,72 +496,103 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         for (let i = 0; i < rules.length; i += 1) {
             const rule = rules[i];
 
-            const context = rules.slice(Math.max(0, i - LINES_BEFORE_DIRECTIVE), i).join('\n');
+            const context = rules
+                .slice(Math.max(0, i - LINES_BEFORE_DIRECTIVE), i)
+                .map((line) => `\t${line}`)
+                .join('\n');
             let errorMessage = '';
 
-            if (rule.indexOf(CONDITION_IF_DIRECTIVE_START) === 0) {
-                const endLineIndex = findConditionBlockEnd(
-                    rules,
-                    CONDITION_DIRECTIVE_END,
-                    i + 1,
-                    rules.length,
-                );
-                if (endLineIndex === -1) {
+            try {
+                if (rule.indexOf(CONDITION_IF_DIRECTIVE_START) === 0) {
+                    const endLineIndex = findConditionBlockEnd(
+                        rules,
+                        CONDITION_DIRECTIVE_END,
+                        i + 1,
+                        rules.length,
+                    );
+                    if (endLineIndex === -1) {
+                        errorMessage = createErrorMessage(
+                            'Invalid directives: Condition end not found',
+                            rule,
+                            context,
+                            urlOrigin,
+                        );
+                        throw new Error(errorMessage);
+                    }
+
+                    const elseLineIndex = findConditionBlockEnd(
+                        rules,
+                        CONDITION_ELSE_DIRECTIVE_START,
+                        i + 1,
+                        endLineIndex,
+                    );
+                    const isConditionMatched = resolveCondition(rule, definedExpressions);
+
+                    // if there is no 'else' branch for the condition
+                    if (elseLineIndex === -1) {
+                        if (isConditionMatched) {
+                            const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
+                            // Resolve inner conditions in recursion
+                            result = result
+                                .concat(resolveConditions(rulesUnderCondition, definedExpressions, urlOrigin));
+                        }
+                    } else {
+                        // check if there is something after !#else
+                        if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
+                            errorMessage = createErrorMessage(
+                                'Invalid directives: Found invalid !#else:',
+                                rule,
+                                context,
+                                urlOrigin,
+                            );
+                            throw new Error(errorMessage);
+                        }
+
+                        if (isConditionMatched) {
+                            const rulesForConditionTrue = rules.slice(i + 1, elseLineIndex);
+                            // Resolve inner conditions in recursion
+                            result = result
+                                .concat(resolveConditions(rulesForConditionTrue, definedExpressions, urlOrigin));
+                        } else {
+                            const rulesForConditionFalse = rules.slice(elseLineIndex + 1, endLineIndex);
+                            // Resolve inner conditions in recursion
+                            result = result.concat(resolveConditions(
+                                rulesForConditionFalse,
+                                definedExpressions,
+                                urlOrigin,
+                            ));
+                        }
+                    }
+
+                    // Skip to the end of block
+                    i = endLineIndex;
+                } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
+                    // Found !#else without !#if
                     errorMessage = createErrorMessage(
-                        'Invalid directives: Condition end not found',
+                        'Invalid directives: Found unexpected condition else branch:',
                         rule,
                         context,
                         urlOrigin,
                     );
                     throw new Error(errorMessage);
-                }
-
-                const elseLineIndex = findConditionBlockEnd(
-                    rules,
-                    CONDITION_ELSE_DIRECTIVE_START,
-                    i + 1,
-                    endLineIndex,
-                );
-                const isConditionMatched = resolveCondition(rule, definedExpressions);
-
-                // if there is no 'else' branch for the condition
-                if (elseLineIndex === -1) {
-                    if (isConditionMatched) {
-                        const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
-                        // Resolve inner conditions in recursion
-                        result = result.concat(resolveConditions(rulesUnderCondition, definedExpressions, urlOrigin));
-                    }
+                } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
+                    // Found !#endif without !#if
+                    errorMessage = createErrorMessage(
+                        'Invalid directives: Found unexpected condition end:',
+                        rule,
+                        context,
+                        urlOrigin,
+                    );
+                    throw new Error(errorMessage);
                 } else {
-                    // check if there is something after !#else
-                    if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
-                        throw new Error(`Invalid directives: Found invalid !#else: ${rule}`);
-                    }
-
-                    if (isConditionMatched) {
-                        const rulesForConditionTrue = rules.slice(i + 1, elseLineIndex);
-                        // Resolve inner conditions in recursion
-                        result = result.concat(resolveConditions(rulesForConditionTrue, definedExpressions, urlOrigin));
-                    } else {
-                        const rulesForConditionFalse = rules.slice(elseLineIndex + 1, endLineIndex);
-                        // Resolve inner conditions in recursion
-                        result = result.concat(resolveConditions(
-                            rulesForConditionFalse,
-                            definedExpressions,
-                            urlOrigin,
-                        ));
-                    }
+                    result.push(rule);
                 }
-
-                // Skip to the end of block
-                i = endLineIndex;
-            } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
-                // Found !#else without !#if
-                throw new Error(`Invalid directives: Found unexpected condition else branch: ${rule}`);
-            } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
-                // Found !#endif without !#if
-                throw new Error(`Invalid directives: Found unexpected condition end: ${rule}`);
-            } else {
-                result.push(rule);
+            } catch (error) {
+                if (error instanceof Error) {
+                    throw new Error(errorMessage || error.message);
+                } else {
+                    throw new Error(errorMessage || String(error));
+                }
             }
         }
 
@@ -764,7 +795,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         definedProperties?: DefinedExpressions,
     ): Promise<string[]> => {
         // Resolve 'if' conditions
-        const resolvedConditionsResult = resolveConditions(rules, definedProperties);
+        const resolvedConditionsResult = resolveConditions(rules, definedProperties, filterOrigin);
 
         // Resolve 'includes' directives
         return resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
@@ -808,7 +839,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
         const urlOrigin = getFilterUrlOrigin(urlToLoad);
         // Resolve 'if' conditions and 'includes' directives
-        const conditionsResult = resolveConditions(filterContent, downloadOptions.definedExpressions);
+        const conditionsResult = resolveConditions(filterContent, downloadOptions.definedExpressions, urlOrigin);
         const includesResult = await resolveIncludes(conditionsResult, urlOrigin, downloadOptions.definedExpressions);
         return {
             filter: includesResult,
@@ -891,7 +922,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         filterUrlOrigin?: string,
     ): Promise<string[]> {
         const filter = splitFilter(rawFilter);
-        const resolvedConditionsResult = resolveConditions(filter, options.definedExpressions);
+        const resolvedConditionsResult = resolveConditions(filter, options.definedExpressions, filterUrlOrigin);
         return resolveIncludes(
             resolvedConditionsResult,
             filterUrlOrigin,

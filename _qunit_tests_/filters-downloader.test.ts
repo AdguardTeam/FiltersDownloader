@@ -109,8 +109,38 @@ QUnit.test('Test that not found link returns error ', async (assert) => {
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => {
-    let rules;
+    let rules: string[];
     let compiled;
+
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
+
+    rules = [
+        'always_included_rule',
+        '!#if (adguard)',
+    ];
+
+    assert.throws(() => {
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    }, `Error: Invalid directives: Condition end not found '!#if (adguard)'
+Context:
+\talways_included_rule
+\t!#if (adguard)
+`);
+
+    rules = [
+        'always_included_rule',
+        'if_adguard_included_rule',
+        '!#endif',
+    ];
+
+    assert.throws(() => {
+        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
+    }, `Error: Invalid directives: Found unexpected condition end: '!#endif'
+Context:
+\talways_included_rule
+\tif_adguard_included_rule
+\t!#endif`);
 
     rules = [
         'always_included_rule',
@@ -118,9 +148,6 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         'if_adguard_included_rule',
         '!#endif',
     ];
-
-    const { FiltersDownloader } = require('../dist');
-    assert.ok(FiltersDownloader);
 
     compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
