@@ -210,6 +210,9 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
 
+    // number of lines before the directive to show in case of error message
+    const LINES_BEFORE_DIRECTIVE = 3;
+
     /**
      * Checks if the opening and closing brackets in a string are balanced.
      *
@@ -598,8 +601,6 @@ ${context}
         filterOrigin?: string,
         definedExpressions?: DefinedExpressions,
     ): Promise<string[]> => {
-        // number of lines before the directive to show in case of error message
-        const LINES_BEFORE_DIRECTIVE = 3;
         const promises = rules.map((rule, index) => {
             // context need for better error messages
             // we show 3 lines before the directive in new line with tabulation
