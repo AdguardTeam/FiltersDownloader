@@ -210,7 +210,9 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
 
-    // number of lines before the directive to show in case of error message
+    /**
+     * The number of lines to include before the directive in the error message.
+     */
     const LINES_BEFORE_DIRECTIVE = 3;
 
     /**
