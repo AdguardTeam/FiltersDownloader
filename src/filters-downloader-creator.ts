@@ -236,25 +236,30 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * Creates a detailed error message with context information.
      *
      * @param message The main error message.
-     * @param directive The directive line that caused the error.
-     * @param contextLines The lines of context before the error.
+     * @param line The line where the error occurred.
+     * @param contextStr The context string (3 lines before) to include in the error message.
      * @param url The URL of the filter file.
      * @returns The formatted error message string.
      */
     const createErrorMessage = (
         message: string,
-        directive: string,
-        contextLines?: string,
+        line: string,
+        contextStr?: string,
         url?: string,
     ): string => {
-        const errorText = `
-            ${message} '${directive}'
-            ${url ? `URL: '${url}'` : ''}
-            Context:
-                ${contextLines}
-                \t${directive}`;
+        const errorChunks = [`${message} '${line}'`];
 
-        return `${dedent(errorText)}\n`;
+        if (url) {
+            errorChunks.push(`URL: '${url}'`);
+        }
+
+        if (contextStr) {
+            errorChunks.push('Context:');
+            errorChunks.push(contextStr);
+            errorChunks.push(`\t${line}`);
+        }
+
+        return `${dedent(errorChunks.join('\n'))}\n`;
     };
 
     /**
@@ -539,7 +544,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                     // check if there is something after !#else
                     if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
                         errorMessage = createErrorMessage(
-                            'Invalid directives: Found invalid !#else:',
+                            'Found invalid directive !#else',
                             rule,
                             context,
                             urlOrigin,
