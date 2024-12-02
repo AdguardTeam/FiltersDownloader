@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Improve error message during `!#include` and condition directive resolving [FiltersCompiler#213].
+- Improved error message during `!#include` and condition directives resolving [FiltersCompiler#213].
 
 [FiltersCompiler#213]: https://github.com/AdguardTeam/FiltersCompiler/issues/213
 
