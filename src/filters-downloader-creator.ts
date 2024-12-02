@@ -502,17 +502,44 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                 .join('\n');
             let errorMessage = '';
 
-            try {
-                if (rule.indexOf(CONDITION_IF_DIRECTIVE_START) === 0) {
-                    const endLineIndex = findConditionBlockEnd(
-                        rules,
-                        CONDITION_DIRECTIVE_END,
-                        i + 1,
-                        rules.length,
+            if (rule.indexOf(CONDITION_IF_DIRECTIVE_START) === 0) {
+                const endLineIndex = findConditionBlockEnd(
+                    rules,
+                    CONDITION_DIRECTIVE_END,
+                    i + 1,
+                    rules.length,
+                );
+                if (endLineIndex === -1) {
+                    errorMessage = createErrorMessage(
+                        'Invalid directives: Condition end not found',
+                        rule,
+                        context,
+                        urlOrigin,
                     );
-                    if (endLineIndex === -1) {
+                    throw new Error(errorMessage);
+                }
+
+                const elseLineIndex = findConditionBlockEnd(
+                    rules,
+                    CONDITION_ELSE_DIRECTIVE_START,
+                    i + 1,
+                    endLineIndex,
+                );
+                const isConditionMatched = resolveCondition(rule, definedExpressions);
+
+                // if there is no 'else' branch for the condition
+                if (elseLineIndex === -1) {
+                    if (isConditionMatched) {
+                        const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
+                        // Resolve inner conditions in recursion
+                        result = result
+                            .concat(resolveConditions(rulesUnderCondition, definedExpressions, urlOrigin));
+                    }
+                } else {
+                    // check if there is something after !#else
+                    if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
                         errorMessage = createErrorMessage(
-                            'Invalid directives: Condition end not found',
+                            'Invalid directives: Found invalid !#else:',
                             rule,
                             context,
                             urlOrigin,
@@ -520,79 +547,44 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                         throw new Error(errorMessage);
                     }
 
-                    const elseLineIndex = findConditionBlockEnd(
-                        rules,
-                        CONDITION_ELSE_DIRECTIVE_START,
-                        i + 1,
-                        endLineIndex,
-                    );
-                    const isConditionMatched = resolveCondition(rule, definedExpressions);
-
-                    // if there is no 'else' branch for the condition
-                    if (elseLineIndex === -1) {
-                        if (isConditionMatched) {
-                            const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
-                            // Resolve inner conditions in recursion
-                            result = result
-                                .concat(resolveConditions(rulesUnderCondition, definedExpressions, urlOrigin));
-                        }
+                    if (isConditionMatched) {
+                        const rulesForConditionTrue = rules.slice(i + 1, elseLineIndex);
+                        // Resolve inner conditions in recursion
+                        result = result
+                            .concat(resolveConditions(rulesForConditionTrue, definedExpressions, urlOrigin));
                     } else {
-                        // check if there is something after !#else
-                        if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
-                            errorMessage = createErrorMessage(
-                                'Invalid directives: Found invalid !#else:',
-                                rule,
-                                context,
-                                urlOrigin,
-                            );
-                            throw new Error(errorMessage);
-                        }
-
-                        if (isConditionMatched) {
-                            const rulesForConditionTrue = rules.slice(i + 1, elseLineIndex);
-                            // Resolve inner conditions in recursion
-                            result = result
-                                .concat(resolveConditions(rulesForConditionTrue, definedExpressions, urlOrigin));
-                        } else {
-                            const rulesForConditionFalse = rules.slice(elseLineIndex + 1, endLineIndex);
-                            // Resolve inner conditions in recursion
-                            result = result.concat(resolveConditions(
-                                rulesForConditionFalse,
-                                definedExpressions,
-                                urlOrigin,
-                            ));
-                        }
+                        const rulesForConditionFalse = rules.slice(elseLineIndex + 1, endLineIndex);
+                        // Resolve inner conditions in recursion
+                        result = result.concat(resolveConditions(
+                            rulesForConditionFalse,
+                            definedExpressions,
+                            urlOrigin,
+                        ));
                     }
+                }
 
-                    // Skip to the end of block
-                    i = endLineIndex;
-                } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
-                    // Found !#else without !#if
-                    errorMessage = createErrorMessage(
-                        'Invalid directives: Found unexpected condition else branch:',
-                        rule,
-                        context,
-                        urlOrigin,
-                    );
-                    throw new Error(errorMessage);
-                } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
-                    // Found !#endif without !#if
-                    errorMessage = createErrorMessage(
-                        'Invalid directives: Found unexpected condition end:',
-                        rule,
-                        context,
-                        urlOrigin,
-                    );
-                    throw new Error(errorMessage);
-                } else {
-                    result.push(rule);
-                }
-            } catch (error) {
-                if (error instanceof Error) {
-                    throw new Error(errorMessage || error.message);
-                } else {
-                    throw new Error(errorMessage || String(error));
-                }
+                // Skip to the end of block
+                i = endLineIndex;
+            } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
+                // Found !#else without !#if
+                errorMessage = createErrorMessage(
+                    'Invalid directives: Found unexpected condition else branch:',
+                    rule,
+                    context,
+                    urlOrigin,
+                );
+                throw new Error(errorMessage);
+            } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
+                // Found !#endif without !#if
+                errorMessage = createErrorMessage(
+                    'Invalid directives: Found unexpected condition end:',
+                    rule,
+                    context,
+                    urlOrigin,
+                );
+                throw new Error(errorMessage);
+            } else {
+                result.push(rule);
             }
         }
 
