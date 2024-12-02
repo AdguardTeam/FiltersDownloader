@@ -602,7 +602,7 @@ ${context}
         definedExpressions?: DefinedExpressions,
     ): Promise<string[]> => {
         const promises = rules.map((rule, index) => {
-            // context need for better error messages
+            // context is needed for better error messages
             // we show 3 lines before the directive in new line with tabulation
             const context = rules
                 .slice(Math.max(0, index - LINES_BEFORE_DIRECTIVE), index)
