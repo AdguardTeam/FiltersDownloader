@@ -59,23 +59,25 @@ Context:
         });
 
         it('failed to resolve the include directive', async () => {
+            const nonExistentFilePath = path.resolve(__dirname, './resources/not_found_file.txt');
             const rules = [
                 'always_included_rule',
                 '||example.com',
                 '||example.org',
-                '!#include resources/not_found_file.txt',
+                `!#include ${nonExistentFilePath}`,
             ];
             await expect(FiltersDownloader.resolveIncludes(
                 rules,
                 undefined,
                 FilterCompilerConditionsConstants,
             )).rejects.toThrowError(
-                new Error(`Failed to resolve the include directive '!#include resources/not_found_file.txt'
+                new Error(`Failed to resolve the include directive '!#include ${nonExistentFilePath}'
 Context:
 \talways_included_rule
 \t||example.com
 \t||example.org
-\t!#include resources/not_found_file.txt
+\t!#include ${nonExistentFilePath}
+\tENOENT: no such file or directory, open '${nonExistentFilePath}'
 `),
             );
         });
@@ -99,6 +101,7 @@ Context:
 \t||example.org^
 \t||example.com^
 \t!#include
+\tEISDIR: illegal operation on a directory, read
 `),
             );
         });
@@ -123,11 +126,11 @@ Context:
 \talways_included_rule
 \t||example.org^
 \t!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt
+\tResponse status for url https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt is invalid: 404
 `),
             );
         });
     });
-
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
             beforeAll(async () => {

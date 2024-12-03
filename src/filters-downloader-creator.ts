@@ -235,20 +235,22 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     };
 
     /**
-     * Creates a detailed error message with context information.
+     * Creates and throws a detailed error message with context information.
      *
      * @param message The main error message.
      * @param line The line where the error occurred.
      * @param contextStr The context string (3 lines before) to include in the error message.
      * @param url The URL of the filter file.
-     * @returns The formatted error message string.
+     * @param errorMessage The error message to include in the error message.
+     * @throws {Error} Throws an error with a detailed error message.
      */
-    const createErrorMessage = (
+    const throwError = (
         message: string,
         line: string,
         contextStr?: string,
         url?: string,
-    ): string => {
+        errorMessage?: string,
+    ): never => {
         const errorChunks = [`${message} '${line}'`];
 
         if (url) {
@@ -261,20 +263,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             errorChunks.push(`\t${line}`);
         }
 
-        return `${dedent(errorChunks.join('\n'))}\n`;
-    };
+        if (errorMessage) {
+            errorChunks.push(`\t${errorMessage}`);
+        }
 
-    /**
-     * Throws an error with a detailed error message.
-     * @param message The main error message.
-     * @param line The line where the error occurred.
-     * @param contextStr The context string (3 lines before) to include in the error message.
-     * @param url The URL of the filter file.
-     * @throws {Error} Throws an error with a detailed error message.
-     */
-    const throwError = (message: string, line: string, contextStr?: string, url?: string): never => {
-        const errorMessage = createErrorMessage(message, line, contextStr, url);
-        throw new Error(errorMessage);
+        const formattedErrorMessage = `${dedent(errorChunks.join('\n'))}\n`;
+        throw new Error(formattedErrorMessage);
     };
 
     /**
@@ -653,23 +647,23 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         validateUrl(url, filterOrigin);
 
         let filter: string[] = [];
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        await downloadFilterRules(url, {
-            filterOrigin,
-            definedExpressions,
-            resolveDirectives: true,
-        })
-            .then((downloadResult) => {
-                filter = downloadResult.filter;
-            })
-            .catch(() => {
-                throwError(
-                    'Failed to resolve the include directive',
-                    line,
-                    context,
-                    filterOrigin,
-                );
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            const downloadResult = await downloadFilterRules(url, {
+                filterOrigin,
+                definedExpressions,
+                resolveDirectives: true,
             });
+            filter = downloadResult.filter;
+        } catch (error) {
+            throwError(
+                'Failed to resolve the include directive',
+                line,
+                context,
+                filterOrigin,
+                (error as Error).message,
+            );
+        }
 
         const MAX_LINES_TO_SCAN = 50;
         // Math.min inside for loop, because filter.length changes
