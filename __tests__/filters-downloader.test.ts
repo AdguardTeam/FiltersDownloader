@@ -24,21 +24,23 @@ const FilterCompilerConditionsConstants = {
 
 describe('FiltersDownloader', () => {
     describe('error message during `!#include` and condition directives resolving', () => {
-        it('condition end not found', async () => {
+        it('unexpected condition else branch', async () => {
             const rules = [
                 'always_included_rule',
-                '!#if (adguard)',
+                '!#else',
                 'if_adguard_included_rule',
             ];
+
             expect(() => FiltersDownloader.resolveConditions(
                 rules,
                 FilterCompilerConditionsConstants,
-            )).toThrowError(new Error(`Invalid directives: Condition end not found '!#if (adguard)'
+            )).toThrowError(new Error(`Found unexpected condition else branch: '!#else'
 Context:
 \talways_included_rule
-\t!#if (adguard)
+\t!#else
 `));
         });
+
         it('unexpected condition end', async () => {
             const rules = [
                 'always_included_rule',
@@ -55,6 +57,7 @@ Context:
 \t!#endif
 `));
         });
+
         it('failed to resolve the include directive', async () => {
             const rules = [
                 'always_included_rule',
@@ -76,6 +79,7 @@ Context:
 `),
             );
         });
+
         it('failed to resolve the include directive without file path', async () => {
             const rules = [
                 'always_included_rule',
@@ -98,7 +102,8 @@ Context:
 `),
             );
         });
-        it('failed to resolve the include directive without file path', async () => {
+
+        it('failed to resolve the include directive with 404 path', async () => {
             const rules = [
                 'always_included_rule',
                 '||example.org^',
