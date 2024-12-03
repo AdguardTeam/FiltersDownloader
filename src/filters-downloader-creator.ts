@@ -584,7 +584,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
                 // Found !#endif without !#if
                 errorMessage = createErrorMessage(
-                    'Invalid directives: Found unexpected condition end:',
+                    'Found unexpected condition end:',
                     rule,
                     context,
                     urlOrigin,

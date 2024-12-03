@@ -48,7 +48,7 @@ Context:
             expect(() => FiltersDownloader.resolveConditions(
                 rules,
                 FilterCompilerConditionsConstants,
-            )).toThrowError(new Error(`Invalid directives: Found unexpected condition end: '!#endif'
+            )).toThrowError(new Error(`Found unexpected condition end: '!#endif'
 Context:
 \talways_included_rule
 \tif_adguard_included_rule
