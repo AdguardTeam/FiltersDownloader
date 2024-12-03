@@ -265,6 +265,19 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     };
 
     /**
+     * Throws an error with a detailed error message.
+     * @param message The main error message.
+     * @param line The line where the error occurred.
+     * @param contextStr The context string (3 lines before) to include in the error message.
+     * @param url The URL of the filter file.
+     * @throws {Error} Throws an error with a detailed error message.
+     */
+    const throwError = (message: string, line: string, contextStr?: string, url?: string): never => {
+        const errorMessage = createErrorMessage(message, line, contextStr, url);
+        throw new Error(errorMessage);
+    };
+
+    /**
      * Checks if the opening and closing brackets in a string are balanced.
      *
      * @param str The input string to check for bracket balance.
@@ -507,7 +520,6 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                 .slice(Math.max(0, i - LINES_BEFORE_DIRECTIVE), i)
                 .map((line) => `\t${line}`)
                 .join('\n');
-            let errorMessage = '';
 
             if (rule.indexOf(CONDITION_IF_DIRECTIVE_START) === 0) {
                 const endLineIndex = findConditionBlockEnd(
@@ -517,13 +529,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                     rules.length,
                 );
                 if (endLineIndex === -1) {
-                    errorMessage = createErrorMessage(
+                    throwError(
                         'Invalid directives: Condition end not found',
                         rule,
                         context,
                         urlOrigin,
                     );
-                    throw new Error(errorMessage);
                 }
 
                 const elseLineIndex = findConditionBlockEnd(
@@ -545,13 +556,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                 } else {
                     // check if there is something after !#else
                     if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
-                        errorMessage = createErrorMessage(
+                        throwError(
                             'Found invalid directive !#else',
                             rule,
                             context,
                             urlOrigin,
                         );
-                        throw new Error(errorMessage);
                     }
 
                     if (isConditionMatched) {
@@ -574,22 +584,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                 i = endLineIndex;
             } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
                 // Found !#else without !#if
-                errorMessage = createErrorMessage(
+                throwError(
                     'Found unexpected condition else branch:',
                     rule,
                     context,
                     urlOrigin,
                 );
-                throw new Error(errorMessage);
             } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
                 // Found !#endif without !#if
-                errorMessage = createErrorMessage(
+                throwError(
                     'Found unexpected condition end:',
                     rule,
                     context,
                     urlOrigin,
                 );
-                throw new Error(errorMessage);
             } else {
                 result.push(rule);
             }
@@ -644,24 +652,24 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
         validateUrl(url, filterOrigin);
 
-        let filter: string[];
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-            const downloadResult = await downloadFilterRules(url, {
-                filterOrigin,
-                definedExpressions,
-                resolveDirectives: true,
+        let filter: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        await downloadFilterRules(url, {
+            filterOrigin,
+            definedExpressions,
+            resolveDirectives: true,
+        })
+            .then((downloadResult) => {
+                filter = downloadResult.filter;
+            })
+            .catch(() => {
+                throwError(
+                    'Failed to resolve the include directive',
+                    line,
+                    context,
+                    filterOrigin,
+                );
             });
-            filter = downloadResult.filter;
-        } catch (error) {
-            const errorMessage = createErrorMessage(
-                'Failed to resolve the include directive',
-                line,
-                context,
-                filterOrigin,
-            );
-            throw new Error(errorMessage);
-        }
 
         const MAX_LINES_TO_SCAN = 50;
         // Math.min inside for loop, because filter.length changes
