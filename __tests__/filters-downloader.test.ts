@@ -12,7 +12,116 @@ import nock from 'nock';
 import { FiltersDownloader } from '../src';
 import { server } from './server';
 
+const FilterCompilerConditionsConstants = {
+    adguard: true,
+    adguard_ext_chromium: true,
+    adguard_ext_firefox: false,
+    adguard_ext_edge: false,
+    adguard_ext_safari: false,
+    adguard_ext_opera: false,
+    adguard_ext_android_cb: false,
+};
+
 describe('FiltersDownloader', () => {
+    describe('error message during `!#include` and condition directives resolving', () => {
+        it('condition end not found', async () => {
+            const rules = [
+                'always_included_rule',
+                '!#if (adguard)',
+                'if_adguard_included_rule',
+            ];
+            expect(() => FiltersDownloader.resolveConditions(
+                rules,
+                FilterCompilerConditionsConstants,
+            )).toThrowError(new Error(`Invalid directives: Condition end not found '!#if (adguard)'
+Context:
+\talways_included_rule
+\t!#if (adguard)
+`));
+        });
+        it('unexpected condition end', async () => {
+            const rules = [
+                'always_included_rule',
+                'if_adguard_included_rule',
+                '!#endif',
+            ];
+            expect(() => FiltersDownloader.resolveConditions(
+                rules,
+                FilterCompilerConditionsConstants,
+            )).toThrowError(new Error(`Invalid directives: Found unexpected condition end: '!#endif'
+Context:
+\talways_included_rule
+\tif_adguard_included_rule
+\t!#endif
+`));
+        });
+        it('failed to resolve the include directive', async () => {
+            const rules = [
+                'always_included_rule',
+                '||example.com',
+                '||example.org',
+                '!#include resources/not_found_file.txt',
+            ];
+            await expect(FiltersDownloader.resolveIncludes(
+                rules,
+                undefined,
+                FilterCompilerConditionsConstants,
+            )).rejects.toThrowError(
+                new Error(`Failed to resolve the include directive '!#include resources/not_found_file.txt'
+Context:
+\talways_included_rule
+\t||example.com
+\t||example.org
+\t!#include resources/not_found_file.txt
+`),
+            );
+        });
+        it('failed to resolve the include directive without file path', async () => {
+            const rules = [
+                'always_included_rule',
+                'included_rule',
+                '||example.org^',
+                '||example.com^',
+                '!#include',
+            ];
+            await expect(FiltersDownloader.resolveIncludes(
+                rules,
+                undefined,
+                FilterCompilerConditionsConstants,
+            )).rejects.toThrowError(
+                new Error(`Failed to resolve the include directive '!#include'
+Context:
+\tincluded_rule
+\t||example.org^
+\t||example.com^
+\t!#include
+`),
+            );
+        });
+        it('failed to resolve the include directive without file path', async () => {
+            const rules = [
+                'always_included_rule',
+                '||example.org^',
+                '!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt',
+                'if_adguard_included_rule',
+                '||example.com^',
+            ];
+            await expect(
+                FiltersDownloader.compile(
+                    rules,
+                    undefined,
+                    FilterCompilerConditionsConstants,
+                ),
+            ).rejects.toThrowError(
+                new Error(`Failed to resolve the include directive '!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt'
+Context:
+\talways_included_rule
+\t||example.org^
+\t!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt
+`),
+            );
+        });
+    });
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
             beforeAll(async () => {

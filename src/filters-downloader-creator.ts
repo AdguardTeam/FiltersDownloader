@@ -654,17 +654,13 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             });
             filter = downloadResult.filter;
         } catch (error) {
-            if (error instanceof Error) {
-                const errorMessage = createErrorMessage(
-                    'Failed to resolve the include directive',
-                    line,
-                    context,
-                    filterOrigin,
-                );
-                throw new Error(errorMessage);
-            } else {
-                throw new Error(`Unknown error: ${error}`);
-            }
+            const errorMessage = createErrorMessage(
+                'Failed to resolve the include directive',
+                line,
+                context,
+                filterOrigin,
+            );
+            throw new Error(errorMessage);
         }
 
         const MAX_LINES_TO_SCAN = 50;

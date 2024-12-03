@@ -118,33 +118,6 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
     rules = [
         'always_included_rule',
         '!#if (adguard)',
-    ];
-
-    assert.throws(() => {
-        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
-    }, `Error: Invalid directives: Condition end not found '!#if (adguard)'
-Context:
-\talways_included_rule
-\t!#if (adguard)
-`);
-
-    rules = [
-        'always_included_rule',
-        'if_adguard_included_rule',
-        '!#endif',
-    ];
-
-    assert.throws(() => {
-        FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
-    }, `Error: Invalid directives: Found unexpected condition end: '!#endif'
-Context:
-\talways_included_rule
-\tif_adguard_included_rule
-\t!#endif`);
-
-    rules = [
-        'always_included_rule',
-        '!#if (adguard)',
         'if_adguard_included_rule',
         '!#endif',
     ];
@@ -702,31 +675,11 @@ QUnit.test('Test filter downloader - external download and includes with special
 });
 
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
-    let rules;
-
     const { FiltersDownloader } = require('../dist');
     assert.ok(FiltersDownloader);
 
-    // non existing file
-    rules = [
-        'always_included_rule',
-        '||example.com',
-        '||example.org',
-        '!#include resources/not_found_file.txt',
-    ];
-
-    await assert.rejects(
-        FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
-        `Error: Failed to resolve the include directive '!#include resources/not_found_file.txt'
-Context:
-        always_included_rule
-        ||example.com
-        ||example.org
-        !#include resources/not_found_file.txt`,
-    );
-
     // different origin
-    rules = [
+    const rules = [
         'always_included_rule',
         'included_rule',
         '||example.org^',
@@ -735,24 +688,6 @@ Context:
     ];
 
     await assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
-
-    rules = [
-        'always_included_rule',
-        'included_rule',
-        '||example.org^',
-        '||example.com^',
-        '!#include',
-    ];
-
-    await assert.rejects(
-        FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
-        `Failed to resolve the include directive '!#include'
-Context:
-        included_rule
-        ||example.org^
-        ||example.com^
-        !#include`,
-    );
 });
 
 QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
@@ -786,7 +721,7 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
 
     assert.rejects(
         FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants),
-        `Error: Failed to resolve the include directive '!#include ${URL404}'
+        `Failed to resolve the include directive '!#include ${URL404}'
 Context:
 \talways_included_rule
 \t!#include ${URL404}`,
