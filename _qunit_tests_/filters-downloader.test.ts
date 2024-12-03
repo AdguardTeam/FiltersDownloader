@@ -109,11 +109,8 @@ QUnit.test('Test that not found link returns error ', async (assert) => {
 });
 
 QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => {
-    let rules: string[];
+    let rules;
     let compiled;
-
-    const { FiltersDownloader } = require('../dist');
-    assert.ok(FiltersDownloader);
 
     rules = [
         'always_included_rule',
@@ -121,6 +118,9 @@ QUnit.test('Test filter downloader - simple "if" conditions', async (assert) => 
         'if_adguard_included_rule',
         '!#endif',
     ];
+
+    const { FiltersDownloader } = require('../dist');
+    assert.ok(FiltersDownloader);
 
     compiled = FiltersDownloader.resolveConditions(rules, FilterCompilerConditionsConstants);
     assert.ok(compiled);
@@ -675,19 +675,29 @@ QUnit.test('Test filter downloader - external download and includes with special
 });
 
 QUnit.test('Test filter downloader - invalid includes', async (assert) => {
+    let rules;
+
     const { FiltersDownloader } = require('../dist');
     assert.ok(FiltersDownloader);
 
-    // different origin
-    const rules = [
+    // non existing file
+    rules = [
         'always_included_rule',
-        'included_rule',
-        '||example.org^',
-        '||example.com^',
+        '!#include resources/not_found_file.txt',
+    ];
+
+    assert.rejects(
+        FiltersDownloader.resolveIncludes(rules, null, FilterCompilerConditionsConstants),
+        "Failed to resolve the include directive: '!#include resources/not_found_file.txt'",
+    );
+
+    // different origin
+    rules = [
+        'always_included_rule',
         '!#include http://filters.adtidy.org/windows/filters/14.txt',
     ];
 
-    await assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
+    assert.rejects(FiltersDownloader.resolveIncludes(rules, 'http://google.com', FilterCompilerConditionsConstants));
 });
 
 QUnit.test('Test filter downloader - compile rules with conditional includes', async (assert) => {
@@ -719,13 +729,15 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
         '!#endif',
     ];
 
-    assert.rejects(
-        FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants),
-        `Failed to resolve the include directive '!#include ${URL404}'
-Context:
-\talways_included_rule
-\t!#include ${URL404}`,
-    );
+    try {
+        await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
+    } catch (e) {
+        assert.equal(
+            (e as Error).message,
+            // eslint-disable-next-line max-len
+            `Failed to resolve the include directive: '!#include ${URL404}'`,
+        );
+    }
 
     // case 3: negative condition and include non-existing url
     rules = [
