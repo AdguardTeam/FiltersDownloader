@@ -127,6 +127,7 @@ Context:
             );
         });
     });
+
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
             beforeAll(async () => {
