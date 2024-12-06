@@ -25,6 +25,7 @@
     "scripts": {
         "prebuild": "yarn rimraf dist && yarn build:types",
         "build": "rollup -c rollup.config.ts --configPlugin typescript && yarn build:version",
+        "watch": "rollup -c rollup.config.ts --configPlugin typescript --watch",
         "build:version": "ts-node scripts/build-txt.ts",
         "build:types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --outdir dist/types",
         "test": "ts-node _qunit_tests_/testrunner.ts && jest",

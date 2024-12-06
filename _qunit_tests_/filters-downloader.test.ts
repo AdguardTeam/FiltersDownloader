@@ -729,15 +729,14 @@ QUnit.test('Test filter downloader - compile rules with conditional includes', a
         '!#endif',
     ];
 
-    try {
-        await FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants);
-    } catch (e) {
-        assert.equal(
-            (e as Error).message,
-            // eslint-disable-next-line max-len
-            `Failed to resolve the include directive: '!#include ${URL404}'`,
-        );
-    }
+    assert.rejects(
+        FiltersDownloader.compile(rules, null, FilterCompilerConditionsConstants),
+        `Failed to resolve the include directive '!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt'
+Context:
+        always_included_rule
+        !#include ${URL404}
+        Response status for url ${URL404} is invalid: 404`,
+    );
 
     // case 3: negative condition and include non-existing url
     rules = [

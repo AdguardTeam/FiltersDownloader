@@ -33,6 +33,8 @@ module.exports = {
         'no-restricted-syntax': ['error', 'LabeledStatement', 'WithStatement'],
         'no-constant-condition': ['error', { checkLoops: false }],
         'no-param-reassign': 'off',
+        'no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
+        'no-empty': ['error', { allowEmptyCatch: false }],
 
         'import/prefer-default-export': 'off',
         'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
@@ -46,6 +48,7 @@ module.exports = {
         '@typescript-eslint/no-non-null-assertion': 'off',
         '@typescript-eslint/interface-name-prefix': 'off',
         '@typescript-eslint/explicit-function-return-type': 'error',
+        '@typescript-eslint/no-unused-vars': 'error',
 
         // types described in ts
         'jsdoc/require-param-type': 'off',

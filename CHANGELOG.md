@@ -5,12 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.4] - 2024-12-06
+
+### Changed
+
+- Improved error message during `!#include` and condition directives resolving [FiltersCompiler#213].
+
+[2.2.4]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.2.3...v2.2.4
+[FiltersCompiler#213]: https://github.com/AdguardTeam/FiltersCompiler/issues/213
+
 ## [2.2.3] - 2024-11-25
 
 ### Added
 
 - Ability to add filters from Google Drive [AdguardBrowserExtension#2908].
 
+[2.2.3]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.2.2...v2.2.3
 [AdguardBrowserExtension#2908]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2908
 
 ## [2.2.2] - 2024-07-11
@@ -51,7 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [2.1.2]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.1.1...v2.1.2
 [AdguardBrowserExtension#2717]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2717
 
-
 ## [2.1.1] - 2024-03-13
 
 ### Changed
@@ -59,7 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added validation of checksums for filters updates.
 
 [2.1.1]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.7...v2.1.1
-
 
 ## [2.0.7] - 2024-01-17
 
@@ -69,7 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [2.0.7]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.6...v2.0.7
 
-
 ## [2.0.6] - 2024-01-17
 
 ### Changed
@@ -77,7 +84,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated [@adguard/diff-builder] to 1.0.12.
 
 [2.0.6]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.5...v2.0.6
-
 
 ## [2.0.5] - 2024-01-11
 
@@ -87,7 +93,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [2.0.5]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.4...v2.0.5
 
-
 ## [2.0.4] - 2024-01-11
 
 ### Fixed
@@ -95,7 +100,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split lines considering all possible line endings.
 
 [2.0.4]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.3...v2.0.4
-
 
 ## [2.0.3] - 2023-12-29
 
@@ -105,7 +109,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [2.0.3]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.2...v2.0.3
 
-
 ## [2.0.2] - 2023-12-29
 
 ### Changed
@@ -114,7 +117,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [2.0.2]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.1...v2.0.2
 
-
 ## [2.0.1] - 2023-12-29
 
 ### Changed
@@ -122,7 +124,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated [@adguard/diff-builder] to 1.0.7.
 
 [2.0.1]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.0.0...v2.0.1
-
 
 ## [2.0.0] - 2023-12-27
 
@@ -133,7 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [2.0.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.23...v2.0.0
 
-
 ## [1.1.23] - 2023-11-09
 
 ### Fixed
@@ -143,7 +143,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.1.23]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.21...v1.1.23
 [AdguardBrowserExtension#1723]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/1723
 
-
 ## [1.1.21] - 2023-10-20
 
 ### Fixed
@@ -151,7 +150,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Validation of included urls.
 
 [1.1.21]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.20...v1.1.21
-
 
 ## [1.1.20] - 2023-10-10
 
@@ -161,7 +159,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#20]: https://github.com/AdguardTeam/FiltersDownloader/issues/20
 [1.1.20]: https://github.com/AdguardTeam/FiltersDownloader/compare/v1.1.15...v1.1.20
-
 
 ## [1.1.15] - 2022-11-25
 

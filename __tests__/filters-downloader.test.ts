@@ -11,8 +11,130 @@ import nock from 'nock';
 
 import { FiltersDownloader } from '../src';
 import { server } from './server';
+import { mergeErrorDetails } from '../src/helpers/logger';
+
+const FilterCompilerConditionsConstants = {
+    adguard: true,
+    adguard_ext_chromium: true,
+    adguard_ext_firefox: false,
+    adguard_ext_edge: false,
+    adguard_ext_safari: false,
+    adguard_ext_opera: false,
+    adguard_ext_android_cb: false,
+};
 
 describe('FiltersDownloader', () => {
+    describe('error message during `!#include` and condition directives resolving', () => {
+        it('unexpected condition else branch', async () => {
+            const rules = [
+                'always_included_rule',
+                '!#else',
+                'if_adguard_included_rule',
+            ];
+            const errorDetails = [
+                'Found unexpected condition else branch: \'!#else\'',
+                'Context:',
+                '\talways_included_rule',
+                '\t!#else',
+            ];
+            expect(() => FiltersDownloader.resolveConditions(
+                rules,
+                FilterCompilerConditionsConstants,
+            )).toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+
+        it('unexpected condition end', async () => {
+            const rules = [
+                'always_included_rule',
+                'if_adguard_included_rule',
+                '!#endif',
+            ];
+            const errorDetails = [
+                'Found unexpected condition end: \'!#endif\'',
+                'Context:',
+                '\talways_included_rule',
+                '\tif_adguard_included_rule',
+                '\t!#endif',
+            ];
+            expect(() => FiltersDownloader.resolveConditions(
+                rules,
+                FilterCompilerConditionsConstants,
+            )).toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+
+        it('failed to resolve the include directive', async () => {
+            const nonExistentFilePath = path.resolve(__dirname, './resources/not_found_file.txt');
+            const rules = [
+                'always_included_rule',
+                '||example.com',
+                '||example.org',
+                `!#include ${nonExistentFilePath}`,
+            ];
+            const errorDetails = [
+                `Failed to resolve the include directive '!#include ${nonExistentFilePath}'`,
+                'Context:',
+                '\talways_included_rule',
+                '\t||example.com',
+                '\t||example.org',
+                `\t!#include ${nonExistentFilePath}`,
+                `\tError: ENOENT: no such file or directory, open '${nonExistentFilePath}'`,
+            ];
+            await expect(FiltersDownloader.resolveIncludes(
+                rules,
+                undefined,
+                FilterCompilerConditionsConstants,
+            )).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+
+        it('failed to resolve the include directive without file path', async () => {
+            const rules = [
+                'always_included_rule',
+                'included_rule',
+                '||example.org^',
+                '||example.com^',
+                '!#include',
+            ];
+            const errorDetails = [
+                'Failed to resolve the include directive \'!#include\'',
+                'Context:',
+                '\tincluded_rule',
+                '\t||example.org^',
+                '\t||example.com^',
+                '\t!#include',
+                '\tError: EISDIR: illegal operation on a directory, read',
+            ];
+            await expect(FiltersDownloader.resolveIncludes(
+                rules,
+                undefined,
+                FilterCompilerConditionsConstants,
+            )).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+
+        it('failed to resolve the include directive with 404 path', async () => {
+            const rules = [
+                'always_included_rule',
+                '||example.org^',
+                '!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt',
+                'if_adguard_included_rule',
+                '||example.com^',
+            ];
+            const errorDetails = [
+                'Failed to resolve the include directive \'!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt\'',
+                'Context:',
+                '\talways_included_rule',
+                '\t||example.org^',
+                '\t!#include https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt',
+                '\tResponse status for url https://raw.githubusercontent.com/AdguardTeam/FiltersDownloader/test-resources/__test__/resources/blabla.txt is invalid: 404',
+            ];
+            await expect(
+                FiltersDownloader.compile(
+                    rules,
+                    undefined,
+                    FilterCompilerConditionsConstants,
+                ),
+            ).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+    });
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
             beforeAll(async () => {

@@ -17,6 +17,7 @@
 
 import { DiffUpdater, UnacceptableResponseError } from '@adguard/diff-builder/diff-updater';
 import { isValidChecksum } from './checksum';
+import { throwError, getContext } from './helpers/logger';
 
 /**
  * The utility tool resolves preprocessor directives in filter content.
@@ -429,6 +430,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param rules The list of filtering rules to resolve.
      * @param definedExpressions An object containing defined expressions for
      * condition resolution.
+     * @param urlOrigin The origin of the URL from which the filter was downloaded.
      *
      * @returns The resolved filtering rules after processing conditional directives.
      *
@@ -437,6 +439,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     const resolveConditions = (
         rules: string[],
         definedExpressions?: DefinedExpressions,
+        urlOrigin?: string,
     ): string[] => {
         if (!definedExpressions) {
             return rules;
@@ -455,7 +458,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                     rules.length,
                 );
                 if (endLineIndex === -1) {
-                    throw new Error(`Invalid directives: Condition end not found: ${rule}`);
+                    throwError(
+                        'Invalid directives: Condition end not found',
+                        rule,
+                        getContext(rules, i),
+                        urlOrigin,
+                    );
                 }
 
                 const elseLineIndex = findConditionBlockEnd(
@@ -471,22 +479,33 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                     if (isConditionMatched) {
                         const rulesUnderCondition = rules.slice(i + 1, endLineIndex);
                         // Resolve inner conditions in recursion
-                        result = result.concat(resolveConditions(rulesUnderCondition, definedExpressions));
+                        result = result
+                            .concat(resolveConditions(rulesUnderCondition, definedExpressions, urlOrigin));
                     }
                 } else {
                     // check if there is something after !#else
                     if (rules[elseLineIndex].trim().length !== CONDITION_ELSE_DIRECTIVE_START.length) {
-                        throw new Error(`Invalid directives: Found invalid !#else: ${rule}`);
+                        throwError(
+                            'Found invalid directive !#else',
+                            rule,
+                            getContext(rules, i),
+                            urlOrigin,
+                        );
                     }
 
                     if (isConditionMatched) {
                         const rulesForConditionTrue = rules.slice(i + 1, elseLineIndex);
                         // Resolve inner conditions in recursion
-                        result = result.concat(resolveConditions(rulesForConditionTrue, definedExpressions));
+                        result = result
+                            .concat(resolveConditions(rulesForConditionTrue, definedExpressions, urlOrigin));
                     } else {
                         const rulesForConditionFalse = rules.slice(elseLineIndex + 1, endLineIndex);
                         // Resolve inner conditions in recursion
-                        result = result.concat(resolveConditions(rulesForConditionFalse, definedExpressions));
+                        result = result.concat(resolveConditions(
+                            rulesForConditionFalse,
+                            definedExpressions,
+                            urlOrigin,
+                        ));
                     }
                 }
 
@@ -494,10 +513,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                 i = endLineIndex;
             } else if (rule.indexOf(CONDITION_ELSE_DIRECTIVE_START) === 0) {
                 // Found !#else without !#if
-                throw new Error(`Invalid directives: Found unexpected condition else branch: ${rule}`);
+                throwError(
+                    'Found unexpected condition else branch:',
+                    rule,
+                    getContext(rules, i),
+                    urlOrigin,
+                );
             } else if (rule.indexOf(CONDITION_DIRECTIVE_END) === 0) {
                 // Found !#endif without !#if
-                throw new Error(`Invalid directives: Found unexpected condition end: ${rule}`);
+                throwError(
+                    'Found unexpected condition end:',
+                    rule,
+                    getContext(rules, i),
+                    urlOrigin,
+                );
             } else {
                 result.push(rule);
             }
@@ -534,6 +563,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param line Line with directive.
      * @param filterOrigin Filter file URL origin or undefined.
      * @param definedExpressions An object with the defined properties.
+     * @param context Previous lines for better error messages.
      * These properties might be used in pre-processor directives (`#if`, etc.).
      *
      * @returns A promise that returns string with rules if resolved and Error if rejected.
@@ -543,6 +573,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         line: string,
         filterOrigin?: string,
         definedExpressions?: DefinedExpressions,
+        context?: string,
     ): Promise<string | string[]> => {
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
@@ -550,7 +581,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
         validateUrl(url, filterOrigin);
 
-        let filter: string[];
+        let filter: string[] = [];
         try {
             // eslint-disable-next-line @typescript-eslint/no-use-before-define
             const downloadResult = await downloadFilterRules(url, {
@@ -559,8 +590,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                 resolveDirectives: true,
             });
             filter = downloadResult.filter;
-        } catch (error) {
-            throw new Error(`Failed to resolve the include directive: '${line}'`, { cause: error });
+        } catch (error: unknown) {
+            throwError(
+                'Failed to resolve the include directive',
+                line,
+                context,
+                filterOrigin,
+                error,
+            );
         }
 
         const MAX_LINES_TO_SCAN = 50;
@@ -584,15 +621,17 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @returns A promise that returns {string} with rules when if resolved and {Error} if rejected.
      */
     const resolveIncludes = async (
-        rules: string [],
+        rules: string[],
         filterOrigin?: string,
         definedExpressions?: DefinedExpressions,
     ): Promise<string[]> => {
-        const promises = rules.map((rule) => resolveInclude(rule, filterOrigin, definedExpressions));
+        const promises = rules.map((rule, index) => {
+            return resolveInclude(rule, filterOrigin, definedExpressions, getContext(rules, index));
+        });
 
         let result: string[] = [];
         // We do not use here Promise.all because it freezes the Chromium browsers and electron built on it, if there
-        // are more than 1_100_00 promises. Also, we consider that wa can afford promises to be resolved sequentially.
+        // are more than 1_100_00 promises. Also, we consider that we can afford promises to be resolved sequentially.
         for (let i = 0; i < promises.length; i += 1) {
             // eslint-disable-next-line no-await-in-loop
             const resolved = await promises[i];
@@ -655,7 +694,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         }
 
         const urlOrigin = getFilterUrlOrigin(filterUrl);
-        const conditionsResult = resolveConditions(filter, downloadOptions.definedExpressions);
+        const conditionsResult = resolveConditions(filter, downloadOptions.definedExpressions, urlOrigin);
         const includesResult = await resolveIncludes(
             conditionsResult,
             urlOrigin,
@@ -683,7 +722,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         definedProperties?: DefinedExpressions,
     ): Promise<string[]> => {
         // Resolve 'if' conditions
-        const resolvedConditionsResult = resolveConditions(rules, definedProperties);
+        const resolvedConditionsResult = resolveConditions(rules, definedProperties, filterOrigin);
 
         // Resolve 'includes' directives
         return resolveIncludes(resolvedConditionsResult, filterOrigin, definedProperties);
@@ -727,7 +766,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
         const urlOrigin = getFilterUrlOrigin(urlToLoad);
         // Resolve 'if' conditions and 'includes' directives
-        const conditionsResult = resolveConditions(filterContent, downloadOptions.definedExpressions);
+        const conditionsResult = resolveConditions(filterContent, downloadOptions.definedExpressions, urlOrigin);
         const includesResult = await resolveIncludes(conditionsResult, urlOrigin, downloadOptions.definedExpressions);
         return {
             filter: includesResult,
@@ -810,7 +849,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         filterUrlOrigin?: string,
     ): Promise<string[]> {
         const filter = splitFilter(rawFilter);
-        const resolvedConditionsResult = resolveConditions(filter, options.definedExpressions);
+        const resolvedConditionsResult = resolveConditions(filter, options.definedExpressions, filterUrlOrigin);
         return resolveIncludes(
             resolvedConditionsResult,
             filterUrlOrigin,
