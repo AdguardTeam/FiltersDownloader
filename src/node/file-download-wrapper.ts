@@ -71,12 +71,10 @@ const getExternalFile = (url: string): Promise<string> => {
  * Get filter rules from the local path.
  *
  * @param url Local path.
- * @param filterUrlOrigin Origin path.
  * @returns A promise that returns string with rules when if resolved and Error if rejected.
  */
-const getLocalFile = (url: string, filterUrlOrigin: string): Promise<string> => {
-    const file = fs.readFileSync(path.resolve(filterUrlOrigin, url)).toString();
-    return Promise.resolve(file);
+const getLocalFile = (url: string): Promise<string> => {
+    return fs.promises.readFile(path.resolve(url), 'utf-8');
 };
 
 export {

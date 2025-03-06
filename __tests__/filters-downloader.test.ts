@@ -4,10 +4,12 @@ import {
     expect,
     beforeAll,
     afterAll,
+    afterEach,
 } from '@jest/globals';
 import path from 'path';
 import fs from 'fs/promises';
 import nock from 'nock';
+import mockFs from 'mock-fs';
 
 import { FiltersDownloader } from '../src';
 import { server } from './server';
@@ -349,6 +351,96 @@ describe('FiltersDownloader', () => {
                 // Assert that each URL was fetched only once
                 expect(scope.isDone()).toBe(true);
             });
+        });
+    });
+
+    describe('download local files', () => {
+        afterEach(() => {
+            // restore the file system
+            mockFs.restore();
+        });
+
+        it('simple download from local source', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': 'testrule',
+                },
+            });
+
+            // compile the final list
+            const list = await FiltersDownloader.download('test/dir/rules.txt');
+
+            const expectedRules = [
+                'testrule',
+            ];
+
+            expectedRules.forEach((rule) => {
+                expect(list).toContain(rule);
+            });
+        });
+
+        it('downloads and resolves includes from local source', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': `example.com
+!#include include.txt`,
+                    'include.txt': 'first.include.com',
+                },
+            });
+
+            // compile the final list
+            const list = await FiltersDownloader.download('test/dir/rules.txt');
+
+            const expectedRules = [
+                'example.com',
+                'first.include.com',
+            ];
+
+            expectedRules.forEach((rule) => {
+                expect(list).toContain(rule);
+            });
+        });
+
+        it('downloads and resolves nested includes from local source', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': `example.com
+!#include include1.txt`,
+                    'include1.txt': `first.include.com
+!#include include2.txt`,
+                    'include2.txt': 'second.include.com',
+                },
+            });
+
+            // compile the final list
+            const list = await FiltersDownloader.download('test/dir/rules.txt');
+
+            const expectedRules = [
+                'example.com',
+                'first.include.com',
+                'second.include.com',
+            ];
+
+            expectedRules.forEach((rule) => {
+                expect(list).toContain(rule);
+            });
+        });
+
+        it('does not resolve include from different origin', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': `example.com
+!#include https://example.org/inclusions.txt`,
+                },
+            });
+
+            await expect(async () => {
+                await FiltersDownloader.download('test/dir/rules.txt');
+            }).rejects.toThrow(Error);
         });
     });
 });

@@ -42,7 +42,7 @@ import { throwError, getContext } from './helpers/logger';
  * @interface IFileDownloader
  */
 interface IFileDownloader {
-    getLocalFile: (url: string, filterUrlOrigin: string) => Promise<string>,
+    getLocalFile: (url: string) => Promise<string>,
     getExternalFile: (url: string) => Promise<string>,
 }
 
@@ -192,7 +192,7 @@ interface IFiltersDownloader {
     downloadWithRaw: DownloadWithRawInterface;
     resolveConditions: (rules: string[], expressions?: DefinedExpressions) => string[];
     resolveIncludes: (rules: string[], filterOrigin?: string, expressions?: DefinedExpressions) => Promise<string[]>;
-    getFilterUrlOrigin: (url: string, filterUrlOrigin?: string) => string;
+    getFilterUrlOrigin: (url: string) => string;
 }
 
 const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFiltersDownloader => {
@@ -265,13 +265,9 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * Get the `filterOrigin` from url for relative path resolve.
      *
      * @param url Filter file URL.
-     * @param filterUrlOrigin Existing origin url.
      * @returns Valid origin url.
      */
-    const getFilterUrlOrigin = (url: string, filterUrlOrigin?: string): string => {
-        if (filterUrlOrigin) {
-            return filterUrlOrigin;
-        }
+    const getFilterUrlOrigin = (url: string): string => {
         return url.substring(0, url.lastIndexOf('/'));
     };
 
@@ -746,8 +742,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             ? `${filterOrigin}/${url}`
             : url;
 
-        const origin = getFilterUrlOrigin(urlToLoad, filterOrigin);
-        const rawFilter = await FileDownloadWrapper.getLocalFile(urlToLoad, origin);
+        const rawFilter = await FileDownloadWrapper.getLocalFile(urlToLoad);
 
         if (downloadOptions && downloadOptions.validateChecksum) {
             if (!isValidChecksum(rawFilter, downloadOptions.validateChecksumStrict)) {
