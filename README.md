@@ -123,6 +123,16 @@ const { filter, rawFilter, isPatchUpdateFailed } = await FiltersDownloader.downl
         rawFilter: prevRawFilter,
     },
 );
+
+// Please note that, by default, empty files are not downloaded, and an error 'Response is empty' is thrown.
+// Only empty includes are downloaded.
+// If you want empty files to be downloaded, you can use the `allowEmptyResponse` option.
+let promise = FiltersDownloader.download("resources/empty.txt", FilterCompilerConditionsConstants, { allowEmptyResponse: true });
+promise.then((compiled) => {
+    // Success
+}, (exception) => {
+    // Error
+});
 ```
 
 ## Tests

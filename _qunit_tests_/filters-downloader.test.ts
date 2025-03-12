@@ -1,6 +1,8 @@
 // TODO rewrite this tests to jest
 /* eslint-disable no-console */
 /* eslint-disable global-require */
+const mockFs = require('mock-fs');
+
 const FilterCompilerConditionsConstants = {
     adguard: true,
     adguard_ext_chromium: true,
@@ -775,10 +777,43 @@ QUnit.test('Test filter downloader - download filter with conditional includes',
     assert.equal(downloaded[2], 'example');
 });
 
-QUnit.test('Test empty filter downloader', async (assert) => {
+QUnit.test('Test empty filter downloader without `allowEmptyResponse` option', async (assert) => {
     const { FiltersDownloader } = require('../dist');
     assert.ok(FiltersDownloader);
     assert.rejects(FiltersDownloader.download(URL_EMPTY, FilterCompilerConditionsConstants), 'Response is empty');
+});
+
+QUnit.test('Test downloader with external filter and `allowEmptyResponse` option', async (assert) => {
+    const { FiltersDownloader } = require('../dist');
+
+    const downloaded = await FiltersDownloader.download(
+        URL_EMPTY,
+        FilterCompilerConditionsConstants,
+        { allowEmptyResponse: true },
+    );
+
+    assert.equal(downloaded.length, 1);
+    assert.equal(downloaded[0], '');
+});
+
+QUnit.test('Test downloader with empty local filter and `allowEmptyResponse` option', async (assert) => {
+    const { FiltersDownloader } = require('../dist');
+
+    mockFs({
+        'test/empty.txt': '',
+    });
+
+    const downloaded = await FiltersDownloader.download(
+        'test/empty.txt',
+        FilterCompilerConditionsConstants,
+        { allowEmptyResponse: true },
+    );
+
+    assert.equal(downloaded.length, 1);
+    assert.equal(downloaded[0], '');
+
+    // Clean up the mock file
+    mockFs.restore();
 });
 
 QUnit.test('Test filter downloader includes an empty filter', async (assert) => {

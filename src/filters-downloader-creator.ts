@@ -55,6 +55,7 @@ interface DownloadOptions {
     filterOrigin?: string,
     validateChecksum?: boolean,
     validateChecksumStrict?: boolean
+    allowEmptyResponse?: boolean
 }
 
 /**
@@ -63,6 +64,7 @@ interface DownloadOptions {
 interface LegacyDownloadOptions {
     validateChecksum?: boolean,
     validateChecksumStrict?: boolean
+    allowEmptyResponse?: boolean,
 }
 
 /**
@@ -103,6 +105,13 @@ interface DownloadWithRawOptions {
      * If it is true, it will throw error if checksum was not found in the file.
      */
     validateChecksumStrict?: boolean
+
+    /**
+     * A flag to allow an empty response.
+     * By default, it is set to false and will throw an error if the response is empty.
+     * If set to true, it will allow download file with an empty response.
+     */
+    allowEmptyResponse?: boolean
 }
 
 /**
@@ -141,7 +150,11 @@ interface DownloadWithRawInterface {
          * The options/configuration to be applied while downloading the filter.
          * This is required.
          */
-        options: DownloadWithRawOptions
+        options: DownloadWithRawOptions,
+        /**
+         * A flag to allow an empty response.
+         */
+        allowEmptyResponse?: boolean
     ): Promise<DownloadResult>;
 }
 
@@ -773,7 +786,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * Downloads filter rules from a URL and resolves pre-processor directives.
      *
      * @param url Filter file URL.
-     * @param downloadOptions
+     * @param downloadOptions Options to be applied while downloading the filter.
      * These properties might be used in pre-processor directives (`#if`, etc.).
      *
      * @returns A promise that returns an array of strings with rules when
@@ -821,8 +834,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             validateChecksumStrict: options?.validateChecksumStrict,
         });
 
-        // only included filters can be empty
-        if (result.filter && result.filter.join().trim() === '') {
+        // if 'allowEmptyResponse' option is not set, an empty filter will not be loaded.
+        // only included filters can be empty, in this case.
+        // if 'allowEmptyResponse' option is set, the empty file will be downloaded.
+        if (
+            result.filter
+            && result.filter.join().trim() === ''
+            && !options?.allowEmptyResponse
+        ) {
             throw new Error('Response is empty');
         }
 
@@ -875,8 +894,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             validateChecksumStrict: options.validateChecksumStrict,
         });
 
-        // only included filters can be empty
-        if (result.filter && result.filter.join().trim() === '') {
+        // if 'allowEmptyResponse' option is not set, an empty filter will not be loaded.
+        // only included filters can be empty, in this case.
+        // if 'allowEmptyResponse' option is set, the empty file will be downloaded.
+        if (
+            result.filter
+            && result.filter.join().trim() === ''
+            && !options?.allowEmptyResponse
+        ) {
             throw new Error('Response is empty');
         }
 
