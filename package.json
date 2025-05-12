@@ -19,8 +19,8 @@
         }
     },
     "scripts": {
-        "prebuild": "yarn rimraf dist && yarn build:types",
-        "build": "rollup -c rollup.config.ts --configPlugin typescript && yarn build:version",
+        "prebuild": "pnpm rimraf dist && pnpm build:types",
+        "build": "rollup -c rollup.config.ts --configPlugin typescript && pnpm build:version",
         "watch": "rollup -c rollup.config.ts --configPlugin typescript --watch",
         "build:version": "ts-node scripts/build-txt.ts",
         "build:types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --outdir dist/types",
@@ -28,7 +28,7 @@
         "lint": "eslint --cache . && tsc --noEmit",
         "lint-staged": "lint-staged",
         "prepare": "husky install",
-        "increment": "yarn version --patch --no-git-tag-version"
+        "increment": "pnpm version --patch --no-git-tag-version"
     },
     "lint-staged": {
         "{src,scripts,__tests__}/**/*.js": [
@@ -36,7 +36,7 @@
         ]
     },
     "engines": {
-        "node": ">=18"
+        "node": ">=18.13.0"
     },
     "author": "AdGuard",
     "license": "GPL-3.0",

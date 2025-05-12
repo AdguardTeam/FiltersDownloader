@@ -1,9 +1,9 @@
 .idea/
 .vscode/
-node_modules
+node_modules/
 *.iml
-build
-dist
+build/
+dist/
 .DS_Store
+.pnpm-store/
 .eslintcache
-yarn-error.log

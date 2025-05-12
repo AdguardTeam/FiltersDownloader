@@ -78,17 +78,23 @@ Filter URL: `https://example.org/path/filter.txt`
 To build one file for browser environment:
 
 ```bash
-yarn build
+pnpm build
 ```
 
 See `./dist` directory for results.
 
 ## Usage
 
+### Prerequisites
+
+<!-- NOTE: Minimal supported Node.js version should be specified in package.json -->
+<!-- and the same one should be used for github workflows -->
+- [Node.js] v18.13.0 or higher.
+
 ### Installation
 
-```
-yarn add @adguard/filters-downloader
+```bash
+pnpm add @adguard/filters-downloader
 ```
 
 ```js
@@ -138,11 +144,11 @@ promise.then((compiled) => {
 ## Tests
 
 ```bash
-yarn test
+pnpm test
 ```
 
 ## Linter
 
 ```bash
-yarn lint
+pnpm lint
 ```

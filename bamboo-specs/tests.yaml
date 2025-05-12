@@ -5,12 +5,12 @@ plan:
   key: FLTRDWNLTESTS
   name: filters-downloader - test
 variables:
-  dockerNode: adguard/node-ssh:18.13--1
+  dockerNode: adguard/node-ssh:22.14--0
 
 stages:
   - Test:
-      manual: 'false'
-      final: 'false'
+      manual: false
+      final: false
       jobs:
         - Test
 
@@ -21,10 +21,10 @@ Test:
   docker:
     image: ${bamboo.dockerNode}
     volumes:
-      ${system.YARN_DIR}: "${bamboo.cacheYarn}"
+      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   tasks:
     - checkout:
-        force-clean-build: 'true'
+        force-clean-build: true
     - script:
         interpreter: SHELL
         scripts:
@@ -35,19 +35,18 @@ Test:
             # Fix mixed logs
             exec 2>&1
 
-            # Exclude '--ignore-platform' from yarn arguments to fix build
-            originalValue="$bamboo_varsYarn"
+            ls -laht
 
-            # Use sed to replace "--ignore-platform" with an empty string
-            modifiedValue=$(echo "$originalValue" | sed 's/--ignore-optional//g')
+            # Set cache directory
+            pnpm config set store-dir ${bamboo.cachePnpm}
 
             # Call build before test because test will operate with files from dist
-            yarn install ${modifiedValue}
-            yarn build
-            ls -al
+            pnpm install ${bamboo_varsPnpm}
 
-            yarn lint
-            yarn test
+            pnpm build
+
+            pnpm lint
+            pnpm test
   final-tasks:
     - script:
         interpreter: SHELL
@@ -59,7 +58,7 @@ Test:
             # Fix mixed logs
             exec 2>&1
 
-            ls -la
+            ls -laht
 
             echo "Size before cleanup:" && du -h | tail -n 1
             rm -rf node_modules
@@ -72,7 +71,7 @@ branches:
   delete:
     after-deleted-days: '1'
     after-inactive-days: '5'
-  link-to-jira: 'true'
+  link-to-jira: true
 
 notifications: []
 labels: []

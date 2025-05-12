@@ -5,12 +5,12 @@ plan:
   key: FLTRDWNLBUILD
   name: filters-downloader - build release
 variables:
-  dockerNode: adguard/node-ssh:18.13--1
+  dockerNode: adguard/node-ssh:22.14--0
 
 stages:
   - Build:
-      manual: 'false'
-      final: 'false'
+      manual: false
+      final: false
       jobs:
         - Build
 
@@ -21,10 +21,10 @@ Build:
   docker:
     image: ${bamboo.dockerNode}
     volumes:
-      ${system.YARN_DIR}: "${bamboo.cacheYarn}"
+      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   tasks:
     - checkout:
-        force-clean-build: 'true'
+        force-clean-build: true
     - script:
         interpreter: SHELL
         scripts:
@@ -35,19 +35,16 @@ Build:
             # Fix mixed logs
             exec 2>&1
 
-            ls -al
+            ls -laht
 
-            # Exclude '--ignore-platform' from yarn arguments to fix build
-            originalValue="$bamboo_varsYarn"
-
-            # Use sed to replace "--ignore-platform" with an empty string
-            modifiedValue=$(echo "$originalValue" | sed 's/--ignore-optional//g')
+            # Set cache directory
+            pnpm config set store-dir ${bamboo.cachePnpm}
 
             # Call build before test because test will operate with files from dist
-            yarn install ${modifiedValue}
-            yarn build
+            pnpm install ${bamboo_varsPnpm}
+            pnpm build
 
-            yarn pack --filename filters-downloader.tgz
+            pnpm pack --out filters-downloader.tgz
     - inject-variables:
         file: build/build.txt
         scope: RESULT
@@ -86,7 +83,7 @@ triggers: []
 branches:
   create: manually
   delete: never
-  link-to-jira: 'true'
+  link-to-jira: true
 
 notifications:
   - events:
