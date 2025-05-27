@@ -7,3 +7,6 @@ dist/
 .DS_Store
 .pnpm-store/
 .eslintcache
+
+.npmrc
+*.tgz
