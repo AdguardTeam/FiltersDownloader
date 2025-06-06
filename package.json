@@ -1,6 +1,6 @@
 {
     "name": "@adguard/filters-downloader",
-    "version": "2.4.0",
+    "version": "2.4.1",
     "description": "Compiles filters source files",
     "main": "dist/index.js",
     "browser": "dist/index.browser.js",
@@ -28,7 +28,8 @@
         "lint": "eslint --cache . && tsc --noEmit",
         "lint-staged": "lint-staged",
         "prepare": "husky install",
-        "increment": "pnpm version --patch --no-git-tag-version"
+        "increment": "pnpm version --patch --no-git-tag-version",
+        "tgz": "pnpm pack --out filters-downloader.tgz"
     },
     "lint-staged": {
         "{src,scripts,__tests__}/**/*.js": [
