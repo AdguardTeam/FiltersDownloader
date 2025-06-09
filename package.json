@@ -1,6 +1,6 @@
 {
     "name": "@adguard/filters-downloader",
-    "version": "2.4.0",
+    "version": "2.4.1",
     "description": "Compiles filters source files",
     "main": "dist/index.js",
     "browser": "dist/index.browser.js",
@@ -28,7 +28,8 @@
         "lint": "eslint --cache . && tsc --noEmit",
         "lint-staged": "lint-staged",
         "prepare": "husky install",
-        "increment": "pnpm version --patch --no-git-tag-version"
+        "increment": "pnpm version --patch --no-git-tag-version",
+        "tgz": "pnpm pack --out filters-downloader.tgz"
     },
     "lint-staged": {
         "{src,scripts,__tests__}/**/*.js": [
@@ -49,7 +50,7 @@
     },
     "homepage": "https://github.com/AdguardTeam/FiltersDownloader#readme",
     "dependencies": {
-        "@adguard/diff-builder": "1.1.0",
+        "@adguard/diff-builder": "1.1.1",
         "axios": "1.6.2",
         "crypto-js": "^4.2.0"
     },
@@ -64,13 +65,12 @@
         "@swc/helpers": "^0.5.6",
         "@swc/jest": "^0.2.29",
         "@types/crypto-js": "^4.2.2",
-        "@types/mock-fs": "^4.13.4",
         "@types/express": "^4.17.21",
+        "@types/mock-fs": "^4.13.4",
         "@types/node": "^20.9.2",
         "@types/qunit": "^2.19.9",
         "@typescript-eslint/eslint-plugin": "^6.11.0",
         "@typescript-eslint/parser": "^6.11.0",
-        "mock-fs": "^5.5.0",
         "eslint": "^8.50.0",
         "eslint-config-airbnb-base": "^15.0.0",
         "eslint-config-airbnb-typescript": "^17.1.0",
@@ -81,6 +81,7 @@
         "husky": "^8.0.3",
         "jest": "^29.7.0",
         "lint-staged": "^14.0.1",
+        "mock-fs": "^5.5.0",
         "nock": "^13.4.0",
         "node-qunit": "^2.0.0",
         "regenerator-runtime": "^0.14.1",
