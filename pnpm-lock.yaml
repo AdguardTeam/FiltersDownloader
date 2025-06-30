@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@adguard/diff-builder':
-        specifier: 1.1.1
-        version: 1.1.1
+        specifier: 1.1.2
+        version: 1.1.2
       axios:
         specifier: 1.6.2
         version: 1.6.2
@@ -129,8 +129,8 @@ importers:
 
 packages:
 
-  '@adguard/diff-builder@1.1.1':
-    resolution: {integrity: sha512-0fCXrouAXUadZcNglTwDvy9XCxHZcgzma8173cLbsM543rAEEMf8HN0umgSPlcupM89AVkhwJ77eedjlc/eLFg==}
+  '@adguard/diff-builder@1.1.2':
+    resolution: {integrity: sha512-ueNXW4UL6v6d9j+HzdUD9br3eCK48wewI6KprIiT84G8kCg/aqxGkUhbn/1KoY+rmQl19Hib4AXs6tLpXDUdmw==}
     engines: {node: '>=18.13.0'}
     hasBin: true
 
@@ -3174,7 +3174,7 @@ packages:
 
 snapshots:
 
-  '@adguard/diff-builder@1.1.1':
+  '@adguard/diff-builder@1.1.2':
     dependencies:
       commander: 11.1.0
       crypto-js: 4.2.0
