@@ -30,14 +30,14 @@ jobs:
       - name: pnpm install
         run: pnpm install
 
+      - name: pnpm build
+        run: pnpm build
+
       - name: pnpm lint
         run: pnpm lint
 
       - name: pnpm test
         run: pnpm test
-
-      - name: pnpm build
-        run: pnpm build
 
   notify:
     name: Send Slack notification on failure
