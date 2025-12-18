@@ -35,6 +35,7 @@ npmjs:
             npm publish filters-downloader.tgz --access public
   requirements:
     - adg-docker: 'true'
+    - extension: 'true'
   notifications:
     - events:
         - deployment-started-and-finished
