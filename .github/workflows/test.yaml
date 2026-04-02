@@ -1,20 +1,29 @@
 name: Test Filters Downloader
 
 env:
-  # Minimum supported Node.js version is 18.13.0 which is specified in package.json
-  # So we use it for testing to ensure compatibility
-  NODE_VERSION: 18.13.0
   PNPM_VERSION: 10.7.1
 
 on:
   push
 
 jobs:
-  build:
-
+  check_code:
+    name: Run linting, testing, and build
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # https://nodejs.org/en/about/previous-releases
+        node-version:
+          # Minimum supported Node.js version is 20 which is specified in package.json
+          # So we use it for testing to ensure compatibility
+          - 20.x
+          - 22.x
+          - 24.x
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out to repository
+        uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -22,26 +31,27 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
 
-      - name: Use Node.jobs
+      - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
 
-      - name: pnpm install
+      - name: Install dependencies
         run: pnpm install
 
-      - name: pnpm build
-        run: pnpm build
-
-      - name: pnpm lint
+      - name: Run linter
         run: pnpm lint
 
-      - name: pnpm test
+      - name: Run tests
         run: pnpm test
+
+      - name: Build should be successful
+        run: pnpm build
 
   notify:
     name: Send Slack notification on failure
-    needs: build
+    needs: check_code
     # Run this job only if the previous job failed and the event was triggered by the 'AdguardTeam/FiltersDownloader' repository
     # Note: 'always()' is needed to run the notify job even if the test job was failed
     if:

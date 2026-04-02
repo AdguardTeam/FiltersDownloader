@@ -1,5 +1,12 @@
 {
     "extends": "./tsconfig.build.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "types": [
+            "node",
+            "qunit"
+        ]
+    },
     "include": [
         "src",
         "__tests__",

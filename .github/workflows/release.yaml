@@ -1,7 +1,7 @@
 name: Github Release
 
 env:
-  NODE_VERSION: 18.13.0
+  NODE_VERSION: 20
   PNPM_VERSION: 10.7.1
   # Forks do not have access to our vars
   VARS_PNPM: ${{ vars.VARS_PNPM || '--silent --ignore-scripts' }}

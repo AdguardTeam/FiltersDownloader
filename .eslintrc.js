@@ -82,4 +82,12 @@ module.exports = {
         'jsdoc/require-description-complete-sentence': ['error'],
         'jsdoc/require-returns': ['error'],
     },
+    overrides: [
+        {
+            files: ['_qunit_tests_/**'],
+            rules: {
+                'import/extensions': 'off',
+            },
+        },
+    ],
 };

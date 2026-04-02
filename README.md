@@ -1,46 +1,101 @@
-# Filters Downloader
+# @adguard/filters-downloader
 
-## Filters downloader package
+A library that downloads filter list source files by resolving
+preprocessor directives. It handles conditional compilation, file inclusion,
+checksum validation, and differential (patch-based) filter updates. The library
+works in both Node.js and browser environments.
 
-This utility tool resolves preprocessor directives in filter content.
+## Table of Contents
 
-### Directives syntax
+- [Overview](#overview)
+- [Installation](#installation)
+    - [Importing](#importing)
+- [Key Concepts](#key-concepts)
+    - [Condition constants](#condition-constants-definedexpressions)
+    - [Preprocessor directives](#preprocessor-directives)
+    - [Checksums](#checksums)
+    - [Differential updates](#differential-updates)
+- [API Reference](#api-reference)
+    - [`download()`](#downloadurl-definedexpressions-options)
+    - [`downloadWithRaw()`](#downloadwithrawurl-options)
+    - [`compile()`](#compilerules-filterorigin-definedexpressions)
+    - [`resolveConditions()`](#resolveconditionsrules-definedexpressions)
+    - [`resolveIncludes()`](#resolveincludesrules-filterorigin-definedexpressions)
+    - [`getFilterUrlOrigin()`](#getfilterurloriginurl)
+- [Documentation](#documentation)
+- [Projects using FiltersDownloader](#projects-using-filtersdownloader)
 
-```adblock
-!#if condition
-Anything goes here
-!#include URL_or_a_relative_path
-!#endif
+## Overview
+
+Filter lists used by ad blockers are often composed of multiple source files
+and contain platform-specific rules gated behind preprocessor directives. This
+library takes a filter URL (or an array of rules) and produces a flat,
+ready-to-use list of rules by:
+
+- **Resolving `!#include` directives** — fetches and inlines referenced files
+- **Resolving `!#if`/`!#else`/`!#endif` directives** — includes or excludes rule
+  blocks based on caller-provided condition constants
+- **Validating checksums** — optionally verifies the MD5 checksum embedded in
+  the filter header
+- **Applying differential updates** — when a previously downloaded raw filter is
+  supplied, attempts to update it via a binary patch instead of a full
+  re-download
+
+## Installation
+
+```bash
+pnpm add @adguard/filters-downloader
+# or
+npm install @adguard/filters-downloader
+# or
+yarn add @adguard/filters-downloader
 ```
 
-or with an `else` branch:
+### Importing
 
-```adblock
-!#if condition
-!#include URL_or_a_relative_path
-!#else
-!#include another_URL_or_a_relative_path
-!#endif
+**Node.js (CommonJS / ESM):**
+
+```js
+import { FiltersDownloader } from '@adguard/filters-downloader';
 ```
 
-- `!#if`, `!#else`, `!#endif` — filters maintainers can use these conditions
-  to supply different rules depending on the ad blocker type.
-- `condition` — just like in some popular programming languages,
-  pre-processor conditions are based on constants declared by ad blockers.
-  Ad blocker authors define on their own what exact constants do they declare.
-- `!#include` — this directive allows to include contents of a specified file into the filter.
+**Browser (ESM):**
 
-#### Logical conditions
+```js
+import { FiltersDownloader } from '@adguard/filters-downloader/browser';
+```
 
-When an adblocker encounters an `!#if` directive and no `!#else` directive,
-it will compile the code between `!#if` and `!#endif` only if the specified condition is true.
+## Key Concepts
 
-If there is an `!#else` directive, the code between `!#if` and `!#else` will be compiled if the condition is true,
-otherwise the code between `!#else` and `!#endif` will be compiled.
+### Condition constants (`DefinedExpressions`)
 
-Condition supports all the basic logical operators, i.e. `&&`, `||`, `!` and parentheses.
+When compiling a filter, you pass a `DefinedExpressions` object that declares
+which platform constants are `true` for the current ad blocker. The library
+evaluates `!#if` expressions against these constants and includes only the rules
+that apply to your platform.
 
-Example:
+Recognized constants:
+
+| Constant                   | Description                         |
+| -------------------------- | ----------------------------------- |
+| `adguard`                  | AdGuard product (any)               |
+| `adguard_ext_chromium`     | AdGuard for Chromium-based browsers |
+| `adguard_ext_chromium_mv3` | AdGuard for Chromium MV3            |
+| `adguard_ext_firefox`      | AdGuard for Firefox                 |
+| `adguard_ext_edge`         | AdGuard for Edge                    |
+| `adguard_ext_safari`       | AdGuard for Safari                  |
+| `adguard_ext_opera`        | AdGuard for Opera                   |
+| `adguard_ext_android_cb`   | AdGuard for Android Content Blocker |
+
+Any constant not present in the `DefinedExpressions` object is treated as
+`false`. See the [AdGuard conditions directive docs][conditions-directive] for
+the full list of recognized constants.
+
+[conditions-directive]: https://adguard.com/kb/general/ad-filtering/create-own-filters/#conditions-directive
+
+### Preprocessor directives
+
+#### Conditional blocks
 
 ```adblock
 !#if (adguard && !adguard_ext_safari)
@@ -48,107 +103,200 @@ Example:
 !#endif
 ```
 
-#### Include
+```adblock
+!#if adguard_ext_firefox
+!#include https://example.org/path/firefox-rules.txt
+!#else
+!#include https://example.org/path/other-rules.txt
+!#endif
+```
 
-The `!#include` directive supports only files from the same origin
-to make sure that the filter maintainer is in control of the specified file.
-The included file can also contain pre-processor directives (even other !#include directives).
+- `!#if` / `!#else` / `!#endif` delimit conditional blocks.
+- Conditions support `&&`, `||`, `!`, and parentheses.
+- Only the block whose condition evaluates to `true` is included in the output.
 
-Ad blockers should consider the case of recursive !#include and implement a protection mechanism.
-
-Examples:
-
-Filter URL: `https://example.org/path/filter.txt`
+#### File inclusion
 
 ```adblock
 !
-! Valid (same origin):
+! Valid (same origin, absolute path):
 !#include https://example.org/path/includedfile.txt
 !
 ! Valid (relative path):
 !#include /includedfile.txt
 !#include ../path2/includedfile.txt
 !
-! Invalid (another origin):
+! Invalid (different origin — rejected):
 !#include https://example.com/path/includedfile.txt
 ```
 
-## Build
+`!#include` fetches the referenced file and splices its rules into the output at
+that position. Included files may themselves contain directives. Only files from
+the same origin as the parent filter are permitted.
 
-To build one file for browser environment:
+### Checksums
 
-```bash
-pnpm build
+A filter file may embed an MD5 checksum in its header (e.g.
+`! Checksum: <base64-md5>`). When `validateChecksum: true` is passed, the
+library verifies the checksum after downloading. Use `validateChecksumStrict:
+true` to treat a missing checksum as an error.
+
+### Differential updates
+
+`downloadWithRaw` keeps the raw (uncompiled) filter text alongside the compiled
+output. On subsequent calls, passing the previously stored `rawFilter` lets the
+library apply a binary patch (if the server provides one) instead of downloading
+the entire filter again, reducing bandwidth usage.
+
+## API Reference
+
+All methods are on the `FiltersDownloader` object.
+
+### `download(url, definedExpressions?, options?)`
+
+Downloads a filter from `url`, resolves all directives, and returns the compiled
+rules as a `string[]`.
+
+```ts
+const rules: string[] = await FiltersDownloader.download(
+    'https://example.org/filter.txt',
+    { adguard: true, adguard_ext_firefox: true },
+);
 ```
 
-See `./dist` directory for results.
+**Options** (`LegacyDownloadOptions`):
 
-## Usage
+| Option                   | Type      | Default | Description                            |
+| ------------------------ | --------- | ------- | -------------------------------------- |
+| `validateChecksum`       | `boolean` | `false` | Verify the embedded MD5 checksum       |
+| `validateChecksumStrict` | `boolean` | `false` | Error if no checksum is present        |
+| `allowEmptyResponse`     | `boolean` | `false` | Allow downloading an empty filter file |
 
-### Prerequisites
+By default an empty top-level response throws `'Response is empty'`. Included
+files may be empty regardless of this option.
 
-<!-- NOTE: Minimal supported Node.js version should be specified in package.json -->
-<!-- and the same one should be used for github workflows -->
-- [Node.js] v18.13.0 or higher.
+---
 
-### Installation
+### `downloadWithRaw(url, options)`
 
-```bash
-pnpm add @adguard/filters-downloader
-```
+Downloads a filter and returns both the compiled rules and the raw (uncompiled)
+filter text. On subsequent calls, supply the stored `rawFilter` so the library
+can apply a differential patch instead of a full re-download.
 
-```js
-const FilterCompilerConditionsConstants = {
-    adguard: true,
-    // ...
-    adguard_ext_android_cb: false
-};
-
-// Option One
-let promise = FiltersDownloader.download("resources/rules.txt", FilterCompilerConditionsConstants);
-promise.then((compiled) => {
-    // Success
-}, (exception) => {
-    // Error
-});
-
-// Option Two
-let promise = FiltersDownloader.compile(['rule'], 'http://example.com', FilterCompilerConditionsConstants);
-promise.then((compiled) => {
-    // Success
-}, (exception) => {
-    // Error
-});
-
-// The downloadWithRaw() method downloads a filter, applies patches if possible and resolves conditionals;
-// if patch applying fails, isPatchUpdateFailed will be true.
-const { filter, rawFilter, isPatchUpdateFailed } = await FiltersDownloader.downloadWithRaw(
-    url,
-    {
-        force: false,
-        rawFilter: prevRawFilter,
-    },
+```ts
+// First download — no previous raw filter
+const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(
+    'https://example.org/filter.txt',
+    { definedExpressions: { adguard: true } },
 );
 
-// Please note that, by default, empty files are not downloaded, and an error 'Response is empty' is thrown.
-// Only empty includes are downloaded.
-// If you want empty files to be downloaded, you can use the `allowEmptyResponse` option.
-let promise = FiltersDownloader.download("resources/empty.txt", FilterCompilerConditionsConstants, { allowEmptyResponse: true });
-promise.then((compiled) => {
-    // Success
-}, (exception) => {
-    // Error
-});
+// Store rawFilter and use it next time
+const { filter: updated, rawFilter: newRaw, isPatchUpdateFailed } =
+    await FiltersDownloader.downloadWithRaw(
+        'https://example.org/filter.txt',
+        {
+            rawFilter,           // previously stored raw filter
+            definedExpressions: { adguard: true },
+        },
+    );
 ```
 
-## Tests
+**Returns** (`DownloadResult`):
 
-```bash
-pnpm test
+| Field                 | Type                   | Description                                                                    |
+| --------------------- | ---------------------- | ------------------------------------------------------------------------------ |
+| `filter`              | `string[]`             | Compiled rules                                                                 |
+| `rawFilter`           | `string`               | Raw filter text before directive resolution                                    |
+| `isPatchUpdateFailed` | `boolean \| undefined` | `true` if a patch was attempted but failed (full re-download was used instead) |
+
+**Options** (`DownloadWithRawOptions`):
+
+| Option                   | Type                  | Default     | Description                                     |
+| ------------------------ | --------------------- | ----------- | ----------------------------------------------- |
+| `force`                  | `boolean`             | `false`     | Skip patch attempt and force a full re-download |
+| `rawFilter`              | `string`              | `undefined` | Previously stored raw filter to diff against    |
+| `definedExpressions`     | `DefinedExpressions`  | `undefined` | Condition constants for directive resolution    |
+| `validateChecksum`       | `boolean`             | `false`     | Verify the embedded MD5 checksum                |
+| `validateChecksumStrict` | `boolean`             | `false`     | Error if no checksum is present                 |
+| `allowEmptyResponse`     | `boolean`             | `false`     | Allow an empty filter response                  |
+| `verbose`                | `boolean`             | `false`     | Enable detailed logging for troubleshooting     |
+
+---
+
+### `compile(rules, filterOrigin?, definedExpressions?)`
+
+Resolves all directives in an already-fetched `string[]` of rules. Useful when
+you have the raw lines in memory and do not need an HTTP download.
+
+```ts
+const rawRules = [
+    '!#if adguard_ext_firefox',
+    '||firefox-only.example.org^',
+    '!#endif',
+    '||example.org^',
+];
+
+const compiled: string[] = await FiltersDownloader.compile(
+    rawRules,
+    'https://example.org/filter.txt', // used to resolve relative !#include paths
+    { adguard_ext_firefox: true },
+);
+// → ['||firefox-only.example.org^', '||example.org^']
 ```
 
-## Linter
+---
 
-```bash
-pnpm lint
+### `resolveConditions(rules, definedExpressions?)`
+
+Evaluates `!#if` / `!#else` / `!#endif` directives and returns a new `string[]`
+with non-matching blocks removed. Does **not** fetch `!#include` references.
+
+```ts
+const filtered = FiltersDownloader.resolveConditions(rules, { adguard: true });
 ```
+
+---
+
+### `resolveIncludes(rules, filterOrigin?, definedExpressions?)`
+
+Fetches and inlines all `!#include` references. Does **not** evaluate
+`!#if` conditions.
+
+```ts
+const expanded = await FiltersDownloader.resolveIncludes(
+    rules,
+    'https://example.org/filter.txt',
+    { adguard: true },
+);
+```
+
+---
+
+### `getFilterUrlOrigin(url)`
+
+Returns the base directory URL of `url` (everything up to and including the last
+`/`). Used internally to resolve relative `!#include` paths.
+
+```ts
+FiltersDownloader.getFilterUrlOrigin('https://example.org/path/filter.txt');
+// → 'https://example.org/path'
+```
+
+## Documentation
+
+- [Changelog](CHANGELOG.md)
+- [Development](DEVELOPMENT.md)
+- [LLM agent rules](AGENTS.md)
+
+## Projects using FiltersDownloader
+
+- [AdguardBrowserExtension] — AdGuard browser extension
+- [FiltersCompiler] — compiles AdGuard filter lists from sources
+- [HostlistCompiler] — compiles hosts blocklists from multiple sources
+- [TSUrlFilter monorepo] — [adguard-api] package
+
+[AdguardBrowserExtension]: https://github.com/AdguardTeam/AdguardBrowserExtension
+[FiltersCompiler]: https://github.com/AdguardTeam/FiltersCompiler
+[HostlistCompiler]: https://github.com/AdguardTeam/HostlistCompiler
+[TSUrlFilter monorepo]: https://github.com/AdguardTeam/tsurlfilter
+[adguard-api]: https://github.com/AdguardTeam/tsurlfilter/tree/master/packages/adguard-api
