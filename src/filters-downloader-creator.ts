@@ -35,6 +35,8 @@ import { throwError, getContext } from './helpers/logger';
  * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/917.
  */
 
+import { type FileDownloadHeaders, type FileDownloadResult } from './common/types';
+
 /**
  * An interface representing a file download wrapper with methods to retrieve
  * local and external files.
@@ -42,8 +44,9 @@ import { throwError, getContext } from './helpers/logger';
  * @interface IFileDownloader
  */
 interface IFileDownloader {
-    getLocalFile: (url: string) => Promise<string>,
-    getExternalFile: (url: string) => Promise<string>,
+    getLocalFile: (url: string) => Promise<FileDownloadResult>,
+    getExternalFile: (url: string) => Promise<FileDownloadResult>,
+    getExternalFileHeaders?: (url: string) => Promise<FileDownloadHeaders | undefined>,
 }
 
 interface DownloadOptions {
@@ -191,6 +194,12 @@ export interface DownloadResult {
      * @see {@link https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2717}
      */
     isPatchUpdateFailed?: boolean;
+
+    /**
+     * HTTP response headers from the filter download.
+     * Contains the Last-Modified header if present in the response.
+     */
+    headers?: FileDownloadHeaders;
 }
 
 /**
@@ -685,7 +694,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             ? `${filterUrlOrigin}/${url}`
             : url;
 
-        const rawFilter = await FileDownloadWrapper.getExternalFile(filterUrl);
+        const downloadResult = await FileDownloadWrapper.getExternalFile(filterUrl);
+        const { content: rawFilter, headers } = downloadResult;
 
         if (downloadOptions && downloadOptions.validateChecksum) {
             if (!isValidChecksum(rawFilter, downloadOptions.validateChecksumStrict)) {
@@ -699,6 +709,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             return {
                 filter,
                 rawFilter,
+                headers,
             };
         }
 
@@ -713,6 +724,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         return {
             filter: includesResult,
             rawFilter,
+            headers,
         };
     };
 
@@ -755,7 +767,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             ? `${filterOrigin}/${url}`
             : url;
 
-        const rawFilter = await FileDownloadWrapper.getLocalFile(urlToLoad);
+        const downloadResult = await FileDownloadWrapper.getLocalFile(urlToLoad);
+        const { content: rawFilter, headers } = downloadResult;
 
         if (downloadOptions && downloadOptions.validateChecksum) {
             if (!isValidChecksum(rawFilter, downloadOptions.validateChecksumStrict)) {
@@ -769,6 +782,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             return {
                 filter: filterContent,
                 rawFilter,
+                headers,
             };
         }
 
@@ -779,6 +793,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         return {
             filter: includesResult,
             rawFilter,
+            headers,
         };
     };
 
@@ -910,6 +925,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         return {
             filter: includesResult,
             rawFilter: result.rawFilter,
+            headers: result.headers,
         };
     }
 
@@ -956,6 +972,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
                     filter: splitFilter(options.rawFilter),
                     rawFilter: options.rawFilter,
                     isPatchUpdateFailed: true,
+                    headers: undefined,
                 };
             }
 
@@ -969,11 +986,21 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             return downloadResult;
         }
 
+        // Fetch headers separately for patch-related flows, since DiffUpdater
+        // does not expose HTTP response headers from its internal requests.
+        // Note: this is a best-effort extra HEAD request — the returned
+        // Last-Modified value may not exactly match the response that the
+        // patch was fetched from (e.g. if the server updated between requests).
+        const headers = FileDownloadWrapper.getExternalFileHeaders
+            ? await FileDownloadWrapper.getExternalFileHeaders(url)
+            : undefined;
+
         // if nothing changed, then return result as is
         if (rawFilter === options.rawFilter) {
             return {
                 filter: splitFilter(options.rawFilter),
                 rawFilter: options.rawFilter,
+                headers,
             };
         }
 
@@ -986,6 +1013,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         return {
             filter: resolveResult,
             rawFilter,
+            headers,
         };
     };
 

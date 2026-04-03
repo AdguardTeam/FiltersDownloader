@@ -19,6 +19,7 @@ import {
     getContentTypeError,
     PREFERRED_CONTENT_TYPE,
 } from '../common/content-type';
+import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
 
 /**
  * Set of network protocols. Used to check if url is local.
@@ -43,10 +44,9 @@ const isLocal = (url: string): boolean => {
  *
  * @param url URL.
  *
- * @returns Promise which will be resolved with string content of request
- * divided by '/r?/n'.
+ * @returns Promise which will be resolved with file content and headers.
  */
-const executeRequestAsyncFetch = async (url: string): Promise<string> => {
+const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult> => {
     const response = await fetch(url, {
         cache: 'no-cache',
         headers: {
@@ -68,7 +68,23 @@ const executeRequestAsyncFetch = async (url: string): Promise<string> => {
         }
     }
 
-    return response.text();
+    const content = await response.text();
+
+    // Capture Last-Modified header for external (non-local) URLs
+    const headers: FileDownloadHeaders = {};
+    if (!isLocal(response.url)) {
+        const lastModified = response.headers.get('Last-Modified');
+        if (lastModified) {
+            headers.lastModified = lastModified;
+        }
+    }
+
+    return {
+        content,
+        headers: Object.keys(headers).length > 0
+            ? headers
+            : undefined,
+    };
 };
 
 /**
@@ -76,17 +92,17 @@ const executeRequestAsyncFetch = async (url: string): Promise<string> => {
  * from the given URL.
  *
  * @param url The URL of the file to retrieve.
- * @returns A Promise that resolves to a string representing data from the file.
+ * @returns A Promise that resolves to file content and headers.
  * @throws Throws an error if the response status is invalid,
  * the Content-Type is unsupported, or if there's an error during the request.
  */
-const executeRequestAsyncXhr = (url: string): Promise<string> => new Promise((resolve, reject) => {
+const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new Promise((resolve, reject) => {
     const onRequestLoad = (response: XMLHttpRequest): void => {
         if (response.status !== 200 && response.status !== 0) {
             reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
         }
 
-        const responseText = response.responseText
+        const content = response.responseText
             ? response.responseText
             // @ts-ignore
             : response.data;
@@ -100,7 +116,21 @@ const executeRequestAsyncXhr = (url: string): Promise<string> => new Promise((re
             }
         }
 
-        resolve(responseText);
+        // Capture Last-Modified header for external (non-local) URLs
+        const headers: FileDownloadHeaders = {};
+        if (!isLocal(response.responseURL)) {
+            const lastModified = response.getResponseHeader('Last-Modified');
+            if (lastModified) {
+                headers.lastModified = lastModified;
+            }
+        }
+
+        resolve({
+            content,
+            headers: Object.keys(headers).length > 0
+                ? headers
+                : undefined,
+        });
     };
 
     const request = new XMLHttpRequest();
@@ -135,20 +165,20 @@ const executeRequestAsyncXhr = (url: string): Promise<string> => new Promise((re
  * Downloads filter rules from external url.
  *
  * @param url Filter file absolute URL or relative path.
- * @returns A promise that returns string of rules when resolved
+ * @returns A promise that returns file content and headers when resolved
  * and error if rejected.
  */
-const getExternalFile = (url: string): Promise<string> => executeRequestAsyncFetch(url);
+const getExternalFile = (url: string): Promise<FileDownloadResult> => executeRequestAsyncFetch(url);
 
 /**
  * Retrieves a local file content asynchronously using XMLHttpRequest or fetch API.
  *
  * @param url The URL of the local file to retrieve.
- * @returns A Promise that resolves to string representing the content of the file.
+ * @returns A Promise that resolves to file content and headers.
  * @throws Throws an error if neither XMLHttpRequest nor fetch is available or
  * if getting local files inside a service worker is not supported.
  */
-const getLocalFile = (url: string): Promise<string> => {
+const getLocalFile = (url: string): Promise<FileDownloadResult> => {
     if (typeof XMLHttpRequest !== 'undefined') {
         return executeRequestAsyncXhr(url);
     }
@@ -158,7 +188,40 @@ const getLocalFile = (url: string): Promise<string> => {
     throw new Error('XMLHttpRequest or fetch are undefined, getting local files inside service worker is not working');
 };
 
+/**
+ * Fetches only the HTTP response headers for the given URL via a HEAD request.
+ *
+ * @param url Filter file absolute URL.
+ *
+ * @returns A promise that resolves with the headers, or undefined if unavailable.
+ */
+const getExternalFileHeaders = async (url: string): Promise<FileDownloadHeaders | undefined> => {
+    try {
+        const response = await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-cache',
+            headers: {
+                Pragma: 'no-cache',
+            },
+        });
+
+        if (response.status !== 200) {
+            return undefined;
+        }
+
+        const lastModified = response.headers.get('Last-Modified');
+        if (lastModified) {
+            return { lastModified };
+        }
+    } catch {
+        // Silently return undefined if the HEAD request fails.
+    }
+
+    return undefined;
+};
+
 export {
     getLocalFile,
     getExternalFile,
+    getExternalFileHeaders,
 };

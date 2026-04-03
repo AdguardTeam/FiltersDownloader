@@ -20,6 +20,7 @@ import path from 'path';
 import fs from 'fs';
 
 import { isContentTypeSupported, getContentTypeError } from '../common/content-type';
+import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
 
 /**
  * Executes async request.
@@ -41,9 +42,10 @@ const executeRequestAsync = (url: string): Promise<any> => axios({
  * Downloads filter rules from external url.
  *
  * @param url Filter file absolute URL or relative path.
- * @returns A promise that returns string with rules when if resolved and Error if rejected.
+ * @returns A promise that returns file content and headers when resolved
+ * and error if rejected.
  */
-const getExternalFile = (url: string): Promise<string> => {
+const getExternalFile = (url: string): Promise<FileDownloadResult> => {
     return new Promise((resolve, reject) => {
         executeRequestAsync(url)
             .then((response) => {
@@ -57,9 +59,21 @@ const getExternalFile = (url: string): Promise<string> => {
                     reject(getContentTypeError());
                 }
 
-                const responseText = response.responseText ? response.responseText : response.data;
+                const content = response.responseText ? response.responseText : response.data;
 
-                resolve(responseText);
+                // Capture Last-Modified header
+                const headers: FileDownloadHeaders = {};
+                const lastModified = response.headers['last-modified'];
+                if (lastModified) {
+                    headers.lastModified = lastModified;
+                }
+
+                resolve({
+                    content,
+                    headers: Object.keys(headers).length > 0
+                        ? headers
+                        : undefined,
+                });
             }).catch((error) => {
                 const updatedError = new Error(`Failed to request url '${url}'`, { cause: error });
                 reject(updatedError);
@@ -71,13 +85,52 @@ const getExternalFile = (url: string): Promise<string> => {
  * Get filter rules from the local path.
  *
  * @param url Local path.
- * @returns A promise that returns string with rules when if resolved and Error if rejected.
+ * @returns A promise that returns file content and headers when resolved
+ * and error if rejected.
  */
-const getLocalFile = (url: string): Promise<string> => {
-    return fs.promises.readFile(path.resolve(url), 'utf-8');
+const getLocalFile = async (url: string): Promise<FileDownloadResult> => {
+    const content = await fs.promises.readFile(path.resolve(url), 'utf-8');
+    return {
+        content,
+        headers: undefined,
+    };
+};
+
+/**
+ * Fetches only the HTTP response headers for the given URL via a HEAD request.
+ *
+ * @param url Filter file absolute URL.
+ *
+ * @returns A promise that resolves with the headers, or undefined if unavailable.
+ */
+const getExternalFileHeaders = async (url: string): Promise<FileDownloadHeaders | undefined> => {
+    try {
+        const response = await axios({
+            method: 'head',
+            url,
+            headers: {
+                Pragma: 'no-cache',
+            },
+            validateStatus: null,
+        });
+
+        if (response.status !== 200) {
+            return undefined;
+        }
+
+        const lastModified = response.headers['last-modified'];
+        if (lastModified) {
+            return { lastModified };
+        }
+    } catch {
+        // Silently return undefined if the HEAD request fails.
+    }
+
+    return undefined;
 };
 
 export {
     getLocalFile,
     getExternalFile,
+    getExternalFileHeaders,
 };

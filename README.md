@@ -208,6 +208,16 @@ const { filter: updated, rawFilter: newRaw, isPatchUpdateFailed } =
 | `filter`              | `string[]`             | Compiled rules                                                                 |
 | `rawFilter`           | `string`               | Raw filter text before directive resolution                                    |
 | `isPatchUpdateFailed` | `boolean \| undefined` | `true` if a patch was attempted but failed (full re-download was used instead) |
+| `headers`             | `object \| undefined`  | HTTP response headers from the filter download (see below)                     |
+
+`headers` shape:
+
+| Field          | Type                  | Description                                           |
+| -------------- | --------------------- | ----------------------------------------------------- |
+| `lastModified` | `string \| undefined` | The value of the `Last-Modified` HTTP response header |
+
+> **Note:** `headers.lastModified` can be used as a fallback update timestamp
+> when filter metadata does not contain a `TimeUpdated` field.
 
 **Options** (`DownloadWithRawOptions`):
 

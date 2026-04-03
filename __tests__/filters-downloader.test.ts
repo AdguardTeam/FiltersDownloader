@@ -148,7 +148,7 @@ describe('FiltersDownloader', () => {
             });
 
             it('applies patches', async () => {
-                const basePath = 'http://localhost:3000';
+                const basePath = server.baseUrl();
                 const url = new URL('./fixtures/01_simple/filter.txt', basePath).toString();
                 const prevFilter = await fs.readFile(
                     path.resolve(__dirname, './fixtures/01_simple/filter_v1.0.0.txt'),
@@ -165,7 +165,7 @@ describe('FiltersDownloader', () => {
             });
 
             it('applies conditions after patches', async () => {
-                const basePath = 'http://localhost:3000';
+                const basePath = server.baseUrl();
                 const url = new URL('./fixtures/02_includes/filter.txt', basePath).toString();
                 const prevFilter = await fs.readFile(
                     path.resolve(__dirname, './fixtures/02_includes/filter_v1.0.0.txt'),

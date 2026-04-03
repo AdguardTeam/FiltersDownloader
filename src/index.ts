@@ -7,11 +7,13 @@ import {
 import {
     getLocalFile,
     getExternalFile,
+    getExternalFileHeaders,
 } from './node/file-download-wrapper';
 
 const FiltersDownloader = FiltersDownloaderCreator({
     getLocalFile,
     getExternalFile,
+    getExternalFileHeaders,
 });
 
 export {
