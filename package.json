@@ -31,7 +31,7 @@
         "lint:md": "markdownlint .",
         "lint-staged": "lint-staged",
         "prepare": "husky install",
-        "increment": "pnpm version --patch --no-git-tag-version",
+        "increment": "pnpm version patch --no-git-tag-version",
         "tgz": "pnpm pack --out filters-downloader.tgz"
     },
     "lint-staged": {
