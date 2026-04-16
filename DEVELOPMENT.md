@@ -13,7 +13,7 @@ This guide explains how to set up the development environment, run
     - [4. Run tests](#4-run-tests)
     - [5. Run the linter](#5-run-the-linter)
 - [Available Scripts](#available-scripts)
-    - [Running individual Jest tests](#running-individual-jest-tests)
+    - [Running individual Vitest tests](#running-individual-vitest-tests)
 - [Development Workflow](#development-workflow)
     - [Branching](#branching)
     - [Pre-commit hooks](#pre-commit-hooks)
@@ -27,7 +27,7 @@ This guide explains how to set up the development environment, run
 - [Troubleshooting](#troubleshooting)
     - [`pnpm install` fails with an engine error](#pnpm-install-fails-with-an-engine-error)
     - [Pre-existing lint errors in `_qunit_tests_/`](#pre-existing-lint-errors-in-_qunit_tests_)
-    - [Jest tests fail with "Cannot find module"](#jest-tests-fail-with-cannot-find-module)
+    - [Vitest tests fail with "Cannot find module"](#vitest-tests-fail-with-cannot-find-module)
     - [`pnpm build` fails after dependency update](#pnpm-build-fails-after-dependency-update)
 - [Additional Resources](#additional-resources)
 
@@ -77,7 +77,7 @@ Build outputs go to `dist/`:
 pnpm test
 ```
 
-This runs the legacy QUnit suite followed by the Jest suite.
+This runs the legacy QUnit suite followed by the Vitest suite.
 
 ### 5. Run the linter
 
@@ -95,7 +95,7 @@ All scripts are run with `pnpm <script>`.
 | ------------ | ------------------------------------------------------------------------------------------------- |
 | `build`      | Clean `dist/`, emit declaration files, bundle CJS + ESM with Rollup, and write `build/build.txt`  |
 | `watch`      | Rollup in watch mode — rebuilds on file changes                                                   |
-| `test`       | Run QUnit tests then Jest tests                                                                   |
+| `test`       | Run QUnit tests then Vitest tests                                                                 |
 | `lint`       | Run `lint:code`, `lint:types`, and `lint:md` in sequence                                          |
 | `lint:code`  | ESLint with caching                                                                               |
 | `lint:types` | `tsc --noEmit` — type-check without emitting                                                      |
@@ -103,17 +103,17 @@ All scripts are run with `pnpm <script>`.
 | `increment`  | Bump the patch version in `package.json` (no git tag)                                             |
 | `tgz`        | Pack a tarball (`filters-downloader.tgz`) for local testing                                       |
 
-### Running individual Jest tests
+### Running individual Vitest tests
 
 ```bash
-# All Jest tests
-pnpx jest
+# All Vitest tests
+pnpx vitest run
 
 # A single test file
-pnpx jest __tests__/checksum.test.ts
+pnpx vitest run __tests__/checksum.test.ts
 
 # Tests matching a name pattern
-pnpx jest -t "pattern"
+pnpx vitest run -t "pattern"
 ```
 
 ## Development Workflow
@@ -155,8 +155,8 @@ import conventions, etc.) see the **Code Guidelines** section in
 
 ### Adding a new test
 
-1. Create or edit a file in `__tests__/` using Jest (`describe`/`it`/`expect`
-   from `@jest/globals`). Do not add new QUnit tests.
+1. Create or edit a file in `__tests__/` using Vitest (`describe`/`it`/`expect`
+   from `vitest`). Do not add new QUnit tests.
 2. If the test needs HTTP downloads, use the Express integration test server
    defined in `__tests__/server/index.ts`.
 3. Place any filter fixture files in `__tests__/fixtures/`, organized by
@@ -203,7 +203,7 @@ src/                              # Library source code
   browser/                        # Browser download wrapper (fetch + XHR fallback)
   common/                         # Shared utilities
   helpers/                        # Error reporting with context
-__tests__/                        # Jest test suite
+__tests__/                        # Vitest test suite
   server/                         # Express integration test server
   fixtures/                       # Test fixture filter files and patches
 _qunit_tests_/                    # Legacy QUnit tests (do not add new ones)
@@ -235,10 +235,10 @@ The legacy QUnit test files import from `../dist` and produce known ESLint
 `import` errors. These are expected — do not introduce new ones, but you can
 ignore these specific warnings.
 
-### Jest tests fail with "Cannot find module"
+### Vitest tests fail with "Cannot find module"
 
 Make sure you have built the project at least once (`pnpm build`) so that
-`dist/` exists. The QUnit tests (which run before Jest) import from `dist/`.
+`dist/` exists. The QUnit tests (which run before Vitest) import from `dist/`.
 
 ### `pnpm build` fails after dependency update
 

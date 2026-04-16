@@ -56,7 +56,6 @@ module.exports = {
         'jsdoc/require-returns-type': 'off',
         'jsdoc/tag-lines': 'off',
         'jsdoc/require-throws': 'error',
-        'jsdoc/check-tag-names': ['error', { definedTags: ['jest-environment'] }],
         'jsdoc/require-jsdoc': [
             'error',
             {

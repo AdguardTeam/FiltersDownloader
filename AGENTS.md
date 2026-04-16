@@ -31,7 +31,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | Package Manager        | pnpm 10.7.1                                                    |
 | Bundler                | Rollup 4 with `@rollup/plugin-typescript`                      |
 | Primary Dependencies   | `axios` (HTTP), `@adguard/diff-builder` (patches), `crypto-js` |
-| Testing                | Jest 29 (`@swc/jest` transform) + legacy QUnit suite           |
+| Testing                | Vitest 4.x + legacy QUnit suite                                |
 | Linting                | ESLint 8 (airbnb-typescript + jsdoc plugin)                    |
 | Type Checking          | `tsc --noEmit` (strict mode)                                   |
 | Pre-commit Hooks       | Husky + lint-staged                                            |
@@ -54,7 +54,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   ├── helpers/                      # Error reporting with context (logger)
 │   ├── node/                         # Node.js file-download wrapper (axios + fs)
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
-├── __tests__/                        # Jest test suite
+├── __tests__/                        # Vitest test suite
 │   ├── filters-downloader.test.ts
 │   ├── checksum.test.ts
 │   ├── server/                       # Express test server for integration tests
@@ -68,7 +68,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 ├── tsconfig.json                     # TypeScript config (includes all sources)
 ├── tsconfig.build.json               # TypeScript config for production build
 ├── rollup.config.ts                  # Dual-target Rollup build (Node CJS + Browser ESM)
-├── jest.config.ts                    # Jest config with SWC transform
+├── vitest.config.ts                  # Vitest config (node env, include/exclude)
 └── .eslintrc.js                      # ESLint config (airbnb-typescript + jsdoc)
 ```
 
@@ -78,22 +78,22 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | ---------------- | ------------------------------------------------ |
 | `pnpm install`   | Install dependencies                             |
 | `pnpm build`     | Build Node.js (CJS) and Browser (ESM) to `dist/` |
-| `pnpm test`      | Run QUnit tests + Jest tests                     |
+| `pnpm test`      | Run QUnit tests + Vitest tests                   |
 | `pnpm lint`      | Run ESLint, TypeScript check, and Markdown lint  |
 | `pnpm watch`     | Build in watch mode                              |
 | `pnpm increment` | Bump patch version in `package.json`             |
 | `pnpm tgz`       | Pack tarball for local testing                   |
 
-To run only Jest tests:
+To run only Vitest tests:
 
 ```bash
-pnpx jest
+pnpx vitest run
 ```
 
-To run a single Jest test file:
+To run a single Vitest test file:
 
 ```bash
-pnpx jest __tests__/checksum.test.ts
+pnpx vitest run __tests__/checksum.test.ts
 ```
 
 ## Contribution Instructions
@@ -148,10 +148,10 @@ General code style guidelines are available via link:
 
 ### Testing
 
-- **Jest for new tests.** Write new tests in the `__tests__/` directory using
-  Jest (`describe`/`it`/`expect` from `@jest/globals`). Do not add new QUnit
+- **Vitest for new tests.** Write new tests in the `__tests__/` directory using
+  Vitest (`describe`/`it`/`expect` from `vitest`). Do not add new QUnit
   tests.
-- **Integration test server.** The Jest suite starts an Express server
+- **Integration test server.** The Vitest suite starts an Express server
   (`__tests__/server/index.ts`) to serve fixture files. Use it for tests that
   require HTTP downloads.
 - **Test fixtures.** Place filter files and patches in `__tests__/fixtures/`.

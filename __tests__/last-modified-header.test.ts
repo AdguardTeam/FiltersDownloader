@@ -5,7 +5,7 @@ import {
     beforeAll,
     afterAll,
     afterEach,
-} from '@jest/globals';
+} from 'vitest';
 import nock from 'nock';
 import path from 'path';
 import fs from 'fs/promises';

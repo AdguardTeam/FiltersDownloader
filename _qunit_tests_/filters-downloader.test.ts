@@ -1,4 +1,4 @@
-// TODO rewrite this tests to jest
+// TODO rewrite this tests to vitest
 /* eslint-disable no-console */
 /* eslint-disable global-require */
 const mockFs = require('mock-fs');

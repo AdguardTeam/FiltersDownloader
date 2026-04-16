@@ -5,7 +5,7 @@ import {
     beforeAll,
     afterAll,
     afterEach,
-} from '@jest/globals';
+} from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
 import nock from 'nock';
@@ -79,7 +79,7 @@ describe('FiltersDownloader', () => {
                 '\t||example.com',
                 '\t||example.org',
                 `\t!#include ${nonExistentFilePath}`,
-                `\tError: ENOENT: no such file or directory, open '${nonExistentFilePath}'`,
+                `\tENOENT: no such file or directory, open '${nonExistentFilePath}'`,
             ];
             await expect(FiltersDownloader.resolveIncludes(
                 rules,
@@ -103,7 +103,7 @@ describe('FiltersDownloader', () => {
                 '\t||example.org^',
                 '\t||example.com^',
                 '\t!#include',
-                '\tError: EISDIR: illegal operation on a directory, read',
+                '\tEISDIR: illegal operation on a directory, read',
             ];
             await expect(FiltersDownloader.resolveIncludes(
                 rules,
