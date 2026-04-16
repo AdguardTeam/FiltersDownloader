@@ -37,7 +37,7 @@
         "tgz": "pnpm pack --out filters-downloader.tgz"
     },
     "lint-staged": {
-        "{src,scripts,__tests__}/**/*.{js,ts}": [
+        "{src,scripts,test}/**/*.{js,ts}": [
             "eslint --cache .",
             "tsc-files --noEmit"
         ],

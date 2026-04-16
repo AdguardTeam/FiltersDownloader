@@ -110,7 +110,7 @@ All scripts are run with `pnpm <script>`.
 pnpx vitest run
 
 # A single test file
-pnpx vitest run __tests__/checksum.test.ts
+pnpx vitest run test/checksum.test.ts
 
 # Tests matching a name pattern
 pnpx vitest run -t "pattern"
@@ -129,7 +129,7 @@ pnpx vitest run -t "pattern"
 
 Husky + lint-staged run automatically on `git commit`:
 
-- **TypeScript / JavaScript files** in `src/`, `scripts/`, and `__tests__/` —
+- **TypeScript / JavaScript files** in `src/`, `scripts/`, and `test/` —
   ESLint and `tsc --noEmit`.
 - **Markdown files** — markdownlint.
 
@@ -142,7 +142,7 @@ After any code change, follow these steps in order:
 1. **Lint:** `pnpm lint` — fix all errors.
 2. **Test:** `pnpm test` — all tests must pass.
 3. **Add / update tests:** every new or changed behavior needs test coverage
-   in `__tests__/`.
+   in `test/`.
 4. **Build:** `pnpm build` — must complete without errors.
 5. **Changelog:** if the change is user-facing, add an entry to
    [CHANGELOG.md](CHANGELOG.md).
@@ -155,11 +155,11 @@ import conventions, etc.) see the **Code Guidelines** section in
 
 ### Adding a new test
 
-1. Create or edit a file in `__tests__/` using Vitest (`describe`/`it`/`expect`
+1. Create or edit a file in `test/` using Vitest (`describe`/`it`/`expect`
    from `vitest`). Do not add new QUnit tests.
 2. If the test needs HTTP downloads, use the Express integration test server
-   defined in `__tests__/server/index.ts`.
-3. Place any filter fixture files in `__tests__/fixtures/`, organized by
+   defined in `test/server/index.ts`.
+3. Place any filter fixture files in `test/fixtures/`, organized by
    scenario in numbered subdirectories.
 
 ### Updating a dependency
@@ -203,7 +203,7 @@ src/                              # Library source code
   browser/                        # Browser download wrapper (fetch + XHR fallback)
   common/                         # Shared utilities
   helpers/                        # Error reporting with context
-__tests__/                        # Vitest test suite
+test/                             # Vitest test suite
   server/                         # Express integration test server
   fixtures/                       # Test fixture filter files and patches
 _qunit_tests_/                    # Legacy QUnit tests (do not add new ones)

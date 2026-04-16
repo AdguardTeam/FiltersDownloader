@@ -54,7 +54,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   ├── helpers/                      # Error reporting with context (logger)
 │   ├── node/                         # Node.js file-download wrapper (axios + fs)
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
-├── __tests__/                        # Vitest test suite
+├── test/                             # Vitest test suite
 │   ├── filters-downloader.test.ts
 │   ├── checksum.test.ts
 │   ├── server/                       # Express test server for integration tests
@@ -93,7 +93,7 @@ pnpx vitest run
 To run a single Vitest test file:
 
 ```bash
-pnpx vitest run __tests__/checksum.test.ts
+pnpx vitest run test/checksum.test.ts
 ```
 
 ## Contribution Instructions
@@ -107,7 +107,7 @@ After completing any code change, verify correctness by following these steps:
 2. **Run the full test suite.** Execute `pnpm test`. All tests must pass.
 
 3. **Update or add tests.** If you changed or added functionality, add or update
-   corresponding tests in `__tests__/`. Every new public function or changed
+   corresponding tests in `test/`. Every new public function or changed
    behavior must have test coverage.
 
 4. **Build the project.** Execute `pnpm build` and verify it completes
@@ -148,13 +148,13 @@ General code style guidelines are available via link:
 
 ### Testing
 
-- **Vitest for new tests.** Write new tests in the `__tests__/` directory using
+- **Vitest for new tests.** Write new tests in the `test/` directory using
   Vitest (`describe`/`it`/`expect` from `vitest`). Do not add new QUnit
   tests.
 - **Integration test server.** The Vitest suite starts an Express server
-  (`__tests__/server/index.ts`) to serve fixture files. Use it for tests that
+  (`test/server/index.ts`) to serve fixture files. Use it for tests that
   require HTTP downloads.
-- **Test fixtures.** Place filter files and patches in `__tests__/fixtures/`.
+- **Test fixtures.** Place filter files and patches in `test/fixtures/`.
   Organize by scenario in numbered subdirectories.
 
 ### Other
