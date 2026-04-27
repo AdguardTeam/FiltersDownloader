@@ -4,8 +4,6 @@ plan:
   project-key: AJL
   key: FLTRDWNLTESTS
   name: filters-downloader - test
-variables:
-  dockerNode: adguard/node-ssh:22.17--0
 
 stages:
   - Test:
@@ -18,10 +16,6 @@ Test:
   key: TEST
   other:
     clean-working-dir: true
-  docker:
-    image: ${bamboo.dockerNode}
-    volumes:
-      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   tasks:
     - checkout:
         force-clean-build: true
@@ -35,34 +29,17 @@ Test:
             # Fix mixed logs
             exec 2>&1
 
-            ls -laht
-
-            # Set cache directory
-            pnpm config set store-dir ${bamboo.cachePnpm}
-
-            # Call build before test because test will operate with files from dist
-            pnpm install ${bamboo_varsPnpm}
-
-            pnpm build
-
-            pnpm lint
-            pnpm test
+            docker build \
+              --file Dockerfile \
+              --progress plain \
+              --target test-output \
+              --output type=local,dest=output \
+              .
   final-tasks:
     - script:
         interpreter: SHELL
         scripts:
-          - |-
-            set -x
-            set -e
-
-            # Fix mixed logs
-            exec 2>&1
-
-            ls -laht
-
-            echo "Size before cleanup:" && du -h | tail -n 1
-            rm -rf node_modules
-            echo "Size after cleanup:" && du -h | tail -n 1
+          - ./bamboo-specs/scripts/cleanup.sh ""
   requirements:
     - extension: 'true'
 

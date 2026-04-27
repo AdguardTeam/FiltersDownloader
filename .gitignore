@@ -4,6 +4,8 @@ node_modules/
 *.iml
 build/
 dist/
+# Output directory for CI build
+output/
 .DS_Store
 .pnpm-store/
 .eslintcache
