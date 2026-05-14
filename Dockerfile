@@ -1,4 +1,4 @@
-FROM adguard/node-ssh:22.17--0 AS base
+FROM adguard/node-ssh:22.22--0 AS base
 WORKDIR /workdir
 ENV npm_config_store_dir=/pnpm-store
 
