@@ -28,7 +28,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | ---------------------- | -------------------------------------------------------------- |
 | Language / Version     | TypeScript 5.3, targeting ESNext                               |
 | Runtime                | Node.js ≥ 20, modern browsers                                  |
-| Package Manager        | pnpm 10.7.1                                                    |
+| Package Manager        | pnpm ≥ 10.33.4, < 11                                           |
 | Bundler                | Rollup 4 with `@rollup/plugin-typescript`                      |
 | Primary Dependencies   | `axios` (HTTP), `@adguard/diff-builder` (patches), `crypto-js` |
 | Testing                | Vitest 4.x + legacy QUnit suite                                |

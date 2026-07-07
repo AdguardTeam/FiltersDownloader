@@ -35,11 +35,11 @@ This guide explains how to set up the development environment, run
 
 Install the following tools before you start:
 
-| Tool                             | Version    | Notes                                     |
-| -------------------------------- | ---------- | ----------------------------------------- |
-| [Node.js](https://nodejs.org/)   | ≥ 20       | CI tests against 20.x, 22.x, and 24.x     |
-| [pnpm](https://pnpm.io/)         | 10.7.1     | Install with `npm install -g pnpm@10.7.1` |
-| [Git](https://git-scm.com/)      | any recent | —                                         |
+| Tool                           | Version         | Notes                                      |
+| ------------------------------ | --------------- | ------------------------------------------ |
+| [Node.js](https://nodejs.org/) | ≥ 20            | CI tests against 20.x, 22.x, and 24.x      |
+| [pnpm](https://pnpm.io/)       | ≥ 10.33.4, < 11 | Install with `npm install -g pnpm@10.33.4` |
+| [Git](https://git-scm.com/)    | any recent      | —                                          |
 
 ## Getting Started
 
@@ -239,10 +239,11 @@ For the complete annotated structure see [AGENTS.md](AGENTS.md).
 
 ### `pnpm install` fails with an engine error
 
-Ensure your Node.js version is ≥ 20:
+Ensure your Node.js version is ≥ 20 and pnpm is ≥ 10.33.4 but < 11:
 
 ```bash
 node -v
+pnpm -v
 ```
 
 If you use [nvm](https://github.com/nvm-sh/nvm):
@@ -250,6 +251,12 @@ If you use [nvm](https://github.com/nvm-sh/nvm):
 ```bash
 nvm install 20
 nvm use 20
+```
+
+If pnpm is outside the required range, install a compatible version:
+
+```bash
+npm install -g pnpm@10.33.4
 ```
 
 ### Pre-existing lint errors in `_qunit_tests_/`
