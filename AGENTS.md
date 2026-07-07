@@ -35,7 +35,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | Linting                | ESLint 8 (airbnb-typescript + jsdoc plugin)                    |
 | Type Checking          | `tsc --noEmit` (strict mode)                                   |
 | Pre-commit Hooks       | Husky + lint-staged                                            |
-| CI                     | GitHub Actions (`.github/workflows/test.yaml`, `release.yaml`) |
+| CI                     | GitHub Actions (ci, mirror, prepare-release, publish-release)  |
 | Storage                | N/A                                                            |
 | Project Type           | Library (single package, dual CJS/ESM output)                  |
 | Target Platform        | Node.js and Browser                                            |
@@ -60,10 +60,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   ├── server/                       # Express test server for integration tests
 │   └── fixtures/                     # Test fixture filter files and patches
 ├── _qunit_tests_/                    # Legacy QUnit test suite
-├── scripts/                          # Build helper scripts
-│   └── build-txt.ts                  # Writes version info to build/build.txt
-├── .github/                          # CI workflows (test, release)
-├── bamboo-specs/                     # Bamboo CI pipeline definitions
+├── .github/                          # CI/CD workflows (ci, mirror, prepare-release, publish-release)
 ├── package.json
 ├── tsconfig.json                     # TypeScript config (includes all sources)
 ├── tsconfig.build.json               # TypeScript config for production build
@@ -81,7 +78,6 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | `pnpm test`      | Run QUnit tests + Vitest tests                   |
 | `pnpm lint`      | Run ESLint, TypeScript check, and Markdown lint  |
 | `pnpm watch`     | Build in watch mode                              |
-| `pnpm increment` | Bump patch version in `package.json`             |
 | `pnpm tgz`       | Pack tarball for local testing                   |
 
 To run only Vitest tests:

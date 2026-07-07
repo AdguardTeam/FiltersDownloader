@@ -18,18 +18,20 @@ COPY . .
 # =============================================================================
 
 FROM source-deps AS test
-RUN pnpm build && pnpm lint && pnpm test
+RUN pnpm build && pnpm lint && pnpm test && \
+    mkdir -p /out && touch /out/test-passed.txt
 
 FROM scratch AS test-output
-COPY --from=test /workdir/build ./build
+COPY --from=test /out/ /
 
 # =============================================================================
 # Build plan
 # =============================================================================
 
 FROM source-deps AS build
-RUN pnpm build && pnpm pack --out filters-downloader.tgz
+RUN pnpm build && pnpm pack --out filters-downloader.tgz && \
+    mkdir -p /out/artifacts && \
+    cp filters-downloader.tgz /out/artifacts/
 
 FROM scratch AS build-output
-COPY --from=build /workdir/filters-downloader.tgz /artifacts/filters-downloader.tgz
-COPY --from=build /workdir/build/build.txt /artifacts/build.txt
+COPY --from=build /out/artifacts/ /

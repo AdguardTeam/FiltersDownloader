@@ -1,6 +1,5 @@
 {
     "name": "@adguard/filters-downloader",
-    "version": "2.4.4",
     "description": "Downloads filter source files",
     "main": "dist/index.js",
     "browser": "dist/index.browser.js",
@@ -20,9 +19,8 @@
     },
     "scripts": {
         "prebuild": "pnpm rimraf dist && pnpm build:types",
-        "build": "rollup -c rollup.config.ts --configPlugin typescript && pnpm build:version",
+        "build": "rollup -c rollup.config.ts --configPlugin typescript",
         "watch": "rollup -c rollup.config.ts --configPlugin typescript --watch",
-        "build:version": "ts-node scripts/build-txt.ts",
         "build:types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --outdir dist/types",
         "test": "ts-node _qunit_tests_/testrunner.ts && vitest run",
         "test:qunit": "ts-node _qunit_tests_/testrunner.ts",
@@ -33,7 +31,6 @@
         "lint:md": "markdownlint .",
         "lint-staged": "lint-staged",
         "prepare": "husky install",
-        "increment": "pnpm version patch --no-git-tag-version",
         "tgz": "pnpm pack --out filters-downloader.tgz"
     },
     "lint-staged": {
@@ -52,7 +49,7 @@
     "license": "GPL-3.0",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/AdguardTeam/FiltersDownloader.git"
+        "url": "git+https://github.com/AdGuardSoftwareLimited/ext-filters-downloader.git"
     },
     "bugs": {
         "url": "https://github.com/AdguardTeam/FiltersDownloader/issues"
