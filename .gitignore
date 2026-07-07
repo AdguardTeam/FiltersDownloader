@@ -12,3 +12,5 @@ output/
 
 .npmrc
 *.tgz
+
+.sdd/
