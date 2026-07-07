@@ -1,13 +1,14 @@
 FROM adguard/node-ssh:22.22--0 AS base
 WORKDIR /workdir
-ENV npm_config_store_dir=/pnpm-store
+ENV PNPM_HOME=/pnpm
+ENV PATH=${PNPM_HOME}:${PATH}
 
 # Install dependencies (--ignore-scripts skips husky install which requires .git)
 FROM base AS deps
 RUN --mount=type=cache,target=/pnpm-store,id=filters-downloader-pnpm \
     --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=pnpm-lock.yaml,target=pnpm-lock.yaml \
-    pnpm install --frozen-lockfile --ignore-scripts
+    pnpm install --frozen-lockfile --store-dir /pnpm-store --ignore-scripts
 
 FROM base AS source-deps
 COPY --from=deps /workdir/node_modules ./node_modules
