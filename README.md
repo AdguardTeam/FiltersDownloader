@@ -5,6 +5,11 @@ preprocessor directives. It handles conditional compilation, file inclusion,
 checksum validation, and differential (patch-based) filter updates. The library
 works in both Node.js and browser environments.
 
+> **Note:** This package is developed in
+> [AdGuardSoftwareLimited/ext-filters-downloader](https://github.com/AdGuardSoftwareLimited/ext-filters-downloader).
+> The [AdguardTeam/FiltersDownloader](https://github.com/AdguardTeam/FiltersDownloader)
+> repository is a public mirror.
+
 ## Table of Contents
 
 - [Overview](#overview)

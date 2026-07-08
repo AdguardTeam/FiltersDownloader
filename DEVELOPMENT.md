@@ -35,20 +35,25 @@ This guide explains how to set up the development environment, run
 
 Install the following tools before you start:
 
-| Tool                             | Version    | Notes                                     |
-| -------------------------------- | ---------- | ----------------------------------------- |
-| [Node.js](https://nodejs.org/)   | ≥ 20       | CI tests against 20.x, 22.x, and 24.x     |
-| [pnpm](https://pnpm.io/)         | 10.7.1     | Install with `npm install -g pnpm@10.7.1` |
-| [Git](https://git-scm.com/)      | any recent | —                                         |
+| Tool                           | Version         | Notes                                      |
+| ------------------------------ | --------------- | ------------------------------------------ |
+| [Node.js](https://nodejs.org/) | ≥ 20            | CI tests against 20.x, 22.x, and 24.x      |
+| [pnpm](https://pnpm.io/)       | ≥ 10.33.4, < 11 | Install with `npm install -g pnpm@10.33.4` |
+| [Git](https://git-scm.com/)    | any recent      | —                                          |
 
 ## Getting Started
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/AdguardTeam/FiltersDownloader.git
-cd FiltersDownloader
+git clone git@github.com:AdGuardSoftwareLimited/ext-filters-downloader.git
+cd ext-filters-downloader
 ```
+
+> **Repo split.** The private source repo is
+> `AdGuardSoftwareLimited/ext-filters-downloader` (where CI runs and releases originate).
+> The public, read-only mirror is `AdguardTeam/FiltersDownloader` (kept for the public
+> changelog compare links and GitHub Releases).
 
 ### 2. Install dependencies
 
@@ -91,17 +96,16 @@ This runs ESLint, the TypeScript type checker, and markdownlint in sequence.
 
 All scripts are run with `pnpm <script>`.
 
-| Script       | Description                                                                                       |
-| ------------ | ------------------------------------------------------------------------------------------------- |
-| `build`      | Clean `dist/`, emit declaration files, bundle CJS + ESM with Rollup, and write `build/build.txt`  |
-| `watch`      | Rollup in watch mode — rebuilds on file changes                                                   |
-| `test`       | Run QUnit tests then Vitest tests                                                                 |
-| `lint`       | Run `lint:code`, `lint:types`, and `lint:md` in sequence                                          |
-| `lint:code`  | ESLint with caching                                                                               |
-| `lint:types` | `tsc --noEmit` — type-check without emitting                                                      |
-| `lint:md`    | Markdown lint on all `.md` files                                                                  |
-| `increment`  | Bump the patch version in `package.json` (no git tag)                                             |
-| `tgz`        | Pack a tarball (`filters-downloader.tgz`) for local testing                                       |
+| Script       | Description                                                             |
+| ---          | ---                                                                     |
+| `build`      | Clean `dist/`, emit declaration files, and bundle CJS + ESM with Rollup |
+| `watch`      | Rollup in watch mode — rebuilds on file changes                         |
+| `test`       | Run QUnit tests then Vitest tests                                       |
+| `lint`       | Run `lint:code`, `lint:types`, and `lint:md` in sequence                |
+| `lint:code`  | ESLint with caching                                                     |
+| `lint:types` | `tsc --noEmit` — type-check without emitting                            |
+| `lint:md`    | Markdown lint on all `.md` files                                        |
+| `tgz`        | Pack a tarball (`filters-downloader.tgz`) for local testing             |
 
 ### Running individual Vitest tests
 
@@ -150,6 +154,25 @@ After any code change, follow these steps in order:
 For the full code style rules (TypeScript strict mode, JSDoc requirements,
 import conventions, etc.) see the **Code Guidelines** section in
 [AGENTS.md](AGENTS.md).
+
+## CI/CD
+
+Continuous integration and releases run on GitHub Actions (self-hosted
+`team-extensions` runners) via thin reusable-workflow wrappers in
+`.github/workflows/`:
+
+| Workflow              | Trigger                                                         | Purpose                                                          |
+| --------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `ci.yml`              | `pull_request`, `push` to `master`                              | Lint + test + build; uploads `filters-downloader.tgz`            |
+| `mirror.yml`          | `push` to `master`                                              | Mirror code to the public `AdguardTeam/FiltersDownloader`        |
+| `prepare-release.yml` | `workflow_dispatch` (`tag` input)                               | Open a release-bump PR that finalizes `CHANGELOG.md`             |
+| `publish-release.yml` | `pull_request: closed` on `master`, `workflow_dispatch` (`ref`) | Tag, build, publish to npm (OIDC), mirror, GitHub Release, Slack |
+
+The `version` field is **not** stored in `package.json`; it is derived from
+`CHANGELOG.md` and injected at release time by the shared `publish-release.yml` workflow.
+To cut a release: populate `## [Unreleased]` in `CHANGELOG.md`, dispatch
+`prepare-release.yml` with the target tag (e.g. `v2.5.0`), review/merge the resulting
+release-bump PR, and `publish-release.yml` publishes automatically.
 
 ## Common Tasks
 
@@ -216,10 +239,11 @@ For the complete annotated structure see [AGENTS.md](AGENTS.md).
 
 ### `pnpm install` fails with an engine error
 
-Ensure your Node.js version is ≥ 20:
+Ensure your Node.js version is ≥ 20 and pnpm is ≥ 10.33.4 but < 11:
 
 ```bash
 node -v
+pnpm -v
 ```
 
 If you use [nvm](https://github.com/nvm-sh/nvm):
@@ -227,6 +251,12 @@ If you use [nvm](https://github.com/nvm-sh/nvm):
 ```bash
 nvm install 20
 nvm use 20
+```
+
+If pnpm is outside the required range, install a compatible version:
+
+```bash
+npm install -g pnpm@10.33.4
 ```
 
 ### Pre-existing lint errors in `_qunit_tests_/`
@@ -260,5 +290,6 @@ Make sure you have built the project at least once (`pnpm build`) so that
 - [AGENTS.md](AGENTS.md) — architecture, code guidelines, and contribution
   rules for LLM agents
 - [CHANGELOG.md](CHANGELOG.md) — release history
-- [GitHub repository](https://github.com/AdguardTeam/FiltersDownloader)
+- [GitHub repository (private source)](https://github.com/AdGuardSoftwareLimited/ext-filters-downloader)
+- [Public mirror](https://github.com/AdguardTeam/FiltersDownloader)
 - [GitHub Issues](https://github.com/AdguardTeam/FiltersDownloader/issues)

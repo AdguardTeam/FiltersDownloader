@@ -1,0 +1,15 @@
+name: CI
+
+description: Lints, tests, and builds on pull requests and pushes to master.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    uses: AdGuardSoftwareLimited/ext-shared-actions/.github/workflows/test-and-build.yml@master
+    with:
+      package_file: filters-downloader.tgz
