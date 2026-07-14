@@ -251,4 +251,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [@adguard/diff-builder]: https://github.com/AdguardTeam/DiffBuilder/blob/master/CHANGELOG.md
 
 [Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.5...HEAD
-[2.4.5]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.3...v2.4.5
+[2.4.5]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.4...v2.4.5
