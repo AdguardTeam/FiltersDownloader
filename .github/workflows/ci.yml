@@ -8,6 +8,12 @@ on:
     branches:
       - master
 
+# Cancel in-progress CI runs for the same ref when a new push occurs,
+# preventing redundant builds and saving CI resources.
+concurrency:
+  group: ci-ext-filters-downloader-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     uses: AdGuardSoftwareLimited/ext-shared-actions/.github/workflows/test-and-build.yml@master
