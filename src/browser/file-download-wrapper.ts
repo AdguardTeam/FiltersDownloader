@@ -31,11 +31,20 @@ const networkProtocols = new Set(['http:', 'https:']);
  *
  * @param url URL address to check.
  *
- * @returns Tue if provided address is local.
+ * @returns True if provided address is local.
  */
 const isLocal = (url: string): boolean => {
-    const parsedUrl = new URL(url);
-    return !networkProtocols.has(parsedUrl.protocol);
+    if (!url) {
+        return false;
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+        return !networkProtocols.has(parsedUrl.protocol);
+    } catch {
+        // Treat an unparseable URL as non-local instead of failing the download.
+        return false;
+    }
 };
 
 /**
@@ -59,9 +68,11 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
         throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
     }
 
+    const isLocalResponse = isLocal(response.url);
+
     // Don't check response headers if url is local,
     // because the edge extension doesn't provide headers for such url
-    if (!isLocal(response.url)) {
+    if (!isLocalResponse) {
         const responseContentType = response.headers.get('Content-Type');
         if (!isContentTypeSupported(responseContentType)) {
             throw getContentTypeError();
@@ -72,7 +83,7 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
 
     // Capture Last-Modified header for external (non-local) URLs
     const headers: FileDownloadHeaders = {};
-    if (!isLocal(response.url)) {
+    if (!isLocalResponse) {
         const lastModified = response.headers.get('Last-Modified');
         if (lastModified) {
             headers.lastModified = lastModified;
@@ -107,9 +118,11 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
             // @ts-ignore
             : response.data;
 
+        const isLocalResponse = isLocal(response.responseURL);
+
         // Don't check response headers if url is local,
         // because the edge extension doesn't provide headers for such url
-        if (!isLocal(response.responseURL)) {
+        if (!isLocalResponse) {
             const responseContentType = response.getResponseHeader('Content-Type');
             if (!isContentTypeSupported(responseContentType)) {
                 reject(getContentTypeError());
@@ -118,7 +131,7 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
 
         // Capture Last-Modified header for external (non-local) URLs
         const headers: FileDownloadHeaders = {};
-        if (!isLocal(response.responseURL)) {
+        if (!isLocalResponse) {
             const lastModified = response.getResponseHeader('Last-Modified');
             if (lastModified) {
                 headers.lastModified = lastModified;
