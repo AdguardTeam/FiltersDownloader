@@ -56,6 +56,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
 ├── test/                             # Vitest test suite
 │   ├── filters-downloader.test.ts
+│   ├── file-download-wrapper.test.ts
 │   ├── checksum.test.ts
 │   ├── server/                       # Express test server for integration tests
 │   └── fixtures/                     # Test fixture filter files and patches
