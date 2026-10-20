@@ -27,23 +27,31 @@ import { type FileDownloadHeaders, type FileDownloadResult } from '../common/typ
 const networkProtocols = new Set(['http:', 'https:']);
 
 /**
- * If url protocol is not http or https return true, else false.
+ * URL types used to decide which response headers are available.
+ */
+type UrlType = 'local' | 'external' | 'unknown';
+
+/**
+ * Classifies a URL as local, external, or unknown.
+ *
+ * A URL is local when its protocol is not http or https.
+ * A URL is external when its protocol is http or https.
+ * An empty or unparseable URL is unknown.
  *
  * @param url URL address to check.
  *
- * @returns True if provided address is local.
+ * @returns URL type.
  */
-const isLocal = (url: string): boolean => {
+const getUrlType = (url: string): UrlType => {
     if (!url) {
-        return false;
+        return 'unknown';
     }
 
     try {
         const parsedUrl = new URL(url);
-        return !networkProtocols.has(parsedUrl.protocol);
+        return networkProtocols.has(parsedUrl.protocol) ? 'external' : 'local';
     } catch {
-        // Treat an unparseable URL as non-local instead of failing the download.
-        return false;
+        return 'unknown';
     }
 };
 
@@ -68,11 +76,11 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
         throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
     }
 
-    const isLocalResponse = isLocal(response.url);
+    const urlType = getUrlType(response.url);
 
-    // Don't check response headers if url is local,
-    // because the edge extension doesn't provide headers for such url
-    if (!isLocalResponse) {
+    // Check response headers only for external URLs. Local and unknown URLs
+    // may not provide headers, e.g. the edge extension or an opaque response.
+    if (urlType === 'external') {
         const responseContentType = response.headers.get('Content-Type');
         if (!isContentTypeSupported(responseContentType)) {
             throw getContentTypeError();
@@ -81,9 +89,9 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
 
     const content = await response.text();
 
-    // Capture Last-Modified header for external (non-local) URLs
+    // Capture Last-Modified header for external URLs only
     const headers: FileDownloadHeaders = {};
-    if (!isLocalResponse) {
+    if (urlType === 'external') {
         const lastModified = response.headers.get('Last-Modified');
         if (lastModified) {
             headers.lastModified = lastModified;
@@ -118,20 +126,20 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
             // @ts-ignore
             : response.data;
 
-        const isLocalResponse = isLocal(response.responseURL);
+        const urlType = getUrlType(response.responseURL);
 
-        // Don't check response headers if url is local,
-        // because the edge extension doesn't provide headers for such url
-        if (!isLocalResponse) {
+        // Check response headers only for external URLs. Local and unknown URLs
+        // may not provide headers, e.g. the edge extension or an opaque response.
+        if (urlType === 'external') {
             const responseContentType = response.getResponseHeader('Content-Type');
             if (!isContentTypeSupported(responseContentType)) {
                 reject(getContentTypeError());
             }
         }
 
-        // Capture Last-Modified header for external (non-local) URLs
+        // Capture Last-Modified header for external URLs only
         const headers: FileDownloadHeaders = {};
-        if (!isLocalResponse) {
+        if (urlType === 'external') {
             const lastModified = response.getResponseHeader('Last-Modified');
             if (lastModified) {
                 headers.lastModified = lastModified;
