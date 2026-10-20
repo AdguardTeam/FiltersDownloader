@@ -27,6 +27,11 @@ import { type FileDownloadHeaders, type FileDownloadResult } from '../common/typ
 const networkProtocols = new Set(['http:', 'https:']);
 
 /**
+ * Delay before the single retry attempt for an external file download, in milliseconds.
+ */
+const EXTERNAL_FILE_RETRY_DELAY_MS = 1000;
+
+/**
  * If url protocol is not http or https return true, else false.
  *
  * @param url URL address to check.
@@ -164,11 +169,30 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
 /**
  * Downloads filter rules from external url.
  *
+ * Retries the download once after a network error. Only `TypeError` is treated
+ * as a network error, because `fetch()` and `response.text()` throw it for
+ * network failures. Errors for an invalid HTTP status or an unsupported
+ * content type are propagated immediately.
+ *
  * @param url Filter file absolute URL or relative path.
  * @returns A promise that returns file content and headers when resolved
  * and error if rejected.
  */
-const getExternalFile = (url: string): Promise<FileDownloadResult> => executeRequestAsyncFetch(url);
+const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
+    try {
+        return await executeRequestAsyncFetch(url);
+    } catch (error) {
+        if (!(error instanceof TypeError)) {
+            throw error;
+        }
+    }
+
+    await new Promise<void>((resolve) => {
+        setTimeout(resolve, EXTERNAL_FILE_RETRY_DELAY_MS);
+    });
+
+    return executeRequestAsyncFetch(url);
+};
 
 /**
  * Retrieves a local file content asynchronously using XMLHttpRequest or fetch API.

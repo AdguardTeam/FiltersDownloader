@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The browser build now retries an external filter download once after a
+  transient network error.
+
 ### Security
 
 ## [2.4.5] - 2026-07-14
