@@ -50,7 +50,6 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
     const response = await fetch(url, {
         cache: 'no-cache',
         headers: {
-            Pragma: 'no-cache',
             'Content-Type': PREFERRED_CONTENT_TYPE,
         },
     });
@@ -137,7 +136,6 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
 
     try {
         request.open('GET', url);
-        request.setRequestHeader('Pragma', 'no-cache');
         request.overrideMimeType(PREFERRED_CONTENT_TYPE);
         // @ts-ignore
         request.mozBackgroundRequest = true;
@@ -200,9 +198,6 @@ const getExternalFileHeaders = async (url: string): Promise<FileDownloadHeaders 
         const response = await fetch(url, {
             method: 'HEAD',
             cache: 'no-cache',
-            headers: {
-                Pragma: 'no-cache',
-            },
         });
 
         if (response.status !== 200) {
