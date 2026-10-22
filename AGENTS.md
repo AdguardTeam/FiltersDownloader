@@ -30,7 +30,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | Runtime                | Node.js ≥ 20, modern browsers                                  |
 | Package Manager        | pnpm ≥ 10.33.4, < 11                                           |
 | Bundler                | Rollup 4 with `@rollup/plugin-typescript`                      |
-| Primary Dependencies   | `axios` (HTTP), `@adguard/diff-builder` (patches), `crypto-js` |
+| Primary Dependencies   | `@adguard/diff-builder` (patches), `crypto-js`                 |
 | Testing                | Vitest 4.x + legacy QUnit suite                                |
 | Linting                | ESLint 8 (airbnb-typescript + jsdoc plugin)                    |
 | Type Checking          | `tsc --noEmit` (strict mode)                                   |
@@ -52,7 +52,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   ├── checksum.ts                   # MD5 checksum calculation and validation
 │   ├── common/                       # Shared utilities (content-type validation)
 │   ├── helpers/                      # Error reporting with context (logger)
-│   ├── node/                         # Node.js file-download wrapper (axios + fs)
+│   ├── node/                         # Node.js file-download wrapper (fetch + fs)
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
 ├── test/                             # Vitest test suite
 │   ├── *.test.ts
