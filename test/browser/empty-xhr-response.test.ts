@@ -66,7 +66,6 @@ describe('empty XMLHttpRequest response', () => {
         const result = await getLocalFile('file:///empty.txt');
 
         expect(result.content).toBe('');
-        expect(result.content).not.toBeUndefined();
     });
 
     it('falls back to response.data when responseText is undefined', async () => {
