@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A successful download no longer fails when the response URL is empty or
   cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
   used when they are available.
+- Removed the redundant `Pragma: no-cache` and `Content-Type` request headers
+  from browser downloads. The `Pragma` header caused CORS preflight requests
+  that some filter hosts reject.
 
 ### Security
 
