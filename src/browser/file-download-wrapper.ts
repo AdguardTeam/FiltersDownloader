@@ -39,6 +39,40 @@ const isLocal = (url: string): boolean => {
 };
 
 /**
+ * Extracts response headers from a file download response.
+ *
+ * Local URLs are not checked for a supported content type and do not provide
+ * the Last-Modified header.
+ *
+ * @param getHeader Function that returns a response header value by name.
+ * @param url Response URL.
+ *
+ * @returns Headers with the Last-Modified value, or undefined if the header is absent.
+ *
+ * @throws Error if the content type of a non-local URL is not supported.
+ */
+const getResponseHeaders = (
+    getHeader: (name: string) => string | null,
+    url: string,
+): FileDownloadHeaders | undefined => {
+    if (isLocal(url)) {
+        return undefined;
+    }
+
+    const responseContentType = getHeader('Content-Type');
+    if (!isContentTypeSupported(responseContentType)) {
+        throw getContentTypeError();
+    }
+
+    const lastModified = getHeader('Last-Modified');
+    if (lastModified) {
+        return { lastModified };
+    }
+
+    return undefined;
+};
+
+/**
  * Executes async request via fetch.
  * Fetch doesn't allow downloading urls with file:// scheme.
  *
@@ -60,29 +94,16 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
 
     // Don't check response headers if url is local,
     // because the edge extension doesn't provide headers for such url
-    if (!isLocal(response.url)) {
-        const responseContentType = response.headers.get('Content-Type');
-        if (!isContentTypeSupported(responseContentType)) {
-            throw getContentTypeError();
-        }
-    }
+    const headers = getResponseHeaders(
+        (name) => response.headers.get(name),
+        response.url,
+    );
 
     const content = await response.text();
 
-    // Capture Last-Modified header for external (non-local) URLs
-    const headers: FileDownloadHeaders = {};
-    if (!isLocal(response.url)) {
-        const lastModified = response.headers.get('Last-Modified');
-        if (lastModified) {
-            headers.lastModified = lastModified;
-        }
-    }
-
     return {
         content,
-        headers: Object.keys(headers).length > 0
-            ? headers
-            : undefined,
+        headers,
     };
 };
 
@@ -99,34 +120,26 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
     const onRequestLoad = (response: XMLHttpRequest): void => {
         if (response.status !== 200 && response.status !== 0) {
             reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
+            return;
         }
 
         // @ts-ignore
         const content = response.responseText ?? response.data;
 
-        // Don't check response headers if url is local,
-        // because the edge extension doesn't provide headers for such url
-        if (!isLocal(response.responseURL)) {
-            const responseContentType = response.getResponseHeader('Content-Type');
-            if (!isContentTypeSupported(responseContentType)) {
-                reject(getContentTypeError());
-            }
-        }
-
-        // Capture Last-Modified header for external (non-local) URLs
-        const headers: FileDownloadHeaders = {};
-        if (!isLocal(response.responseURL)) {
-            const lastModified = response.getResponseHeader('Last-Modified');
-            if (lastModified) {
-                headers.lastModified = lastModified;
-            }
+        let headers: FileDownloadHeaders | undefined;
+        try {
+            headers = getResponseHeaders(
+                (name) => response.getResponseHeader(name),
+                response.responseURL,
+            );
+        } catch (error) {
+            reject(error);
+            return;
         }
 
         resolve({
             content,
-            headers: Object.keys(headers).length > 0
-                ? headers
-                : undefined,
+            headers,
         });
     };
 
