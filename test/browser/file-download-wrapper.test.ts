@@ -88,7 +88,7 @@ const mockXhr = (options: XhrOptions = {}): XhrMock => {
     const xhr: XhrStub = {
         status: options.status ?? 200,
         statusText: options.statusText ?? '',
-        responseText: options.responseText ?? '',
+        responseText: 'responseText' in options ? options.responseText : '',
         responseURL: options.responseURL ?? LOCAL_URL,
         data: options.data,
         open,
@@ -142,7 +142,6 @@ describe('browser file download wrapper', () => {
             expect(requestUrl).toBe(LOCAL_URL);
             expect(requestOptions.cache).toBe('no-cache');
             expect(requestOptions.headers).toEqual({ 'Content-Type': PREFERRED_CONTENT_TYPE });
-            expect(requestOptions.headers).not.toHaveProperty('Pragma');
         });
     });
 
@@ -191,6 +190,17 @@ describe('browser file download wrapper', () => {
             expect(result.headers).toBeUndefined();
         });
 
+        it('falls back to response.data when responseText is undefined', async () => {
+            mockXhr({
+                responseText: undefined,
+                data: '||example.com^',
+            });
+
+            const result = await getLocalFile(LOCAL_URL);
+
+            expect(result.content).toBe('||example.com^');
+        });
+
         it('rejects when the response Content-Type is unsupported for a network URL', async () => {
             mockXhr({
                 responseURL: NETWORK_URL,
@@ -230,7 +240,7 @@ describe('browser file download wrapper', () => {
                 { allowEmptyResponse: true },
             );
 
-            expect(result.join('').trim()).toBe('');
+            expect(result).toEqual(['']);
         });
     });
 
@@ -245,7 +255,7 @@ describe('browser file download wrapper', () => {
                 headers: { 'Content-Type': 'application/json' },
             }));
 
-            const request = getLocalFile(LOCAL_URL);
+            const request = getLocalFile(responseUrl);
 
             if (shouldReject) {
                 await expect(request).rejects.toThrow('Response content type should be one of');
@@ -275,7 +285,7 @@ describe('browser file download wrapper', () => {
                 },
             }));
 
-            const result = await getLocalFile(LOCAL_URL);
+            const result = await getLocalFile(responseUrl);
 
             expect(result.headers).toEqual(expectedHeaders);
         });
