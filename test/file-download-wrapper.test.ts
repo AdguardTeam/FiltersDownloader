@@ -93,16 +93,37 @@ describe('getExternalFile', () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    it('should reject with the first error as the cause when both attempts fail with a network error', async () => {
+    it('should report both errors when both attempts fail with a network error', async () => {
         const firstError = new TypeError('Failed to fetch');
+        const retryError = new TypeError('Failed to fetch again');
         const fetchMock = vi.fn()
             .mockRejectedValueOnce(firstError)
-            .mockRejectedValueOnce(new TypeError('Failed to fetch again'));
+            .mockRejectedValueOnce(retryError);
         vi.stubGlobal('fetch', fetchMock);
 
         const promise = getExternalFile(TEST_URL);
         const assertion = expect(promise).rejects.toThrow(
-            `Failed to request url '${TEST_URL}' after retry`,
+            `Failed to request url '${TEST_URL}' after retry: `
+            + 'Failed to fetch. Retry error: Failed to fetch again',
+        );
+        await vi.advanceTimersByTimeAsync(EXTERNAL_FILE_RETRY_DELAY_MS);
+        await assertion;
+
+        await expect(promise).rejects.toMatchObject({ cause: firstError });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should include a non-network retry error in the failure message', async () => {
+        const firstError = new TypeError('Failed to fetch');
+        const fetchMock = vi.fn()
+            .mockRejectedValueOnce(firstError)
+            .mockResolvedValueOnce(createResponse('', { status: 500 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const promise = getExternalFile(TEST_URL);
+        const assertion = expect(promise).rejects.toThrow(
+            `Failed to request url '${TEST_URL}' after retry: `
+            + `Failed to fetch. Retry error: Response status for url ${TEST_URL} is invalid: 500`,
         );
         await vi.advanceTimersByTimeAsync(EXTERNAL_FILE_RETRY_DELAY_MS);
         await assertion;

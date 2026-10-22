@@ -48,6 +48,18 @@ class NetworkError extends Error {
 }
 
 /**
+ * Returns the message of an error, unwrapping the cause of a `NetworkError`.
+ *
+ * @param error Error to read.
+ *
+ * @returns Error message.
+ */
+const getErrorMessage = (error: unknown): string => {
+    const originalError = error instanceof NetworkError ? error.cause : error;
+    return originalError instanceof Error ? originalError.message : String(originalError);
+};
+
+/**
  * If url protocol is not http or https return true, else false.
  *
  * @param url URL address to check.
@@ -221,8 +233,17 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
 
     try {
         return await executeRequestAsyncFetch(url);
-    } catch {
-        throw new Error(`Failed to request url '${url}' after retry`, { cause: firstError });
+    } catch (retryError) {
+        const firstMessage = getErrorMessage(firstError);
+        const retryMessage = getErrorMessage(retryError);
+        const errorMessage = retryMessage === firstMessage
+            ? firstMessage
+            : `${firstMessage}. Retry error: ${retryMessage}`;
+
+        throw new Error(
+            `Failed to request url '${url}' after retry: ${errorMessage}`,
+            { cause: firstError },
+        );
     }
 };
 
