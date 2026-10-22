@@ -102,10 +102,8 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
             reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
         }
 
-        const content = response.responseText
-            ? response.responseText
-            // @ts-ignore
-            : response.data;
+        // @ts-ignore
+        const content = response.responseText ?? response.data;
 
         // Don't check response headers if url is local,
         // because the edge extension doesn't provide headers for such url

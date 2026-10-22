@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed the empty XMLHttpRequest response fallback in the browser wrapper.
+  Empty files now return an empty string instead of `undefined`.
+
 ### Security
 
 ## [2.4.5] - 2026-07-14
