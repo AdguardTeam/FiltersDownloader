@@ -22,20 +22,66 @@ import {
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
 
 /**
- * Set of network protocols. Used to check if url is local.
+ * Set of network protocols. A URL with one of these protocols is a network URL.
  */
 const networkProtocols = new Set(['http:', 'https:']);
 
 /**
- * If url protocol is not http or https return true, else false.
+ * URL types used to decide which response headers are available.
+ */
+type UrlType = 'local' | 'network' | 'unknown';
+
+/**
+ * Classifies a URL as local, network, or unknown.
+ *
+ * A URL is local when its protocol is not http or https.
+ * A URL is network when its protocol is http or https.
+ * An empty or unparseable URL is unknown.
  *
  * @param url URL address to check.
  *
- * @returns Tue if provided address is local.
+ * @returns URL type.
  */
-const isLocal = (url: string): boolean => {
-    const parsedUrl = new URL(url);
-    return !networkProtocols.has(parsedUrl.protocol);
+const getUrlType = (url: string): UrlType => {
+    try {
+        const parsedUrl = new URL(url);
+        return networkProtocols.has(parsedUrl.protocol) ? 'network' : 'local';
+    } catch {
+        return 'unknown';
+    }
+};
+
+/**
+ * Delay before the single retry attempt for an external file download, in milliseconds.
+ */
+const EXTERNAL_FILE_RETRY_DELAY_MS = 1000;
+
+/**
+ * Error thrown when a network request fails.
+ */
+class NetworkError extends Error {
+    /**
+     * Creates a network error.
+     *
+     * @param url URL that failed to download.
+     * @param cause Original error.
+     */
+    constructor(url: string, cause: unknown) {
+        super(`Network error while downloading '${url}'`, { cause });
+        this.name = 'NetworkError';
+    }
+}
+
+/**
+ * Returns the message of an error, unwrapping the cause of a `NetworkError`.
+ *
+ * @param error Error to read.
+ *
+ * @returns Error message.
+ */
+const getErrorMessage = (error: unknown): string => {
+    const originalError = error instanceof NetworkError ? error.cause : error;
+    return originalError instanceof Error ? originalError.message : String(originalError);
 };
 
 /**
@@ -56,12 +102,19 @@ const getResponseHeaders = (
     getHeader: (name: string) => string | null,
     url: string,
 ): FileDownloadHeaders | undefined => {
-    if (isLocal(url)) {
+    const urlType = getUrlType(url);
+
+    // A local URL may not provide headers, e.g. in the edge extension.
+    if (urlType === 'local') {
         return undefined;
     }
 
+    // An unknown URL can come from an XHR wrapper that hides the response URL.
+    // Check the Content-Type only when the header is available.
     const responseContentType = getHeader('Content-Type');
-    if (!isContentTypeSupported(responseContentType)) {
+    const shouldCheckContentType = urlType === 'network'
+        || (urlType === 'unknown' && responseContentType !== null);
+    if (shouldCheckContentType && !isContentTypeSupported(responseContentType)) {
         throw getContentTypeError();
     }
 
@@ -82,13 +135,18 @@ const getResponseHeaders = (
  * @returns Promise which will be resolved with file content and headers.
  */
 const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult> => {
-    const response = await fetch(url, {
-        cache: 'no-cache',
-        headers: {
-            Pragma: 'no-cache',
-            'Content-Type': PREFERRED_CONTENT_TYPE,
-        },
-    });
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            cache: 'no-cache',
+            headers: {
+                Pragma: 'no-cache',
+                'Content-Type': PREFERRED_CONTENT_TYPE,
+            },
+        });
+    } catch (error) {
+        throw new NetworkError(url, error);
+    }
 
     if (response.status !== 200 && response.status !== 0) {
         throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
@@ -99,7 +157,12 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
         response.url,
     );
 
-    const content = await response.text();
+    let content: string;
+    try {
+        content = await response.text();
+    } catch (error) {
+        throw new NetworkError(url, error);
+    }
 
     return { content, headers };
 };
@@ -115,28 +178,26 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
  */
 const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new Promise((resolve, reject) => {
     const onRequestLoad = (response: XMLHttpRequest): void => {
-        if (response.status !== 200 && response.status !== 0) {
-            reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
-            return;
-        }
-
-        const content = response.responseText
-            ? response.responseText
-            // @ts-ignore
-            : response.data;
-
-        let headers: FileDownloadHeaders | undefined;
         try {
-            headers = getResponseHeaders(
+            if (response.status !== 200 && response.status !== 0) {
+                reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
+                return;
+            }
+
+            const content = response.responseText
+                ? response.responseText
+                // @ts-ignore
+                : response.data;
+
+            const headers = getResponseHeaders(
                 (name) => response.getResponseHeader(name),
                 response.responseURL,
             );
+
+            resolve({ content, headers });
         } catch (error) {
             reject(error);
-            return;
         }
-
-        resolve({ content, headers });
     };
 
     const request = new XMLHttpRequest();
@@ -170,11 +231,45 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
 /**
  * Downloads filter rules from external url.
  *
+ * Retries the download once after a `NetworkError`. Only failures of the
+ * network calls are treated as network errors. Errors for an invalid HTTP
+ * status or an unsupported content type are propagated immediately.
+ *
  * @param url Filter file absolute URL or relative path.
  * @returns A promise that returns file content and headers when resolved
  * and error if rejected.
  */
-const getExternalFile = (url: string): Promise<FileDownloadResult> => executeRequestAsyncFetch(url);
+const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
+    let firstError: unknown;
+
+    try {
+        return await executeRequestAsyncFetch(url);
+    } catch (error) {
+        if (!(error instanceof NetworkError)) {
+            throw error;
+        }
+        firstError = error.cause;
+    }
+
+    await new Promise<void>((resolve) => {
+        setTimeout(resolve, EXTERNAL_FILE_RETRY_DELAY_MS);
+    });
+
+    try {
+        return await executeRequestAsyncFetch(url);
+    } catch (retryError) {
+        const firstMessage = getErrorMessage(firstError);
+        const retryMessage = getErrorMessage(retryError);
+        const errorMessage = retryMessage === firstMessage
+            ? firstMessage
+            : `${firstMessage}. Retry error: ${retryMessage}`;
+
+        throw new Error(
+            `Failed to request url '${url}' after retry: ${errorMessage}`,
+            { cause: firstError },
+        );
+    }
+};
 
 /**
  * Retrieves a local file content asynchronously using XMLHttpRequest or fetch API.
@@ -227,6 +322,7 @@ const getExternalFileHeaders = async (url: string): Promise<FileDownloadHeaders 
 };
 
 export {
+    EXTERNAL_FILE_RETRY_DELAY_MS,
     getLocalFile,
     getExternalFile,
     getExternalFileHeaders,
