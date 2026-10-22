@@ -10,8 +10,10 @@ import {
 import {
     EXTERNAL_FILE_RETRY_DELAY_MS,
     getExternalFile,
+    getExternalFileHeaders,
     getLocalFile,
 } from '../../src/browser/file-download-wrapper';
+import { PREFERRED_CONTENT_TYPE } from '../../src/common/content-type';
 import { type FileDownloadHeaders } from '../../src/common/types';
 
 const NETWORK_URL = 'https://example.org/filter.txt';
@@ -138,8 +140,8 @@ const createXhrConstructor = (
             onabort: null,
             ontimeout: null,
             open: (): void => {},
-            setRequestHeader: (): void => {},
-            overrideMimeType: (): void => {},
+            setRequestHeader: vi.fn(),
+            overrideMimeType: vi.fn(),
             getResponseHeader: (header: string): string | null => getStubHeader(header, {
                 contentType,
                 lastModified,
@@ -268,6 +270,21 @@ describe('browser file download wrapper', () => {
             expect(fetchMock).toHaveBeenCalledTimes(1);
         });
 
+        it('should not send request headers in the GET request', async () => {
+            const fetchMock = vi.fn().mockResolvedValue(createFetchResponse(NETWORK_URL));
+            vi.stubGlobal('fetch', fetchMock);
+
+            await expect(getExternalFile(NETWORK_URL)).resolves.toEqual({
+                content: FILTER_CONTENT,
+                headers: undefined,
+            });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+
+            const [url, options] = fetchMock.mock.calls[0];
+            expect(url).toBe(NETWORK_URL);
+            expect(options).toStrictEqual({ cache: 'no-cache' });
+        });
+
         it('should skip header checks for a local file URL', async () => {
             const fetchMock = vi.fn().mockResolvedValue(
                 createFetchResponse(LOCAL_URL, UNSUPPORTED_CONTENT_TYPE, LAST_MODIFIED),
@@ -295,6 +312,24 @@ describe('browser file download wrapper', () => {
                 'Response content type should be one of',
             );
             expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('HEAD path', () => {
+        it('should not send request headers in the HEAD request', async () => {
+            const fetchMock = vi.fn().mockResolvedValue(
+                createFetchResponse(NETWORK_URL, SUPPORTED_CONTENT_TYPE, LAST_MODIFIED),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+
+            await expect(getExternalFileHeaders(NETWORK_URL)).resolves.toEqual({
+                lastModified: LAST_MODIFIED,
+            });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+
+            const [url, options] = fetchMock.mock.calls[0];
+            expect(url).toBe(NETWORK_URL);
+            expect(options).toStrictEqual({ method: 'HEAD', cache: 'no-cache' });
         });
     });
 
@@ -489,6 +524,20 @@ describe('browser file download wrapper', () => {
                 'Response content type should be one of',
             );
             expect(xhrConstructor).toHaveBeenCalledTimes(1);
+        });
+
+        it('should not set request headers and should override the MIME type', async () => {
+            const xhrConstructor = createXhrConstructor(LOCAL_URL);
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            await expect(getLocalFile(LOCAL_URL)).resolves.toEqual({
+                content: FILTER_CONTENT,
+                headers: undefined,
+            });
+
+            const xhr = xhrConstructor.mock.results[0].value as XhrStub;
+            expect(xhr.setRequestHeader).not.toHaveBeenCalled();
+            expect(xhr.overrideMimeType).toHaveBeenCalledWith(PREFERRED_CONTENT_TYPE);
         });
 
         it('should reject when the load handler throws', async () => {
