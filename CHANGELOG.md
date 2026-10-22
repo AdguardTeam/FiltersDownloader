@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed the redundant `Pragma: no-cache` header from browser requests,
+  which caused CORS preflight requests that some filter hosts reject.
+
 ### Security
 
 ## [2.4.5] - 2026-07-14
