@@ -114,41 +114,48 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
  */
 const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new Promise((resolve, reject) => {
     const onRequestLoad = (response: XMLHttpRequest): void => {
-        if (response.status !== 200 && response.status !== 0) {
-            reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
-        }
+        try {
+            if (response.status !== 200 && response.status !== 0) {
+                reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
+                return;
+            }
 
-        const content = response.responseText
-            ? response.responseText
-            // @ts-ignore
-            : response.data;
+            const content = response.responseText
+                ? response.responseText
+                // @ts-ignore
+                : response.data;
 
-        const urlType = getUrlType(response.responseURL);
-
-        // Check response headers only for external URLs. Local and unknown URLs
-        // may not provide headers, e.g. the edge extension or an opaque response.
-        if (urlType === 'external') {
+            const urlType = getUrlType(response.responseURL);
             const responseContentType = response.getResponseHeader('Content-Type');
-            if (!isContentTypeSupported(responseContentType)) {
+            const shouldCheckContentType = urlType === 'network'
+                || (urlType === 'unknown' && responseContentType !== null);
+
+            // A local URL may not provide headers, e.g. in the edge extension.
+            // An unknown URL can come from an XHR wrapper that hides the
+            // response URL. Check the Content-Type only when it is available.
+            if (shouldCheckContentType && !isContentTypeSupported(responseContentType)) {
                 reject(getContentTypeError());
+                return;
             }
-        }
 
-        // Capture Last-Modified header for external URLs only
-        const headers: FileDownloadHeaders = {};
-        if (urlType === 'external') {
-            const lastModified = response.getResponseHeader('Last-Modified');
-            if (lastModified) {
-                headers.lastModified = lastModified;
+            // Capture Last-Modified header for all URLs except local ones.
+            const headers: FileDownloadHeaders = {};
+            if (urlType !== 'local') {
+                const lastModified = response.getResponseHeader('Last-Modified');
+                if (lastModified) {
+                    headers.lastModified = lastModified;
+                }
             }
-        }
 
-        resolve({
-            content,
-            headers: Object.keys(headers).length > 0
-                ? headers
-                : undefined,
-        });
+            resolve({
+                content,
+                headers: Object.keys(headers).length > 0
+                    ? headers
+                    : undefined,
+            });
+        } catch (error) {
+            reject(error);
+        }
     };
 
     const request = new XMLHttpRequest();

@@ -327,5 +327,18 @@ describe('browser file download wrapper', () => {
             );
             expect(xhrConstructor).toHaveBeenCalledTimes(1);
         });
+
+        it('should reject when the load handler throws', async () => {
+            const xhrConstructor = createXhrConstructor(LOCAL_URL);
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const promise = getLocalFile(LOCAL_URL);
+            const xhr = xhrConstructor.mock.results[0].value as XhrStub;
+            xhr.getResponseHeader = (): string | null => {
+                throw new Error('Header access failed');
+            };
+
+            await expect(promise).rejects.toThrow('Header access failed');
+        });
     });
 });
