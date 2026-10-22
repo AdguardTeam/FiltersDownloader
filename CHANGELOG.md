@@ -11,14 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
+  in the Node.js build on its own. To download through a proxy, set
+  `NODE_USE_ENV_PROXY=1` on Node.js 22.21+ or 24+ [FiltersDownloader#35].
+
 ### Deprecated
 
 ### Removed
+
+- Removed the `axios` dependency: the Node.js build downloads filters with the
+  built-in `fetch` [FiltersDownloader#35].
 
 ### Fixed
 
 - The browser build now retries an external filter download once after a
   transient network error.
+- Fixed the Node.js build returning a filter whose content looks like JSON,
+  such as `[]` or `123`, as a parsed value instead of a string
+  [FiltersDownloader#35].
 - A successful download no longer fails when the response URL is empty or
   cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
   used when they are available.
@@ -32,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [FiltersDownloader#34].
 
 [FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
+[FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
 
 ## [2.4.5] - 2026-07-14
 

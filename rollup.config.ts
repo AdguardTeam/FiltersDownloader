@@ -34,7 +34,6 @@ const nodeConfig = defineConfig({
         },
     ],
     external: [
-        'axios',
         'path',
         'fs',
         'crypto',
@@ -53,8 +52,6 @@ const browserConfig = defineConfig({
         },
     ],
     external: [
-        // TODO: Maybe remove axios from diff-updater?
-        'axios',
         'crypto',
     ],
     plugins: commonPlugins,
