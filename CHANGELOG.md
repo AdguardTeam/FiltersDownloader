@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The browser build now retries an external filter download once after a
+  transient network error.
+- A successful download no longer fails when the response URL is empty or
+  cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
+  used when they are available.
 - Removed the redundant `Pragma: no-cache` header from browser requests,
   which caused CORS preflight requests that some filter hosts reject.
 

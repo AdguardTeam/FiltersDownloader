@@ -24,6 +24,7 @@ interface XhrStub {
     open: () => void;
     setRequestHeader: () => void;
     overrideMimeType: () => void;
+    getResponseHeader: () => string | null;
     send: () => void;
     status: number;
     responseText: string;
@@ -114,6 +115,7 @@ describe('browser file download wrapper: Pragma header', () => {
                 open: vi.fn(),
                 setRequestHeader,
                 overrideMimeType,
+                getResponseHeader: (): null => null,
                 send: (): void => {
                     instance.status = 200;
                     instance.responseText = FILTER_CONTENT;
