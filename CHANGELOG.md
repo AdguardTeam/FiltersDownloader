@@ -24,17 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The browser build now retries an external filter download once after a
+  transient network error.
 - Fixed the Node.js build returning a filter whose content looks like JSON,
   such as `[]` or `123`, as a parsed value instead of a string
   [FiltersDownloader#35].
-- The browser build now retries an external filter download once after a
-  transient network error.
 - A successful download no longer fails when the response URL is empty or
   cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
   used when they are available.
 
 ### Security
 
+- Changed the `axios` requirement from exact `1.15.0` to `^1.20.0`, which fixes
+  its known vulnerabilities and lets dependents update it on their own
+  [FiltersDownloader#34].
+
+[FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
 [FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
 
 ## [2.4.5] - 2026-07-14
