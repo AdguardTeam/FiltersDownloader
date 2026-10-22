@@ -222,7 +222,7 @@ src/                              # Library source code
   index.browser.ts                # Browser entry point
   filters-downloader-creator.ts   # Core logic (platform-agnostic)
   checksum.ts                     # MD5 checksum validation
-  node/                           # Node.js download wrapper (axios + fs)
+  node/                           # Node.js download wrapper (fetch + fs)
   browser/                        # Browser download wrapper (fetch + XHR fallback)
   common/                         # Shared utilities
   helpers/                        # Error reporting with context
