@@ -56,6 +56,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
 ├── test/                             # Vitest test suite
 │   ├── *.test.ts
+│   ├── browser/                      # Browser file-download wrapper tests
 │   ├── server/                       # Express test server for integration tests
 │   └── fixtures/                     # Test fixture filter files and patches
 ├── _qunit_tests_/                    # Legacy QUnit test suite
