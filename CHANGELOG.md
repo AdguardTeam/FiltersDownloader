@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Changed the `axios` requirement from exact `1.15.0` to `^1.20.0`, which fixes
+  its known vulnerabilities and lets dependents update it on their own
+  [FiltersDownloader#34].
+
+[FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
+
 ## [2.4.5] - 2026-07-14
 
 ## [2.4.3] - 2026-04-03
