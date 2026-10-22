@@ -186,6 +186,17 @@ describe('getResponseHeaders via fetch', () => {
         }
     });
 
+    it('returns undefined headers for a network url without Last-Modified', async () => {
+        stubFetch(NETWORK_URL, { 'Content-Type': 'text/plain' });
+
+        const result = await getExternalFile(NETWORK_URL);
+
+        expect(result).toEqual({
+            content: FILTER_CONTENT,
+            headers: undefined,
+        });
+    });
+
     it('does not read any header for a local url', async () => {
         const response = stubFetch(LOCAL_URL, {
             'Content-Type': 'application/json',
@@ -237,6 +248,20 @@ describe('getResponseHeaders via XMLHttpRequest', () => {
         } else {
             expect(result.headers).toBeUndefined();
         }
+    });
+
+    it('returns undefined headers for a network url without Last-Modified', async () => {
+        stubXhr({
+            responseUrl: NETWORK_URL,
+            headers: { 'Content-Type': 'text/plain' },
+        });
+
+        const result = await getLocalFile(NETWORK_URL);
+
+        expect(result).toEqual({
+            content: FILTER_CONTENT,
+            headers: undefined,
+        });
     });
 
     it('rejects instead of throwing when a header getter throws', async () => {

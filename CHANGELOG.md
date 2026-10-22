@@ -17,8 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Removed duplicated response header handling in the browser wrapper (no
-  behavior change).
+- Removed duplicated response header handling in the browser wrapper. A
+  throwing response header getter now rejects the download instead of
+  escaping the XHR load handler.
 
 ### Security
 
