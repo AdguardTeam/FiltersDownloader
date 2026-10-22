@@ -42,6 +42,7 @@ class MockXMLHttpRequest {
             open: (): void => {},
             setRequestHeader: (): void => {},
             overrideMimeType: (): void => {},
+            getResponseHeader: (): null => null,
             send: (): void => {
                 const { onload } = this as { onload?: () => void };
                 onload?.();
