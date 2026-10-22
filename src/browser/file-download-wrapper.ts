@@ -109,7 +109,8 @@ const getResponseHeaders = (
         return undefined;
     }
 
-    // An unknown URL can come from an XHR wrapper that hides the response URL.
+    // An unknown URL can come from a fetch polyfill, a constructed Response or
+    // an XHR wrapper that hides the response URL.
     // Check the Content-Type only when the header is available.
     const responseContentType = getHeader('Content-Type');
     const shouldCheckContentType = urlType === 'network'
