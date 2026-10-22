@@ -22,20 +22,20 @@ import {
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
 
 /**
- * Set of network protocols. Used to check if url is local.
+ * Set of network protocols. A URL with one of these protocols is a network URL.
  */
 const networkProtocols = new Set(['http:', 'https:']);
 
 /**
  * URL types used to decide which response headers are available.
  */
-type UrlType = 'local' | 'external' | 'unknown';
+type UrlType = 'local' | 'network' | 'unknown';
 
 /**
- * Classifies a URL as local, external, or unknown.
+ * Classifies a URL as local, network, or unknown.
  *
  * A URL is local when its protocol is not http or https.
- * A URL is external when its protocol is http or https.
+ * A URL is network when its protocol is http or https.
  * An empty or unparseable URL is unknown.
  *
  * @param url URL address to check.
@@ -43,13 +43,9 @@ type UrlType = 'local' | 'external' | 'unknown';
  * @returns URL type.
  */
 const getUrlType = (url: string): UrlType => {
-    if (!url) {
-        return 'unknown';
-    }
-
     try {
         const parsedUrl = new URL(url);
-        return networkProtocols.has(parsedUrl.protocol) ? 'external' : 'local';
+        return networkProtocols.has(parsedUrl.protocol) ? 'network' : 'local';
     } catch {
         return 'unknown';
     }
@@ -77,21 +73,22 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
     }
 
     const urlType = getUrlType(response.url);
+    const responseContentType = response.headers.get('Content-Type');
+    const shouldCheckContentType = urlType === 'network'
+        || (urlType === 'unknown' && responseContentType !== null);
 
-    // Check response headers only for external URLs. Local and unknown URLs
-    // may not provide headers, e.g. the edge extension or an opaque response.
-    if (urlType === 'external') {
-        const responseContentType = response.headers.get('Content-Type');
-        if (!isContentTypeSupported(responseContentType)) {
-            throw getContentTypeError();
-        }
+    // A local URL may not provide headers, e.g. in the edge extension. An
+    // unknown URL can come from a fetch polyfill or a constructed Response.
+    // Check the Content-Type only when the header is available.
+    if (shouldCheckContentType && !isContentTypeSupported(responseContentType)) {
+        throw getContentTypeError();
     }
 
     const content = await response.text();
 
-    // Capture Last-Modified header for external URLs only
+    // Capture Last-Modified header for all URLs except local ones.
     const headers: FileDownloadHeaders = {};
-    if (urlType === 'external') {
+    if (urlType !== 'local') {
         const lastModified = response.headers.get('Last-Modified');
         if (lastModified) {
             headers.lastModified = lastModified;

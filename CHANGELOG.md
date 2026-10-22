@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A successful download no longer fails when the response URL is empty or
-  cannot be parsed, even if the response has no `Content-Type` header.
+  cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
+  used when they are available.
 
 ### Security
 
