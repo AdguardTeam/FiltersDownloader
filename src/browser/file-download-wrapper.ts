@@ -39,6 +39,41 @@ const isLocal = (url: string): boolean => {
 };
 
 /**
+ * Reads response headers and validates the content type.
+ *
+ * Headers are ignored for local urls, because the edge extension doesn't
+ * provide headers for such urls.
+ *
+ * @param getHeader Returns the value of the response header by name.
+ * @param url Response url.
+ *
+ * @returns Captured headers, or undefined if the url is local or
+ * the Last-Modified header is absent.
+ *
+ * @throws Error if the response content type is not supported.
+ */
+const getResponseHeaders = (
+    getHeader: (name: string) => string | null,
+    url: string,
+): FileDownloadHeaders | undefined => {
+    if (isLocal(url)) {
+        return undefined;
+    }
+
+    const responseContentType = getHeader('Content-Type');
+    if (!isContentTypeSupported(responseContentType)) {
+        throw getContentTypeError();
+    }
+
+    const lastModified = getHeader('Last-Modified');
+    if (lastModified) {
+        return { lastModified };
+    }
+
+    return undefined;
+};
+
+/**
  * Executes async request via fetch.
  * Fetch doesn't allow downloading urls with file:// scheme.
  *
@@ -59,32 +94,14 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
         throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
     }
 
-    // Don't check response headers if url is local,
-    // because the edge extension doesn't provide headers for such url
-    if (!isLocal(response.url)) {
-        const responseContentType = response.headers.get('Content-Type');
-        if (!isContentTypeSupported(responseContentType)) {
-            throw getContentTypeError();
-        }
-    }
+    const headers = getResponseHeaders(
+        (name) => response.headers.get(name),
+        response.url,
+    );
 
     const content = await response.text();
 
-    // Capture Last-Modified header for external (non-local) URLs
-    const headers: FileDownloadHeaders = {};
-    if (!isLocal(response.url)) {
-        const lastModified = response.headers.get('Last-Modified');
-        if (lastModified) {
-            headers.lastModified = lastModified;
-        }
-    }
-
-    return {
-        content,
-        headers: Object.keys(headers).length > 0
-            ? headers
-            : undefined,
-    };
+    return { content, headers };
 };
 
 /**
@@ -100,6 +117,7 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
     const onRequestLoad = (response: XMLHttpRequest): void => {
         if (response.status !== 200 && response.status !== 0) {
             reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
+            return;
         }
 
         const content = response.responseText
@@ -107,30 +125,18 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
             // @ts-ignore
             : response.data;
 
-        // Don't check response headers if url is local,
-        // because the edge extension doesn't provide headers for such url
-        if (!isLocal(response.responseURL)) {
-            const responseContentType = response.getResponseHeader('Content-Type');
-            if (!isContentTypeSupported(responseContentType)) {
-                reject(getContentTypeError());
-            }
+        let headers: FileDownloadHeaders | undefined;
+        try {
+            headers = getResponseHeaders(
+                (name) => response.getResponseHeader(name),
+                response.responseURL,
+            );
+        } catch (error) {
+            reject(error);
+            return;
         }
 
-        // Capture Last-Modified header for external (non-local) URLs
-        const headers: FileDownloadHeaders = {};
-        if (!isLocal(response.responseURL)) {
-            const lastModified = response.getResponseHeader('Last-Modified');
-            if (lastModified) {
-                headers.lastModified = lastModified;
-            }
-        }
-
-        resolve({
-            content,
-            headers: Object.keys(headers).length > 0
-                ? headers
-                : undefined,
-        });
+        resolve({ content, headers });
     };
 
     const request = new XMLHttpRequest();

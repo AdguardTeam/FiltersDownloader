@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed duplicated response header handling in the browser wrapper (no
+  behavior change).
+
 ### Security
 
 ## [2.4.5] - 2026-07-14
