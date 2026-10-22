@@ -55,9 +55,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   ├── node/                         # Node.js file-download wrapper (axios + fs)
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
 ├── test/                             # Vitest test suite
-│   ├── filters-downloader.test.ts
-│   ├── file-download-wrapper.test.ts
-│   ├── checksum.test.ts
+│   ├── *.test.ts
 │   ├── server/                       # Express test server for integration tests
 │   └── fixtures/                     # Test fixture filter files and patches
 ├── _qunit_tests_/                    # Legacy QUnit test suite
