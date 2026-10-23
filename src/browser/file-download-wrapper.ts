@@ -159,10 +159,7 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
                 return;
             }
 
-            const content = response.responseText
-                ? response.responseText
-                // @ts-ignore
-                : response.data;
+            const content = response.responseText;
 
             const urlType = getUrlType(response.responseURL);
             const responseContentType = response.getResponseHeader('Content-Type');

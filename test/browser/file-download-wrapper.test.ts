@@ -15,9 +15,11 @@ import {
 } from '../../src/browser/file-download-wrapper';
 import { PREFERRED_CONTENT_TYPE } from '../../src/common/content-type';
 import { type FileDownloadHeaders } from '../../src/common/types';
+import { FiltersDownloader } from '../../src/index.browser';
 
 const NETWORK_URL = 'https://example.org/filter.txt';
 const LOCAL_URL = 'file:///filters/filter.txt';
+const EMPTY_LOCAL_URL = 'file:///filters/empty.txt';
 const EMPTY_URL = '';
 const INVALID_URL = 'not a valid url';
 const FILTER_CONTENT = '||example.com^';
@@ -64,6 +66,14 @@ interface RejectCase {
     name: string;
     responseUrl: string;
     contentType: string;
+}
+
+interface XhrStubOptions {
+    responseUrl: string;
+    contentType?: string | null;
+    lastModified?: string | null;
+    responseText?: string;
+    status?: number;
 }
 
 /**
@@ -113,17 +123,22 @@ const createFetchResponse = (
 /**
  * Creates a mock XMLHttpRequest constructor.
  *
- * @param responseUrl Value of the response URL.
- * @param contentType Value of the Content-Type header.
- * @param lastModified Value of the Last-Modified header.
+ * @param options Response values for the stub.
+ * @param options.responseUrl Value of the response URL.
+ * @param options.contentType Value of the Content-Type header.
+ * @param options.lastModified Value of the Last-Modified header.
+ * @param options.responseText Value of the response text.
+ * @param options.status Value of the response status.
  *
  * @returns Mock XMLHttpRequest constructor.
  */
-const createXhrConstructor = (
-    responseUrl: string,
-    contentType: string | null = SUPPORTED_CONTENT_TYPE,
-    lastModified: string | null = null,
-): ReturnType<typeof vi.fn> => {
+const createXhrConstructor = ({
+    responseUrl,
+    contentType = SUPPORTED_CONTENT_TYPE,
+    lastModified = null,
+    responseText = FILTER_CONTENT,
+    status = 200,
+}: XhrStubOptions): ReturnType<typeof vi.fn> => {
     /**
      * Creates a stub XMLHttpRequest instance.
      *
@@ -131,10 +146,10 @@ const createXhrConstructor = (
      */
     function MockXMLHttpRequest(): XhrStub {
         const xhr: XhrStub = {
-            status: 200,
+            status,
             statusText: '',
             responseURL: responseUrl,
-            responseText: FILTER_CONTENT,
+            responseText,
             onload: null,
             onerror: null,
             onabort: null,
@@ -503,7 +518,7 @@ describe('browser file download wrapper', () => {
             lastModified,
             expectedHeaders,
         }) => {
-            const xhrConstructor = createXhrConstructor(responseUrl, contentType, lastModified);
+            const xhrConstructor = createXhrConstructor({ responseUrl, contentType, lastModified });
             vi.stubGlobal('XMLHttpRequest', xhrConstructor);
 
             await expect(getLocalFile(LOCAL_URL)).resolves.toEqual({
@@ -517,7 +532,7 @@ describe('browser file download wrapper', () => {
             responseUrl,
             contentType,
         }) => {
-            const xhrConstructor = createXhrConstructor(responseUrl, contentType);
+            const xhrConstructor = createXhrConstructor({ responseUrl, contentType });
             vi.stubGlobal('XMLHttpRequest', xhrConstructor);
 
             await expect(getLocalFile(LOCAL_URL)).rejects.toThrow(
@@ -527,7 +542,7 @@ describe('browser file download wrapper', () => {
         });
 
         it('should not set request headers and should override the MIME type', async () => {
-            const xhrConstructor = createXhrConstructor(LOCAL_URL);
+            const xhrConstructor = createXhrConstructor({ responseUrl: LOCAL_URL });
             vi.stubGlobal('XMLHttpRequest', xhrConstructor);
 
             await expect(getLocalFile(LOCAL_URL)).resolves.toEqual({
@@ -540,8 +555,58 @@ describe('browser file download wrapper', () => {
             expect(xhr.overrideMimeType).toHaveBeenCalledWith(PREFERRED_CONTENT_TYPE);
         });
 
+        it('should resolve with empty content when the response text is empty', async () => {
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                responseText: '',
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            await expect(getLocalFile(LOCAL_URL)).resolves.toEqual({
+                content: '',
+                headers: undefined,
+            });
+            expect(xhrConstructor).toHaveBeenCalledTimes(1);
+        });
+
+        it('should reject when the status is not 200', async () => {
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                status: 500,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            await expect(getLocalFile(LOCAL_URL)).rejects.toThrow(
+                `Response status for url ${LOCAL_URL} is invalid: 500`,
+            );
+            expect(xhrConstructor).toHaveBeenCalledTimes(1);
+        });
+
+        it('should reject an empty local file by default', async () => {
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: EMPTY_LOCAL_URL,
+                responseText: '',
+            }));
+
+            await expect(FiltersDownloader.download(EMPTY_LOCAL_URL, {}))
+                .rejects.toThrow('Response is empty');
+        });
+
+        it('should return an empty filter when allowEmptyResponse is set', async () => {
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: EMPTY_LOCAL_URL,
+                responseText: '',
+            }));
+
+            await expect(FiltersDownloader.download(
+                EMPTY_LOCAL_URL,
+                {},
+                { allowEmptyResponse: true },
+            )).resolves.toEqual(['']);
+        });
+
         it('should reject when the load handler throws', async () => {
-            const xhrConstructor = createXhrConstructor(LOCAL_URL);
+            const xhrConstructor = createXhrConstructor({ responseUrl: LOCAL_URL });
             vi.stubGlobal('XMLHttpRequest', xhrConstructor);
 
             const promise = getLocalFile(LOCAL_URL);
