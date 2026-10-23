@@ -27,7 +27,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 | Field                  | Value                                                          |
 | ---------------------- | -------------------------------------------------------------- |
 | Language / Version     | TypeScript 5.3, targeting ESNext                               |
-| Runtime                | Node.js ≥ 20, modern browsers                                  |
+| Runtime                | Node.js ≥ 22.21, modern browsers                               |
 | Package Manager        | pnpm ≥ 10.33.4, < 11                                           |
 | Bundler                | Rollup 4 with `@rollup/plugin-typescript`                      |
 | Primary Dependencies   | `@adguard/diff-builder` (patches), `crypto-js`                 |
