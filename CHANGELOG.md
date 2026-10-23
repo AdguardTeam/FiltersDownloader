@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** The Node.js build now requires Node.js 22.21+ or 24+.
+- **Breaking:** The Node.js build now requires Node.js 22.21+ (22.x) or 24+.
   Node.js 20 has no built-in proxy support for `fetch` [FiltersDownloader#35].
 - **Breaking:** Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and
   `NO_PROXY` in the Node.js build on its own. To download through a proxy, set
@@ -37,9 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A successful download no longer fails when the response URL is empty or
   cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
   used when they are available.
-- The browser build no longer reads response headers for local URLs, so an
-  `XMLHttpRequest` implementation that throws from `getResponseHeader()` for
-  local files no longer fails the download.
+- The browser build no longer reads response headers for local URLs whose
+  response URL is reported, so an `XMLHttpRequest` implementation that throws
+  from `getResponseHeader()` for such files no longer fails the download.
 - Fixed the browser build failing with a `TypeError` on an empty local file.
   It now throws `Response is empty`, or returns an empty filter with
   `allowEmptyResponse`.
