@@ -115,7 +115,7 @@ const createFetchResponse = (
     status: 200,
     url: responseUrl,
     headers: {
-        get: (header): string | null => getStubHeader(header, { contentType, lastModified }),
+        get: vi.fn((header: string): string | null => getStubHeader(header, { contentType, lastModified })),
     },
     text: async (): Promise<string> => FILTER_CONTENT,
 });
@@ -157,10 +157,10 @@ const createXhrConstructor = ({
             open: (): void => {},
             setRequestHeader: vi.fn(),
             overrideMimeType: vi.fn(),
-            getResponseHeader: (header: string): string | null => getStubHeader(header, {
+            getResponseHeader: vi.fn((header: string): string | null => getStubHeader(header, {
                 contentType,
                 lastModified,
-            }),
+            })),
             send: (): void => {
                 queueMicrotask(() => xhr.onload?.());
             },
@@ -207,6 +207,13 @@ const FETCH_RESOLVE_CASES: ResolveCase[] = [
         contentType: SUPPORTED_CONTENT_TYPE,
         lastModified: LAST_MODIFIED,
         expectedHeaders: { lastModified: LAST_MODIFIED },
+    },
+    {
+        name: 'the response URL is a network URL and Last-Modified is absent',
+        responseUrl: NETWORK_URL,
+        contentType: SUPPORTED_CONTENT_TYPE,
+        lastModified: null,
+        expectedHeaders: undefined,
     },
     {
         name: 'the response URL is unknown and Last-Modified is present',
@@ -301,9 +308,8 @@ describe('browser file download wrapper', () => {
         });
 
         it('should skip header checks for a local file URL', async () => {
-            const fetchMock = vi.fn().mockResolvedValue(
-                createFetchResponse(LOCAL_URL, UNSUPPORTED_CONTENT_TYPE, LAST_MODIFIED),
-            );
+            const response = createFetchResponse(LOCAL_URL, UNSUPPORTED_CONTENT_TYPE, LAST_MODIFIED);
+            const fetchMock = vi.fn().mockResolvedValue(response);
             vi.stubGlobal('fetch', fetchMock);
             vi.stubGlobal('XMLHttpRequest', undefined);
 
@@ -312,6 +318,7 @@ describe('browser file download wrapper', () => {
                 headers: undefined,
             });
             expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(response.headers.get).not.toHaveBeenCalled();
         });
 
         it.each(FETCH_REJECT_CASES)('should reject when $name', async ({
@@ -605,11 +612,46 @@ describe('browser file download wrapper', () => {
             )).resolves.toEqual(['']);
         });
 
-        it('should reject when the load handler throws', async () => {
-            const xhrConstructor = createXhrConstructor({ responseUrl: LOCAL_URL });
+        it('should not read response headers for a local file URL', async () => {
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                contentType: UNSUPPORTED_CONTENT_TYPE,
+                lastModified: LAST_MODIFIED,
+            });
             vi.stubGlobal('XMLHttpRequest', xhrConstructor);
 
-            const promise = getLocalFile(LOCAL_URL);
+            await expect(getLocalFile(LOCAL_URL)).resolves.toEqual({
+                content: FILTER_CONTENT,
+                headers: undefined,
+            });
+
+            const xhr = xhrConstructor.mock.results[0].value as XhrStub;
+            expect(xhr.getResponseHeader).not.toHaveBeenCalled();
+        });
+
+        it('should reject an invalid status before reading response headers', async () => {
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: NETWORK_URL,
+                contentType: UNSUPPORTED_CONTENT_TYPE,
+                status: 500,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            await expect(getLocalFile(NETWORK_URL)).rejects.toThrow(
+                `Response status for url ${NETWORK_URL} is invalid: 500`,
+            );
+
+            const xhr = xhrConstructor.mock.results[0].value as XhrStub;
+            expect(xhr.getResponseHeader).not.toHaveBeenCalled();
+        });
+
+        it('should reject when the load handler throws', async () => {
+            // A network URL is used because the wrapper does not read headers
+            // for a local URL.
+            const xhrConstructor = createXhrConstructor({ responseUrl: NETWORK_URL });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const promise = getLocalFile(NETWORK_URL);
             const xhr = xhrConstructor.mock.results[0].value as XhrStub;
             xhr.getResponseHeader = (): string | null => {
                 throw new Error('Header access failed');

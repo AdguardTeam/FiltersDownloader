@@ -85,6 +85,49 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 /**
+ * Reads response headers and validates the content type.
+ *
+ * Headers are ignored for local urls, because the edge extension doesn't
+ * provide headers for such urls.
+ *
+ * @param getHeader Returns the value of the response header by name.
+ * @param url Response url.
+ *
+ * @returns Captured headers, or undefined if the url is local or
+ * the Last-Modified header is absent.
+ *
+ * @throws Error if the response content type is not supported.
+ */
+const getResponseHeaders = (
+    getHeader: (name: string) => string | null,
+    url: string,
+): FileDownloadHeaders | undefined => {
+    const urlType = getUrlType(url);
+
+    // A local URL may not provide headers, e.g. in the edge extension.
+    if (urlType === 'local') {
+        return undefined;
+    }
+
+    // An unknown URL can come from a fetch polyfill, a constructed Response or
+    // an XHR wrapper that hides the response URL.
+    // Check the Content-Type only when the header is available.
+    const responseContentType = getHeader('Content-Type');
+    const shouldCheckContentType = urlType === 'network'
+        || (urlType === 'unknown' && responseContentType !== null);
+    if (shouldCheckContentType && !isContentTypeSupported(responseContentType)) {
+        throw getContentTypeError();
+    }
+
+    const lastModified = getHeader('Last-Modified');
+    if (lastModified) {
+        return { lastModified };
+    }
+
+    return undefined;
+};
+
+/**
  * Executes async request via fetch.
  * Fetch doesn't allow downloading urls with file:// scheme.
  *
@@ -106,17 +149,10 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
         throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
     }
 
-    const urlType = getUrlType(response.url);
-    const responseContentType = response.headers.get('Content-Type');
-    const shouldCheckContentType = urlType === 'network'
-        || (urlType === 'unknown' && responseContentType !== null);
-
-    // A local URL may not provide headers, e.g. in the edge extension. An
-    // unknown URL can come from a fetch polyfill or a constructed Response.
-    // Check the Content-Type only when the header is available.
-    if (shouldCheckContentType && !isContentTypeSupported(responseContentType)) {
-        throw getContentTypeError();
-    }
+    const headers = getResponseHeaders(
+        (name) => response.headers.get(name),
+        response.url,
+    );
 
     let content: string;
     try {
@@ -125,21 +161,7 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
         throw new NetworkError(url, error);
     }
 
-    // Capture Last-Modified header for all URLs except local ones.
-    const headers: FileDownloadHeaders = {};
-    if (urlType !== 'local') {
-        const lastModified = response.headers.get('Last-Modified');
-        if (lastModified) {
-            headers.lastModified = lastModified;
-        }
-    }
-
-    return {
-        content,
-        headers: Object.keys(headers).length > 0
-            ? headers
-            : undefined,
-    };
+    return { content, headers };
 };
 
 /**
@@ -161,34 +183,12 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
 
             const content = response.responseText;
 
-            const urlType = getUrlType(response.responseURL);
-            const responseContentType = response.getResponseHeader('Content-Type');
-            const shouldCheckContentType = urlType === 'network'
-                || (urlType === 'unknown' && responseContentType !== null);
+            const headers = getResponseHeaders(
+                (name) => response.getResponseHeader(name),
+                response.responseURL,
+            );
 
-            // A local URL may not provide headers, e.g. in the edge extension.
-            // An unknown URL can come from an XHR wrapper that hides the
-            // response URL. Check the Content-Type only when it is available.
-            if (shouldCheckContentType && !isContentTypeSupported(responseContentType)) {
-                reject(getContentTypeError());
-                return;
-            }
-
-            // Capture Last-Modified header for all URLs except local ones.
-            const headers: FileDownloadHeaders = {};
-            if (urlType !== 'local') {
-                const lastModified = response.getResponseHeader('Last-Modified');
-                if (lastModified) {
-                    headers.lastModified = lastModified;
-                }
-            }
-
-            resolve({
-                content,
-                headers: Object.keys(headers).length > 0
-                    ? headers
-                    : undefined,
-            });
+            resolve({ content, headers });
         } catch (error) {
             reject(error);
         }
