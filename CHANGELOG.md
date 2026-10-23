@@ -11,18 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-  in the Node.js build on its own. To download through a proxy, set
-  `NODE_USE_ENV_PROXY=1` on Node.js 22.21+ or 24+ [FiltersDownloader#35].
-- Removed the unused `allowEmptyResponse` argument from the `downloadWithRaw`
-  method type. Use `options.allowEmptyResponse` instead.
+- **Breaking:** The Node.js build now requires Node.js 22.21+ (22.x) or 24+.
+  Node.js 20 has no built-in proxy support for `fetch` [FiltersDownloader#35].
+- **Breaking:** Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and
+  `NO_PROXY` in the Node.js build on its own. To download through a proxy, set
+  `NODE_USE_ENV_PROXY=1` [FiltersDownloader#35].
+- **Breaking:** Removed the unused `allowEmptyResponse` argument from the
+  `downloadWithRaw` method type. Use `options.allowEmptyResponse` instead.
 
 ### Deprecated
 
 ### Removed
 
-- Removed the `axios` dependency: the Node.js build downloads filters with the
-  built-in `fetch` [FiltersDownloader#35].
+- Removed the `axios` dependency. The Node.js build downloads filters with the
+  built-in `fetch`. This change also removes the vulnerable pinned `axios`
+  version [FiltersDownloader#34] [FiltersDownloader#35].
 
 ### Fixed
 
@@ -34,9 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A successful download no longer fails when the response URL is empty or
   cannot be parsed. The `Content-Type` and `Last-Modified` headers are still
   used when they are available.
-- Removed duplicated response header handling in the browser wrapper. A
-  throwing response header getter now rejects the download instead of
-  escaping the XHR load handler.
+- The browser build no longer reads response headers for local URLs whose
+  response URL is reported, so an `XMLHttpRequest` implementation that throws
+  from `getResponseHeader()` for such files no longer fails the download.
 - Fixed the browser build failing with a `TypeError` on an empty local file.
   It now throws `Response is empty`, or returns an empty filter with
   `allowEmptyResponse`.
@@ -45,10 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that some filter hosts reject.
 
 ### Security
-
-- Changed the `axios` requirement from exact `1.15.0` to `^1.20.0`, which fixes
-  its known vulnerabilities and lets dependents update it on their own
-  [FiltersDownloader#34].
 
 [FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
 [FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
