@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
   in the Node.js build on its own. To download through a proxy, set
   `NODE_USE_ENV_PROXY=1` on Node.js 22.21+ or 24+ [FiltersDownloader#35].
+- Removed the unused `allowEmptyResponse` argument from the `downloadWithRaw`
+  method type. Use `options.allowEmptyResponse` instead.
 
 ### Deprecated
 
@@ -35,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed duplicated response header handling in the browser wrapper. A
   throwing response header getter now rejects the download instead of
   escaping the XHR load handler.
+- Fixed the browser build failing with a `TypeError` on an empty local file.
+  It now throws `Response is empty`, or returns an empty filter with
+  `allowEmptyResponse`.
 - Removed the redundant `Pragma: no-cache` and `Content-Type` request headers
   from browser downloads. The `Pragma` header caused CORS preflight requests
   that some filter hosts reject.

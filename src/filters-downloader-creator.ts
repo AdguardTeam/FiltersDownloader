@@ -154,10 +154,6 @@ interface DownloadWithRawInterface {
          * This is required.
          */
         options: DownloadWithRawOptions,
-        /**
-         * A flag to allow an empty response.
-         */
-        allowEmptyResponse?: boolean
     ): Promise<DownloadResult>;
 }
 
