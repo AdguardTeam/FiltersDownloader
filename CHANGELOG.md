@@ -11,18 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-  in the Node.js build on its own. To download through a proxy, set
+- **Breaking:** Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and
+  `NO_PROXY` in the Node.js build on its own. To download through a proxy, set
   `NODE_USE_ENV_PROXY=1` on Node.js 22.21+ or 24+ [FiltersDownloader#35].
-- Removed the unused `allowEmptyResponse` argument from the `downloadWithRaw`
-  method type. Use `options.allowEmptyResponse` instead.
+- **Breaking:** Removed the unused `allowEmptyResponse` argument from the
+  `downloadWithRaw` method type. Use `options.allowEmptyResponse` instead.
 
 ### Deprecated
 
 ### Removed
 
-- Removed the `axios` dependency: the Node.js build downloads filters with the
-  built-in `fetch` [FiltersDownloader#35].
+- Removed the `axios` dependency. The Node.js build downloads filters with the
+  built-in `fetch`. This change also removes the vulnerable pinned `axios`
+  version [FiltersDownloader#34] [FiltersDownloader#35].
 
 ### Fixed
 
@@ -45,10 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that some filter hosts reject.
 
 ### Security
-
-- Changed the `axios` requirement from exact `1.15.0` to `^1.20.0`, which fixes
-  its known vulnerabilities and lets dependents update it on their own
-  [FiltersDownloader#34].
 
 [FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
 [FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
