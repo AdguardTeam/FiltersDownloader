@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and
   `NO_PROXY` in the Node.js build on its own. To download through a proxy, set
-  `NODE_USE_ENV_PROXY=1` on Node.js 22.21+ or 24+ [FiltersDownloader#35].
+  `NODE_USE_ENV_PROXY=1` on Node.js 22.21+ or 24+. Node.js 20 has no built-in
+  proxy support for `fetch`. Upgrade to Node.js 22.21+ or 24+, or configure a
+  proxy in the calling application [FiltersDownloader#35].
 - **Breaking:** Removed the unused `allowEmptyResponse` argument from the
   `downloadWithRaw` method type. Use `options.allowEmptyResponse` instead.
 
