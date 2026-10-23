@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [3.0.0-beta.0] - 2026-10-23
+
+### Changed
+
 - **Breaking:** The Node.js build now requires Node.js 22.21+ (22.x) or 24+.
   Node.js 20 has no built-in proxy support for `fetch` [FiltersDownloader#35].
 - **Breaking:** Stopped picking up a proxy from `HTTP_PROXY`, `HTTPS_PROXY` and
@@ -18,8 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NODE_USE_ENV_PROXY=1` [FiltersDownloader#35].
 - **Breaking:** Removed the unused `allowEmptyResponse` argument from the
   `downloadWithRaw` method type. Use `options.allowEmptyResponse` instead.
-
-### Deprecated
 
 ### Removed
 
@@ -46,11 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the redundant `Pragma: no-cache` and `Content-Type` request headers
   from browser downloads. The `Pragma` header caused CORS preflight requests
   that some filter hosts reject.
-
-### Security
-
-[FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
-[FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
 
 ## [2.4.5] - 2026-07-14
 
@@ -283,6 +288,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [@adguard/diff-builder]: https://github.com/AdguardTeam/DiffBuilder/blob/master/CHANGELOG.md
 
-[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.5...HEAD
+[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0-beta.0...HEAD
+[3.0.0-beta.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.5...v3.0.0-beta.0
 
 [2.4.5]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.4...v2.4.5
+
+[FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
+[FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
