@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [3.0.0] - 2026-10-26
+
 ## [3.0.0-beta.0] - 2026-10-23
 
 ### Changed
@@ -288,7 +290,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [@adguard/diff-builder]: https://github.com/AdguardTeam/DiffBuilder/blob/master/CHANGELOG.md
 
-[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0-beta.0...HEAD
+[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0-beta.0...v3.0.0
 [3.0.0-beta.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.5...v3.0.0-beta.0
 
 [2.4.5]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.4...v2.4.5
