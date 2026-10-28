@@ -62,7 +62,12 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
         throw getContentTypeError();
     }
 
-    const content = await response.text();
+    let content: string;
+    try {
+        content = await response.text();
+    } catch (error) {
+        throw new Error(`Failed to request url '${url}'`, { cause: error });
+    }
 
     // Capture Last-Modified header
     const headers: FileDownloadHeaders = {};

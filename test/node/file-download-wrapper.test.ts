@@ -1,3 +1,5 @@
+import { Readable } from 'stream';
+
 import {
     afterAll,
     afterEach,
@@ -95,6 +97,26 @@ describe('Node file download wrapper', () => {
             expect(error).toBeInstanceOf(Error);
             expect((error as Error).message).toBe(`Failed to request url '${TEST_URL}'`);
             expect((error as Error).cause).toBeDefined();
+        });
+
+        it('rejects with the url and the original error as cause when reading the body fails', async () => {
+            const body = new Readable({
+                read(): void {
+                    this.push(FILTER_CONTENT);
+                    this.destroy(new Error('terminated'));
+                },
+            });
+
+            nock(TEST_HOST)
+                .get(TEST_PATH)
+                .reply(200, body, { 'Content-Type': 'text/plain' });
+
+            const error = await getExternalFile(TEST_URL).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toBe(`Failed to request url '${TEST_URL}'`);
+            expect((error as Error).cause).toBeInstanceOf(Error);
+            expect(((error as Error).cause as Error).message).toBe('terminated');
         });
     });
 

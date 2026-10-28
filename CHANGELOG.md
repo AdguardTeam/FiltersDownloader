@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Node.js build now reports the source URL when reading a response body
+  fails. The original error is kept as the error cause.
+
 ### Security
 
 ## [3.0.0] - 2026-10-26
