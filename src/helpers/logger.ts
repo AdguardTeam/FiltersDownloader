@@ -1,3 +1,5 @@
+import { stripUrlCredentials } from '../common/url';
+
 /**
  * The number of lines to include before the error line in the error message.
  */
@@ -31,7 +33,7 @@ export const throwError = (
     const errorDetails = [`${errorDescription} '${errorRule}'`];
 
     if (filterUrl) {
-        errorDetails.push(`URL: '${filterUrl}'`);
+        errorDetails.push(`URL: '${stripUrlCredentials(filterUrl)}'`);
     }
 
     if (contextLines) {

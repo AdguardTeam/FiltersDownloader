@@ -88,6 +88,29 @@ describe('Node file download wrapper', () => {
             expect(scope.isDone()).toBe(true);
         });
 
+        it('falls back to the raw credentials when the percent-encoding is malformed', async () => {
+            const url = `http://user%zz:password@example.org${TEST_PATH}`;
+            const authorization = `Basic ${Buffer.from('user%zz:password').toString('base64')}`;
+            const scope = nock(TEST_HOST)
+                .get(TEST_PATH)
+                .matchHeader('Authorization', authorization)
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            await getExternalFile(url);
+
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not leak credentials when the URL cannot be parsed', async () => {
+            const error = await getExternalFile('//user:password@example.org/filter.txt')
+                .catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message)
+                .toBe("Failed to request url '//example.org/filter.txt'");
+            expect((error as Error).message).not.toContain('password');
+        });
+
         it('does not send the Authorization header when the URL has no credentials', async () => {
             let requestHeaders: Record<string, string> = {};
 

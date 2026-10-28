@@ -136,6 +136,21 @@ describe('FiltersDownloader', () => {
                 ),
             ).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
         });
+
+        it('does not include credentials in directive error messages', async () => {
+            nock('http://localhost:3000')
+                .get('/fixtures/credentials/filter.txt')
+                .reply(200, '!#endif', { 'Content-Type': 'text/plain' });
+
+            const url = 'http://user:password@localhost:3000/fixtures/credentials/filter.txt';
+            const error = await FiltersDownloader.download(url, FilterCompilerConditionsConstants)
+                .catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message)
+                .toContain("URL: 'http://localhost:3000/fixtures/credentials'");
+            expect((error as Error).message).not.toContain('password');
+        });
     });
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
@@ -349,6 +364,43 @@ describe('FiltersDownloader', () => {
                 expect(filter).toEqual(expectedFilter);
                 expect(rawFilter).toEqual(expectedRawFilter);
                 // Assert that each URL was fetched only once
+                expect(scope.isDone()).toBe(true);
+            });
+        });
+        describe('URL with credentials', () => {
+            it('downloads the full filter and sends the Authorization header', async () => {
+                const basePath = 'http://localhost:3000';
+                const url = 'http://user:password@localhost:3000/fixtures/01_simple/filter.txt';
+                const authorization = `Basic ${Buffer.from('user:password').toString('base64')}`;
+
+                const scope = nock(basePath)
+                    .get('/fixtures/01_simple/filter.txt')
+                    .matchHeader('Authorization', authorization)
+                    .once()
+                    .replyWithFile(
+                        200,
+                        path.resolve(__dirname, './fixtures/01_simple/filter.txt'),
+                        { 'Content-Type': 'text/plain' },
+                    );
+
+                const prevFilter = await fs.readFile(
+                    path.resolve(__dirname, './fixtures/01_simple/filter_v1.0.0.txt'),
+                    'utf-8',
+                );
+                const curFilter = await fs.readFile(
+                    path.resolve(__dirname, './fixtures/01_simple/filter.txt'),
+                    'utf-8',
+                );
+
+                // The raw filter contains a Diff-Path, so a patch update would be
+                // attempted without the credentials check.
+                const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(
+                    url,
+                    { rawFilter: prevFilter },
+                );
+
+                expect(filter).toEqual(curFilter.trim().split(/[\r\n]+/));
+                expect(rawFilter).toEqual(curFilter);
                 expect(scope.isDone()).toBe(true);
             });
         });
