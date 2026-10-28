@@ -114,7 +114,9 @@ After completing any code change, verify correctness by following these steps:
    Code Guidelines section below.
 
 6. **Update the CHANGELOG.** If the change is user-facing, add an entry to
-   `CHANGELOG.md`.
+   `CHANGELOG.md`. Start the entry with its subject, not with the category
+   verb: under `### Fixed`, write `- The Node.js build ...`, not
+   `- Fixed the Node.js build ...`.
 
 ## Code Guidelines
 

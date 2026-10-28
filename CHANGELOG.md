@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed the Node.js build failing to download a source URL that contains
+- The Node.js build no longer fails to download a source URL that contains
   credentials. The build now sends the credentials in an `Authorization: Basic`
   header, as version 2.3.1 did. Patch updates are skipped for such URLs, so the
   full filter is downloaded.
