@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed the Node.js build failing to download a source URL that contains
+  credentials. The build now sends the credentials in an `Authorization: Basic`
+  header, as version 2.3.1 did.
+
 ### Security
 
 ## [3.0.0] - 2026-10-26

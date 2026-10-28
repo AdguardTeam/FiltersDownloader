@@ -13,6 +13,10 @@ import { getExternalFile, getExternalFileHeaders } from '../../src/node/file-dow
 const TEST_HOST = 'http://example.org';
 const TEST_PATH = '/filter.txt';
 const TEST_URL = `${TEST_HOST}${TEST_PATH}`;
+const CREDENTIALS_URL = `http://user:password@example.org${TEST_PATH}`;
+const CREDENTIALS_AUTH = `Basic ${Buffer.from('user:password').toString('base64')}`;
+const ENCODED_CREDENTIALS_URL = `http://user%40name:p%40ss@example.org${TEST_PATH}`;
+const ENCODED_CREDENTIALS_AUTH = `Basic ${Buffer.from('user@name:p@ss').toString('base64')}`;
 const FILTER_CONTENT = '||example.com^';
 const LAST_MODIFIED = 'Wed, 2 Jan 2026 07:28:00 GMT';
 
@@ -56,6 +60,49 @@ describe('Node file download wrapper', () => {
             expect(result.content).toBe('[1, 2]');
         });
 
+        it('sends the credentials from the URL in the Authorization header', async () => {
+            let requestPath = '';
+            const scope = nock(TEST_HOST)
+                .get(TEST_PATH)
+                .matchHeader('Authorization', CREDENTIALS_AUTH)
+                .reply(function reply(this: nock.ReplyFnContext): nock.ReplyFnResult {
+                    requestPath = this.req.path;
+                    return [200, FILTER_CONTENT, { 'Content-Type': 'text/plain' }];
+                });
+
+            const result = await getExternalFile(CREDENTIALS_URL);
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(requestPath).toBe(TEST_PATH);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('decodes percent-encoded credentials before encoding them', async () => {
+            const scope = nock(TEST_HOST)
+                .get(TEST_PATH)
+                .matchHeader('Authorization', ENCODED_CREDENTIALS_AUTH)
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            await getExternalFile(ENCODED_CREDENTIALS_URL);
+
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not send the Authorization header when the URL has no credentials', async () => {
+            let requestHeaders: Record<string, string> = {};
+
+            nock(TEST_HOST)
+                .get(TEST_PATH)
+                .reply(function reply(this: nock.ReplyFnContext): nock.ReplyFnResult {
+                    requestHeaders = this.req.headers;
+                    return [200, FILTER_CONTENT, { 'Content-Type': 'text/plain' }];
+                });
+
+            await getExternalFile(TEST_URL);
+
+            expect(requestHeaders.authorization).toBeUndefined();
+        });
+
         it('sends the Pragma: no-cache header', async () => {
             const scope = nock(TEST_HOST)
                 .get(TEST_PATH)
@@ -73,6 +120,15 @@ describe('Node file download wrapper', () => {
                 .reply(500, 'error', { 'Content-Type': 'text/plain' });
 
             await expect(getExternalFile(TEST_URL))
+                .rejects.toThrow(`Response status for url ${TEST_URL} is invalid: 500`);
+        });
+
+        it('does not include credentials in the error message', async () => {
+            nock(TEST_HOST)
+                .get(TEST_PATH)
+                .reply(500, 'error', { 'Content-Type': 'text/plain' });
+
+            await expect(getExternalFile(CREDENTIALS_URL))
                 .rejects.toThrow(`Response status for url ${TEST_URL} is invalid: 500`);
         });
 
@@ -107,6 +163,18 @@ describe('Node file download wrapper', () => {
             const headers = await getExternalFileHeaders(TEST_URL);
 
             expect(headers).toEqual({ lastModified: LAST_MODIFIED });
+        });
+
+        it('sends the credentials from the URL in the Authorization header', async () => {
+            const scope = nock(TEST_HOST)
+                .head(TEST_PATH)
+                .matchHeader('Authorization', CREDENTIALS_AUTH)
+                .reply(200, undefined, { 'Last-Modified': LAST_MODIFIED });
+
+            const headers = await getExternalFileHeaders(CREDENTIALS_URL);
+
+            expect(headers).toEqual({ lastModified: LAST_MODIFIED });
+            expect(scope.isDone()).toBe(true);
         });
 
         it('returns undefined on a non-200 status', async () => {

@@ -22,6 +22,76 @@ import { isContentTypeSupported, getContentTypeError } from '../common/content-t
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
 
 /**
+ * A URL split into the part that is safe to pass to `fetch` and the
+ * authorization header built from its credentials.
+ */
+interface SanitizedUrl {
+    /**
+     * URL without the userinfo component.
+     */
+    url: string;
+
+    /**
+     * Value of the `Authorization` header, or undefined if the URL has no
+     * credentials.
+     */
+    authorization?: string;
+}
+
+/**
+ * Decodes a percent-encoded userinfo component.
+ *
+ * @param value Percent-encoded userinfo component.
+ *
+ * @returns Decoded value, or the original value if the percent-encoding is
+ * malformed.
+ */
+const decodeUserInfo = (value: string): string => {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+};
+
+/**
+ * Removes the userinfo component from a URL and converts it into a value for
+ * the `Authorization` header.
+ *
+ * Native `fetch` throws a `TypeError` when a URL contains credentials, so the
+ * credentials are sent in the `Authorization: Basic` header instead.
+ *
+ * @param url Absolute URL that may contain a username and a password.
+ *
+ * @returns The URL without credentials and the authorization header value, if
+ * the URL has credentials.
+ */
+const sanitizeUrl = (url: string): SanitizedUrl => {
+    let parsedUrl: URL;
+
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        return { url };
+    }
+
+    if (!parsedUrl.username && !parsedUrl.password) {
+        return { url };
+    }
+
+    const username = decodeUserInfo(parsedUrl.username);
+    const password = decodeUserInfo(parsedUrl.password);
+
+    parsedUrl.username = '';
+    parsedUrl.password = '';
+
+    return {
+        url: parsedUrl.toString(),
+        authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+    };
+};
+
+/**
  * Executes async request.
  *
  * @param url Url.
@@ -32,15 +102,22 @@ import { type FileDownloadHeaders, type FileDownloadResult } from '../common/typ
  * @throws Error with the original error as `cause` if the request fails.
  */
 const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise<Response> => {
+    const sanitized = sanitizeUrl(url);
+    const headers: Record<string, string> = {
+        Pragma: 'no-cache',
+    };
+
+    if (sanitized.authorization) {
+        headers.Authorization = sanitized.authorization;
+    }
+
     try {
-        return await fetch(url, {
+        return await fetch(sanitized.url, {
             method,
-            headers: {
-                Pragma: 'no-cache',
-            },
+            headers,
         });
     } catch (error) {
-        throw new Error(`Failed to request url '${url}'`, { cause: error });
+        throw new Error(`Failed to request url '${sanitized.url}'`, { cause: error });
     }
 };
 
@@ -55,7 +132,8 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
     const response = await executeRequestAsync(url, 'GET');
 
     if (response.status !== 200) {
-        throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
+        const sanitized = sanitizeUrl(url).url;
+        throw new Error(`Response status for url ${sanitized} is invalid: ${response.status}`);
     }
 
     if (!isContentTypeSupported(response.headers.get('Content-Type'))) {
