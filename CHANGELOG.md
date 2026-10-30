@@ -17,14 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Security
+
+## [3.0.1] - 2026-10-30
+
+### Fixed
+
 - The Node.js build no longer fails to download a source URL that contains
   credentials. The build now sends the credentials in an `Authorization: Basic`
   header, as versions before 3.0.0 did. Patch updates are skipped for such URLs,
   so the full filter is downloaded.
 - The Node.js build now reports the source URL when reading a response body
   fails. The original error is kept as the error cause.
-
-### Security
 
 ## [3.0.0] - 2026-10-26
 
@@ -297,7 +301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [@adguard/diff-builder]: https://github.com/AdguardTeam/DiffBuilder/blob/master/CHANGELOG.md
 
-[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0-beta.0...v3.0.0
 [3.0.0-beta.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.5...v3.0.0-beta.0
 
