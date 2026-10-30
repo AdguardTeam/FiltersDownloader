@@ -153,6 +153,9 @@ output. On subsequent calls, passing the previously stored `rawFilter` lets the
 library apply a binary patch (if the server provides one) instead of downloading
 the entire filter again, reducing bandwidth usage.
 
+For a source URL that contains credentials, the library always downloads the
+full filter. Only the Node.js build supports such URLs.
+
 ## API Reference
 
 All methods are on the `FiltersDownloader` object.

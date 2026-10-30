@@ -136,6 +136,59 @@ describe('FiltersDownloader', () => {
                 ),
             ).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
         });
+
+        it('does not include credentials in directive error messages', async () => {
+            nock('http://localhost:3000')
+                .get('/fixtures/credentials/filter.txt')
+                .reply(200, '!#endif', { 'Content-Type': 'text/plain' });
+
+            const url = 'http://user:password@localhost:3000/fixtures/credentials/filter.txt';
+            const error = await FiltersDownloader.download(url, FilterCompilerConditionsConstants)
+                .catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message)
+                .toContain("URL: 'http://localhost:3000/fixtures/credentials'");
+            expect((error as Error).message).not.toContain('password');
+        });
+
+        it('does not include credentials in an invalid url error message', async () => {
+            const includeUrl = '!#include http://user:password@exa mple.org/filter.txt';
+
+            const error = await FiltersDownloader.resolveIncludes(
+                [includeUrl],
+                'http://example.org',
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect((error as Error).message).toBe("Invalid url: 'http://exa mple.org/filter.txt'");
+        });
+    });
+
+    describe('a filter URL with credentials', () => {
+        it('resolves a relative include with the same credentials', async () => {
+            const authorization = `Basic ${Buffer.from('user:password').toString('base64')}`;
+            const scope = nock('http://localhost:3000');
+
+            scope
+                .get('/fixtures/credentials/filter.txt')
+                .matchHeader('Authorization', authorization)
+                .reply(200, '!#include included.txt\n||example.org^', {
+                    'Content-Type': 'text/plain',
+                });
+            scope
+                .get('/fixtures/credentials/included.txt')
+                .matchHeader('Authorization', authorization)
+                .reply(200, '||included.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.download(
+                'http://user:password@localhost:3000/fixtures/credentials/filter.txt',
+                FilterCompilerConditionsConstants,
+            );
+
+            expect(filter).toEqual(['||included.com^', '||example.org^']);
+            expect(scope.isDone()).toBe(true);
+        });
     });
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
@@ -349,6 +402,43 @@ describe('FiltersDownloader', () => {
                 expect(filter).toEqual(expectedFilter);
                 expect(rawFilter).toEqual(expectedRawFilter);
                 // Assert that each URL was fetched only once
+                expect(scope.isDone()).toBe(true);
+            });
+        });
+        describe('URL with credentials', () => {
+            it('downloads the full filter and sends the Authorization header', async () => {
+                const basePath = 'http://localhost:3000';
+                const url = 'http://user:password@localhost:3000/fixtures/01_simple/filter.txt';
+                const authorization = `Basic ${Buffer.from('user:password').toString('base64')}`;
+
+                const scope = nock(basePath)
+                    .get('/fixtures/01_simple/filter.txt')
+                    .matchHeader('Authorization', authorization)
+                    .once()
+                    .replyWithFile(
+                        200,
+                        path.resolve(__dirname, './fixtures/01_simple/filter.txt'),
+                        { 'Content-Type': 'text/plain' },
+                    );
+
+                const prevFilter = await fs.readFile(
+                    path.resolve(__dirname, './fixtures/01_simple/filter_v1.0.0.txt'),
+                    'utf-8',
+                );
+                const curFilter = await fs.readFile(
+                    path.resolve(__dirname, './fixtures/01_simple/filter.txt'),
+                    'utf-8',
+                );
+
+                // The raw filter contains a Diff-Path, so a patch update would be
+                // attempted without the credentials check.
+                const { filter, rawFilter } = await FiltersDownloader.downloadWithRaw(
+                    url,
+                    { rawFilter: prevFilter },
+                );
+
+                expect(filter).toEqual(curFilter.trim().split(/[\r\n]+/));
+                expect(rawFilter).toEqual(curFilter);
                 expect(scope.isDone()).toBe(true);
             });
         });

@@ -18,6 +18,7 @@
 import { DiffUpdater, UnacceptableResponseError } from '@adguard/diff-builder/diff-updater';
 import { isValidChecksum } from './checksum';
 import { throwError, getContext } from './helpers/logger';
+import { parseUrlCredentials, stripUrlCredentials } from './common/url';
 
 /**
  * The utility tool resolves preprocessor directives in filter content.
@@ -275,7 +276,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
             return origin;
         } catch (e) {
-            throw new Error(`Invalid url: '${url}'`);
+            throw new Error(`Invalid url: '${stripUrlCredentials(url)}'`);
         }
     };
 
@@ -947,10 +948,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             filterUrlOrigin = getFilterUrlOrigin(url);
         }
 
+        // Patch updates are not supported for URLs with credentials: the diff
+        // builder requests patch URLs with native `fetch`, which rejects URLs
+        // that contain userinfo. Download the full filter instead.
+        const hasCredentials = parseUrlCredentials(url).credentials !== undefined;
+
         // if options.force, then download the whole filter
         // if !options.rawFilter, then return result as is, since it is not possible to apply
         // patches without the raw filter
-        if (options.force || !options.rawFilter) {
+        if (options.force || !options.rawFilter || hasCredentials) {
             return downloadAndProcess(url, options);
         }
 

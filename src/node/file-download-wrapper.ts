@@ -20,27 +20,57 @@ import fs from 'fs';
 
 import { isContentTypeSupported, getContentTypeError } from '../common/content-type';
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
+import { parseUrlCredentials } from '../common/url';
+
+/**
+ * Result of a prepared HTTP request.
+ */
+interface RequestResult {
+    /**
+     * Response of the request.
+     */
+    response: Response;
+
+    /**
+     * URL that was passed to `fetch`, without the userinfo component.
+     */
+    url: string;
+}
 
 /**
  * Executes async request.
  *
+ * Native `fetch` throws a `TypeError` when a URL contains credentials, so the
+ * credentials are removed from the URL and sent in the `Authorization: Basic`
+ * header instead.
+ *
  * @param url Url.
  * @param method HTTP method.
  *
- * @returns Promise with response.
+ * @returns Promise with the response and the sanitized request URL.
  *
  * @throws Error with the original error as `cause` if the request fails.
  */
-const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise<Response> => {
+const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise<RequestResult> => {
+    const { url: sanitizedUrl, credentials } = parseUrlCredentials(url);
+    const headers: Record<string, string> = {
+        Pragma: 'no-cache',
+    };
+
+    if (credentials) {
+        const userinfo = `${credentials.username}:${credentials.password}`;
+        headers.Authorization = `Basic ${Buffer.from(userinfo).toString('base64')}`;
+    }
+
     try {
-        return await fetch(url, {
+        const response = await fetch(sanitizedUrl, {
             method,
-            headers: {
-                Pragma: 'no-cache',
-            },
+            headers,
         });
+
+        return { response, url: sanitizedUrl };
     } catch (error) {
-        throw new Error(`Failed to request url '${url}'`, { cause: error });
+        throw new Error(`Failed to request url '${sanitizedUrl}'`, { cause: error });
     }
 };
 
@@ -52,10 +82,10 @@ const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise
  * and error if rejected.
  */
 const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
-    const response = await executeRequestAsync(url, 'GET');
+    const { response, url: sanitizedUrl } = await executeRequestAsync(url, 'GET');
 
     if (response.status !== 200) {
-        throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
+        throw new Error(`Response status for url ${sanitizedUrl} is invalid: ${response.status}`);
     }
 
     if (!isContentTypeSupported(response.headers.get('Content-Type'))) {
@@ -66,7 +96,7 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
     try {
         content = await response.text();
     } catch (error) {
-        throw new Error(`Failed to request url '${url}'`, { cause: error });
+        throw new Error(`Failed to request url '${sanitizedUrl}'`, { cause: error });
     }
 
     // Capture Last-Modified header
@@ -108,7 +138,7 @@ const getLocalFile = async (url: string): Promise<FileDownloadResult> => {
  */
 const getExternalFileHeaders = async (url: string): Promise<FileDownloadHeaders | undefined> => {
     try {
-        const response = await executeRequestAsync(url, 'HEAD');
+        const { response } = await executeRequestAsync(url, 'HEAD');
 
         if (response.status !== 200) {
             return undefined;

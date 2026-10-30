@@ -50,7 +50,7 @@ platform-agnostic core with injected platform-specific file download wrappers.
 │   ├── index.browser.ts              # Browser entry point (re-exports from creator)
 │   ├── filters-downloader-creator.ts # Core logic: directive parsing, includes, conditions
 │   ├── checksum.ts                   # MD5 checksum calculation and validation
-│   ├── common/                       # Shared utilities (content-type validation)
+│   ├── common/                       # Shared utilities
 │   ├── helpers/                      # Error reporting with context (logger)
 │   ├── node/                         # Node.js file-download wrapper (fetch + fs)
 │   └── browser/                      # Browser file-download wrapper (fetch + XHR fallback)
@@ -114,7 +114,9 @@ After completing any code change, verify correctness by following these steps:
    Code Guidelines section below.
 
 6. **Update the CHANGELOG.** If the change is user-facing, add an entry to
-   `CHANGELOG.md`.
+   `CHANGELOG.md`. Start the entry with its subject, not with the category
+   verb: under `### Fixed`, write `- The Node.js build ...`, not
+   `- Fixed the Node.js build ...`.
 
 ## Code Guidelines
 
@@ -155,8 +157,8 @@ General code style guidelines are available via link:
 
 ### Other
 
-- **Imports use file extensions** in source code. ESLint enforces
-  `import/extensions`.
+- **Imports do not use file extensions.** ESLint enforces
+  `import/extensions` with `ts: 'never'`.
 - **Error messages include context.** Use the logger helpers
   (`throwError`, `mergeErrorDetails`) to report errors with surrounding
   filter lines for debuggability.

@@ -1,3 +1,5 @@
+import { redactUrlCredentials, stripUrlCredentials } from '../common/url';
+
 /**
  * The number of lines to include before the error line in the error message.
  */
@@ -14,6 +16,9 @@ export const mergeErrorDetails = (messages: string[]): string => `${messages.joi
 /**
  * Creates and throws a detailed error message with context information.
  *
+ * The function removes the userinfo component from every URL in the error rule
+ * and in the context lines, so a password does not appear in the message.
+ *
  * @param errorDescription The main error message.
  * @param errorRule The rule where the error occurred.
  * @param contextLines The context string (3 lines before) to include in the error message.
@@ -28,16 +33,17 @@ export const throwError = (
     filterUrl?: string,
     originalError?: unknown,
 ): void => {
-    const errorDetails = [`${errorDescription} '${errorRule}'`];
+    const sanitizedRule = redactUrlCredentials(errorRule);
+    const errorDetails = [`${errorDescription} '${sanitizedRule}'`];
 
     if (filterUrl) {
-        errorDetails.push(`URL: '${filterUrl}'`);
+        errorDetails.push(`URL: '${stripUrlCredentials(filterUrl)}'`);
     }
 
     if (contextLines) {
         errorDetails.push('Context:');
-        errorDetails.push(contextLines);
-        errorDetails.push(`\t${errorRule}`);
+        errorDetails.push(redactUrlCredentials(contextLines));
+        errorDetails.push(`\t${sanitizedRule}`);
     }
 
     if (originalError) {
