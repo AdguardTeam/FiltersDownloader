@@ -47,6 +47,15 @@ const getErrorChainText = (error: unknown): string => {
     }
 
     const parts = [error.message, error.stack ?? ''];
+
+    Object.keys(error).forEach((property) => {
+        const value = (error as unknown as Record<string, unknown>)[property];
+
+        if (typeof value === 'string') {
+            parts.push(value);
+        }
+    });
+
     const { cause } = error as Error & { cause?: unknown };
 
     if (cause !== undefined) {
@@ -77,6 +86,21 @@ const CREDENTIALS_CASES = [
         name: 'malformed percent-encoding',
         url: `http://user%zz:password@example.org${TEST_PATH}`,
         authorization: basicAuth('user%zz:password'),
+    },
+    {
+        name: 'a question mark in the password',
+        url: `http://user:pa?ss@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:pa?ss'),
+    },
+    {
+        name: 'a hash in the password',
+        url: `http://user:pa#ss@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:pa#ss'),
+    },
+    {
+        name: 'a space in the password',
+        url: `http://user:pa ss@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:pa ss'),
     },
 ];
 
@@ -186,6 +210,18 @@ describe('Node file download wrapper', () => {
                 name: 'three slashes after the scheme',
                 url: 'https:///user:secret@example.org/filter.txt',
             },
+            {
+                name: 'a question mark in the password',
+                url: 'https://user:pa?ss@example.org/filter.txt',
+            },
+            {
+                name: 'a hash in the password',
+                url: 'https://user:pa#ss@example.org/filter.txt',
+            },
+            {
+                name: 'a space in the password',
+                url: 'https://user:pa ss@example.org/filter.txt',
+            },
         ])('does not leak credentials from any URL form with $name', async ({ url }) => {
             const fetchMock = vi.fn().mockRejectedValue(
                 new TypeError(`Request cannot be constructed from a URL that includes credentials: ${url}`),
@@ -197,6 +233,8 @@ describe('Node file download wrapper', () => {
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain('secret');
             expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(new URL(fetchMock.mock.calls[0][0] as string).href)
+                .toBe('https://example.org/filter.txt');
         });
 
         it('downloads an https URL with credentials and sends Basic auth', async () => {
@@ -217,6 +255,7 @@ describe('Node file download wrapper', () => {
 
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain('secret');
+            expect((error as Error & { path?: string }).path).not.toContain('secret');
         });
 
         it('does not send the Authorization header when the URL has no credentials', async () => {
@@ -322,11 +361,24 @@ describe('Node file download wrapper', () => {
                 name: 'backslashes after the scheme',
                 url: 'https:\\user:secret@example.org\\filter.txt',
             },
+            {
+                name: 'a question mark in the password',
+                url: 'https:/user:pa?ss@example.org/filter.txt',
+            },
+            {
+                name: 'a hash in the password',
+                url: 'https:/user:pa#ss@example.org/filter.txt',
+            },
+            {
+                name: 'a space in the password',
+                url: 'https:/user:pa ss@example.org/filter.txt',
+            },
         ])('does not leak credentials from a local path error with $name', async ({ url }) => {
             const error = await getLocalFile(url).catch((e: unknown) => e);
 
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain('secret');
+            expect((error as Error & { path?: string }).path).not.toContain('secret');
         });
     });
 

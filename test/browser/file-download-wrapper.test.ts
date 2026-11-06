@@ -74,6 +74,9 @@ interface XhrStubOptions {
     lastModified?: string | null;
     responseText?: string;
     status?: number;
+    statusText?: string;
+    openError?: Error;
+    emitError?: boolean;
 }
 
 /**
@@ -129,6 +132,9 @@ const createFetchResponse = (
  * @param options.lastModified Value of the Last-Modified header.
  * @param options.responseText Value of the response text.
  * @param options.status Value of the response status.
+ * @param options.statusText Value of the response status text.
+ * @param options.openError Error that the `open` method throws.
+ * @param options.emitError Whether `send` emits an error instead of a load.
  *
  * @returns Mock XMLHttpRequest constructor.
  */
@@ -138,6 +144,9 @@ const createXhrConstructor = ({
     lastModified = null,
     responseText = FILTER_CONTENT,
     status = 200,
+    statusText = '',
+    openError,
+    emitError = false,
 }: XhrStubOptions): ReturnType<typeof vi.fn> => {
     /**
      * Creates a stub XMLHttpRequest instance.
@@ -147,14 +156,18 @@ const createXhrConstructor = ({
     function MockXMLHttpRequest(): XhrStub {
         const xhr: XhrStub = {
             status,
-            statusText: '',
+            statusText,
             responseURL: responseUrl,
             responseText,
             onload: null,
             onerror: null,
             onabort: null,
             ontimeout: null,
-            open: (): void => {},
+            open: (): void => {
+                if (openError) {
+                    throw openError;
+                }
+            },
             setRequestHeader: vi.fn(),
             overrideMimeType: vi.fn(),
             getResponseHeader: vi.fn((header: string): string | null => getStubHeader(header, {
@@ -162,7 +175,13 @@ const createXhrConstructor = ({
                 lastModified,
             })),
             send: (): void => {
-                queueMicrotask(() => xhr.onload?.());
+                queueMicrotask(() => {
+                    if (emitError) {
+                        xhr.onerror?.();
+                        return;
+                    }
+                    xhr.onload?.();
+                });
             },
         };
 
@@ -268,6 +287,48 @@ const XHR_REJECT_CASES: RejectCase[] = [
     },
 ];
 
+/**
+ * Collects the message, the stack, the own string properties, the causes, and
+ * the nested errors of an error.
+ *
+ * @param error Error or other value to collect text from.
+ *
+ * @returns Text of the error and its whole chain.
+ */
+const getErrorChainText = (error: unknown): string => {
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    if (!(error instanceof Error)) {
+        return String(error);
+    }
+
+    const parts = [error.message, error.stack ?? ''];
+
+    Object.keys(error).forEach((property) => {
+        const value = (error as unknown as Record<string, unknown>)[property];
+
+        if (typeof value === 'string') {
+            parts.push(value);
+        }
+    });
+
+    const { cause } = error as Error & { cause?: unknown };
+
+    if (cause !== undefined) {
+        parts.push(getErrorChainText(cause));
+    }
+
+    if (error instanceof AggregateError) {
+        error.errors.forEach((nestedError) => {
+            parts.push(getErrorChainText(nestedError));
+        });
+    }
+
+    return parts.join('\n');
+};
+
 describe('browser file download wrapper', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
@@ -333,6 +394,39 @@ describe('browser file download wrapper', () => {
             await expect(getExternalFile(NETWORK_URL)).rejects.toThrow(
                 'Response content type should be one of',
             );
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('should not include credentials in the status error', async () => {
+            const response = createFetchResponse(NETWORK_URL);
+            response.status = 500;
+            const fetchMock = vi.fn().mockResolvedValue(response);
+            vi.stubGlobal('fetch', fetchMock);
+
+            const error = await getExternalFile('https://user:secret@example.org/filter.txt')
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
+        });
+
+        it('should keep a DOMException error and redact its message', async () => {
+            const url = 'https://user:secret@example.org/filter.txt';
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(
+                    `Request cannot be constructed from a URL that includes credentials: ${url}`,
+                    'SecurityError',
+                ),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).name).toBe('NetworkError');
+            expect((error as Error).cause).toBeInstanceOf(DOMException);
+            expect(getErrorChainText(error)).not.toContain('secret');
             expect(fetchMock).toHaveBeenCalledTimes(1);
         });
     });
@@ -451,6 +545,23 @@ describe('browser file download wrapper', () => {
             await assertion;
 
             await expect(promise).rejects.toMatchObject({ cause: firstError });
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+
+        it('should not leak credentials when both attempts fail', async () => {
+            const url = 'https://user:secret@example.org/filter.txt';
+            const fetchMock = vi.fn()
+                .mockRejectedValueOnce(new TypeError(`Failed to fetch ${url}`))
+                .mockRejectedValueOnce(new TypeError(`Failed to fetch again ${url}`));
+            vi.stubGlobal('fetch', fetchMock);
+
+            const promise = getExternalFile(url).catch((e: unknown) => e);
+            await vi.advanceTimersByTimeAsync(EXTERNAL_FILE_RETRY_DELAY_MS);
+
+            const error = await promise;
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
             expect(fetchMock).toHaveBeenCalledTimes(2);
         });
 
@@ -658,6 +769,64 @@ describe('browser file download wrapper', () => {
             };
 
             await expect(promise).rejects.toThrow('Header access failed');
+        });
+
+        it('should not include credentials in the status error', async () => {
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: NETWORK_URL,
+                status: 500,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const error = await getLocalFile('https://user:secret@example.org/filter.txt')
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
+        });
+
+        it('should not include credentials in the request error', async () => {
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: NETWORK_URL,
+                statusText: 'https://user:secret@example.org/filter.txt',
+                emitError: true,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const error = await getLocalFile('https://example.org/filter.txt')
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
+        });
+
+        it('should keep a DOMException error and redact its message', async () => {
+            const url = 'https://user:secret@example.org/filter.txt';
+            const openError = new DOMException(`Cannot open ${url}`, 'SyntaxError');
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                openError,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBe(openError);
+            expect(getErrorChainText(error)).not.toContain('secret');
+        });
+
+        it('should not leak credentials from a local path', async () => {
+            const url = '/filters/https:/user:secret@example.org/filter.txt';
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                openError: new Error(`Cannot open ${url}`),
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
         });
     });
 });
