@@ -113,6 +113,21 @@ const isCredentialsMatch = (prefix: string, userinfo: string): boolean => {
 };
 
 /**
+ * Parses a URL with the WHATWG URL parser.
+ *
+ * @param url URL to parse.
+ *
+ * @returns Parsed URL, or undefined if the URL cannot be parsed.
+ */
+const tryParseUrl = (url: string): URL | undefined => {
+    try {
+        return new URL(url);
+    } catch {
+        return undefined;
+    }
+};
+
+/**
  * Decodes a percent-encoded userinfo component.
  *
  * @param value Percent-encoded userinfo component.
@@ -156,6 +171,21 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
         return { url };
     }
 
+    // The WHATWG parser accepts valid URLs with a port and an at sign in the
+    // query or fragment, for example `https://example.org:8080?x@y`. In such a
+    // URL the at sign is not a userinfo separator. Only an empty userinfo
+    // component is still removed, for example `https://@example.org`.
+    const parsedUrl = tryParseUrl(url);
+    if (
+        parsedUrl
+        && parsedUrl.username === ''
+        && parsedUrl.password === ''
+        && userinfo !== ''
+        && userinfo !== ':'
+    ) {
+        return { url };
+    }
+
     const sanitizedUrl = `${prefix}${url.slice(match[0].length)}`;
 
     const separatorIndex = userinfo.indexOf(':');
@@ -180,6 +210,49 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 };
 
 /**
+ * Matches a question mark or a hash sign in a userinfo candidate.
+ */
+const QUERY_OR_FRAGMENT_REGEXP = /[?#]/;
+
+/**
+ * Matches a character that ends a URL in arbitrary text.
+ */
+const URL_TERMINATOR_REGEXP = /[\s<>'"]/;
+
+/**
+ * Returns the URL that starts at the given position in a text.
+ *
+ * @param text Text that contains the URL.
+ * @param offset Offset of the URL in the text.
+ *
+ * @returns URL candidate.
+ */
+const getUrlCandidate = (text: string, offset: number): string => {
+    const rest = text.slice(offset);
+    const terminatorIndex = rest.search(URL_TERMINATOR_REGEXP);
+
+    return terminatorIndex === -1
+        ? rest
+        : rest.slice(0, terminatorIndex);
+};
+
+/**
+ * Checks whether a URL candidate contains userinfo credentials.
+ *
+ * @param text Text that contains the URL.
+ * @param offset Offset of the URL in the text.
+ *
+ * @returns `true` if the URL has credentials or cannot be parsed.
+ */
+const hasUrlCredentials = (text: string, offset: number): boolean => {
+    const parsedUrl = tryParseUrl(getUrlCandidate(text, offset));
+
+    return parsedUrl === undefined
+        || parsedUrl.username !== ''
+        || parsedUrl.password !== '';
+};
+
+/**
  * Removes the userinfo component from every URL in a text.
  *
  * @param text Text that may contain URLs with credentials.
@@ -187,13 +260,59 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
  * @returns Text without the userinfo components.
  */
 export const redactUrlCredentials = (text: string): string => {
-    const redactMatch = (match: string, prefix: string, userinfo: string): string => (
-        isCredentialsMatch(prefix, userinfo) ? prefix : match
-    );
+    const redactMatch = (
+        match: string,
+        prefix: string,
+        userinfo: string,
+        offset: number,
+        textWithUrl: string,
+    ): string => {
+        if (!isCredentialsMatch(prefix, userinfo)) {
+            return match;
+        }
+
+        // A question mark or a hash sign can end the authority of a valid URL.
+        // When the WHATWG parser accepts the whole URL and finds no
+        // credentials, the at sign is in the query or fragment, not in the
+        // userinfo.
+        if (
+            QUERY_OR_FRAGMENT_REGEXP.test(userinfo)
+            && !hasUrlCredentials(textWithUrl, offset)
+        ) {
+            return match;
+        }
+
+        return prefix;
+    };
 
     return text
         .replace(URL_WITH_COLON_USERINFO_REGEXP, redactMatch)
         .replace(URL_WITH_USERINFO_REGEXP, redactMatch);
+};
+
+/**
+ * Removes the credentials from a known URL value in a text and from the other
+ * URL forms in the text.
+ *
+ * The generic {@link redactUrlCredentials} does not accept some characters in
+ * the userinfo, for example quotes, so a known URL is replaced first.
+ *
+ * @param text Text to redact.
+ * @param knownUrl URL that can contain any character in the userinfo.
+ *
+ * @returns Redacted text.
+ */
+const redactKnownUrlText = (text: string, knownUrl?: string): string => {
+    if (knownUrl === undefined) {
+        return redactUrlCredentials(text);
+    }
+
+    const sanitizedUrl = parseUrlCredentials(knownUrl).url;
+    const textWithSanitizedUrl = sanitizedUrl === knownUrl
+        ? text
+        : text.split(knownUrl).join(sanitizedUrl);
+
+    return redactUrlCredentials(textWithSanitizedUrl);
 };
 
 /**
@@ -238,10 +357,11 @@ const setErrorProperty = (error: Error, property: string, value: unknown): boole
  * properties of an `fs` error must not keep the userinfo component.
  *
  * @param error Error to change.
+ * @param knownUrl URL that can contain any character in the userinfo.
  *
  * @returns `true` if all properties are redacted.
  */
-const redactErrorProperties = (error: Error): boolean => {
+const redactErrorProperties = (error: Error, knownUrl?: string): boolean => {
     let isRedacted = true;
 
     Object.keys(error).forEach((property) => {
@@ -251,7 +371,7 @@ const redactErrorProperties = (error: Error): boolean => {
             return;
         }
 
-        const redactedValue = redactUrlCredentials(value);
+        const redactedValue = redactKnownUrlText(value, knownUrl);
 
         if (redactedValue !== value && !setErrorProperty(error, property, redactedValue)) {
             isRedacted = false;
@@ -297,15 +417,17 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
  *
  * @param error Error or other value to redact.
  * @param seen Errors that are already processed, used to stop on cycles.
+ * @param knownUrl URL that can contain any character in the userinfo.
  *
  * @returns The same value with redacted error messages.
  */
 export const redactErrorCredentials = (
     error: unknown,
     seen = new WeakSet<object>(),
+    knownUrl?: string,
 ): unknown => {
     if (typeof error === 'string') {
-        return redactUrlCredentials(error);
+        return redactKnownUrlText(error, knownUrl);
     }
 
     if (!(error instanceof Error)) {
@@ -317,9 +439,9 @@ export const redactErrorCredentials = (
     }
     seen.add(error);
 
-    const message = redactUrlCredentials(error.message);
+    const message = redactKnownUrlText(error.message, knownUrl);
     const stack = typeof error.stack === 'string'
-        ? redactUrlCredentials(error.stack)
+        ? redactKnownUrlText(error.stack, knownUrl)
         : error.stack;
 
     const isMessageRedacted = message === error.message
@@ -329,13 +451,13 @@ export const redactErrorCredentials = (
 
     let redactedError = error;
 
-    if (!isMessageRedacted || !isStackRedacted || !redactErrorProperties(error)) {
+    if (!isMessageRedacted || !isStackRedacted || !redactErrorProperties(error, knownUrl)) {
         redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
     }
 
     const { cause } = error as Error & { cause?: unknown };
     if (cause !== undefined) {
-        const redactedCause = redactErrorCredentials(cause, seen);
+        const redactedCause = redactErrorCredentials(cause, seen, knownUrl);
 
         if (
             (redactedError !== error || redactedCause !== cause)
@@ -352,7 +474,7 @@ export const redactErrorCredentials = (
         }
 
         const redactedErrors = error.errors.map(
-            (nestedError) => redactErrorCredentials(nestedError, seen),
+            (nestedError) => redactErrorCredentials(nestedError, seen, knownUrl),
         );
 
         setErrorProperty(redactedError, 'errors', redactedErrors);

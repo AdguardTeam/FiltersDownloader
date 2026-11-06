@@ -155,6 +155,21 @@ const PARSE_CASES = [
         url: 'https://example.org?email=user@example.org',
         expected: { url: 'https://example.org?email=user@example.org' },
     },
+    {
+        name: 'a port and an at sign in the query',
+        url: 'https://example.org:8080?x@y',
+        expected: { url: 'https://example.org:8080?x@y' },
+    },
+    {
+        name: 'a port and credentials in the query',
+        url: 'https://example.org:8443?token=user@example.org',
+        expected: { url: 'https://example.org:8443?token=user@example.org' },
+    },
+    {
+        name: 'an ipv6 authority and an at sign in the query',
+        url: 'https://[::1]:8080?x@y',
+        expected: { url: 'https://[::1]:8080?x@y' },
+    },
 ];
 
 describe('parseUrlCredentials', () => {
@@ -260,6 +275,16 @@ const REDACT_CASES = [
         name: 'an at sign in a query without credentials',
         text: 'https://example.org?email=user@example.org',
         expected: 'https://example.org?email=user@example.org',
+    },
+    {
+        name: 'a port and an at sign in a query',
+        text: "Failed to request url 'https://example.org:8443?token=user@example.org'",
+        expected: "Failed to request url 'https://example.org:8443?token=user@example.org'",
+    },
+    {
+        name: 'an ipv6 authority and an at sign in a query',
+        text: 'https://[::1]:8080?x@y',
+        expected: 'https://[::1]:8080?x@y',
     },
     {
         name: 'a non-http scheme without slashes',

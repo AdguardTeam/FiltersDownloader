@@ -27,6 +27,32 @@ const SUPPORTED_CONTENT_TYPE = 'text/plain';
 const UNSUPPORTED_CONTENT_TYPE = 'application/json';
 const LAST_MODIFIED = 'Wed, 2 Jan 2026 07:28:00 GMT';
 
+/**
+ * Passwords with characters that the generic redaction does not accept.
+ */
+const MALFORMED_PASSWORD_CASES = [
+    {
+        name: 'a double quote in the password',
+        password: 'pa"ss-secret',
+        leaked: 'pa"ss-secret',
+    },
+    {
+        name: 'an angle bracket in the password',
+        password: 'pa<ss-secret',
+        leaked: 'pa<ss-secret',
+    },
+    {
+        name: 'a single quote in the password',
+        password: "pa'ss-secret",
+        leaked: "pa'ss-secret",
+    },
+    {
+        name: 'a leading space in the password',
+        password: ' pass-secret',
+        leaked: 'pass-secret',
+    },
+];
+
 interface StubHeaders {
     /**
      * Value of the Content-Type header.
@@ -429,6 +455,26 @@ describe('browser file download wrapper', () => {
             expect(getErrorChainText(error)).not.toContain('secret');
             expect(fetchMock).toHaveBeenCalledTimes(1);
         });
+
+        it.each(MALFORMED_PASSWORD_CASES)('should not leak $name in a fetch error', async ({
+            password,
+            leaked,
+        }) => {
+            const url = `https://user:${password}@example.org/filter.txt`;
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(
+                    `Request cannot be constructed from a URL that includes credentials: ${url}`,
+                    'SecurityError',
+                ),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain(leaked);
+        });
     });
 
     describe('HEAD path', () => {
@@ -813,6 +859,24 @@ describe('browser file download wrapper', () => {
 
             expect(error).toBe(openError);
             expect(getErrorChainText(error)).not.toContain('secret');
+        });
+
+        it.each(MALFORMED_PASSWORD_CASES)('should not leak $name in an XHR open error', async ({
+            password,
+            leaked,
+        }) => {
+            const url = `https://user:${password}@example.org/filter.txt`;
+            const openError = new DOMException(`Cannot open ${url}`, 'SyntaxError');
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                openError,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBe(openError);
+            expect(getErrorChainText(error)).not.toContain(leaked);
         });
 
         it('should not leak credentials from a local path', async () => {
