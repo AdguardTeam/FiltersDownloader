@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     parseUrlCredentials,
+    redactErrorCredentials,
     redactUrlCredentials,
     stripUrlCredentials,
 } from '../../src/common/url';
@@ -110,12 +111,49 @@ const PARSE_CASES = [
         },
     },
     {
+        name: 'a question mark in the password',
+        url: 'https://user:pa?ss@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'user', password: 'pa?ss' },
+        },
+    },
+    {
+        name: 'a hash in the password',
+        url: 'https://user:pa#ss@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'user', password: 'pa#ss' },
+        },
+    },
+    {
+        name: 'a space in the password',
+        url: 'https://user:pa ss@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'user', password: 'pa ss' },
+        },
+    },
+    {
+        name: 'an at sign and a space in the password',
+        url: 'https://user:pa@ss word@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'user', password: 'pa@ss word' },
+        },
+    },
+    {
         name: 'an at sign in the userinfo',
         url: 'https://user:p@ss@example.org/filter.txt',
         expected: {
             url: 'https://example.org/filter.txt',
             credentials: { username: 'user', password: 'p@ss' },
         },
+    },
+    {
+        name: 'an at sign in the query without a path',
+        url: 'https://example.org?email=user@example.org',
+        expected: { url: 'https://example.org?email=user@example.org' },
     },
 ];
 
@@ -133,6 +171,16 @@ describe('parseUrlCredentials', () => {
         const parsedUrl = parseUrlCredentials(url).url;
 
         expect(new URL(parsedUrl).href).toBe('https://example.org/filter.txt');
+    });
+
+    it.each([
+        'icon@2x.png',
+        'user@host/filter.txt',
+        'mailto:someone@example.com',
+        'C:\\dir@x\\f.txt',
+    ])('does not treat %s as credentials', (url) => {
+        expect(parseUrlCredentials(url)).toEqual({ url });
+        expect(stripUrlCredentials(url)).toBe(url);
     });
 });
 
@@ -189,6 +237,41 @@ const REDACT_CASES = [
         expected: '!include https:///example.org/filter.txt',
     },
     {
+        name: 'a question mark in the password',
+        text: '!include https://user:pa?ss@example.org/filter.txt',
+        expected: '!include https://example.org/filter.txt',
+    },
+    {
+        name: 'a hash in the password',
+        text: '!include https://user:pa#ss@example.org/filter.txt',
+        expected: '!include https://example.org/filter.txt',
+    },
+    {
+        name: 'a space in the password',
+        text: '!include https://user:pa ss@example.org/filter.txt',
+        expected: '!include https://example.org/filter.txt',
+    },
+    {
+        name: 'an at sign and a space in the password',
+        text: '!include https://user:pa@ss word@example.org/filter.txt',
+        expected: '!include https://example.org/filter.txt',
+    },
+    {
+        name: 'an at sign in a query without credentials',
+        text: 'https://example.org?email=user@example.org',
+        expected: 'https://example.org?email=user@example.org',
+    },
+    {
+        name: 'a non-http scheme without slashes',
+        text: 'mailto:someone@example.com',
+        expected: 'mailto:someone@example.com',
+    },
+    {
+        name: 'a colon after a url without credentials',
+        text: 'See https://example.org: the user:pass@example.org',
+        expected: 'See https://example.org: the user:pass@example.org',
+    },
+    {
         name: 'text without urls',
         text: '||example.org^',
         expected: '||example.org^',
@@ -198,5 +281,80 @@ const REDACT_CASES = [
 describe('redactUrlCredentials', () => {
     it.each(REDACT_CASES)('redacts $name', ({ text, expected }) => {
         expect(redactUrlCredentials(text)).toBe(expected);
+    });
+});
+
+describe('redactErrorCredentials', () => {
+    it('redacts a string cause', () => {
+        const error = new Error('Request failed', {
+            cause: 'https://user:secret@example.org/filter.txt',
+        });
+
+        redactErrorCredentials(error);
+
+        expect(error.cause).toBe('https://example.org/filter.txt');
+    });
+
+    it('redacts the read-only message of a DOMException', () => {
+        const error = new DOMException('https://user:secret@example.org/filter.txt', 'NetworkError');
+
+        const redactedError = redactErrorCredentials(error);
+
+        expect(redactedError).toBe(error);
+        expect(error.message).toBe('https://example.org/filter.txt');
+        expect(error.name).toBe('NetworkError');
+    });
+
+    it('redacts own enumerable string properties', () => {
+        const error = Object.assign(new Error('Request failed'), {
+            path: '/tmp/https:/user:secret@example.org/filter.txt',
+        });
+
+        redactErrorCredentials(error);
+
+        expect(error.path).toBe('/tmp/https:/example.org/filter.txt');
+    });
+
+    it('redacts nested errors', () => {
+        const nestedError = new Error('https://user:secret@example.org/filter.txt');
+        const error = new AggregateError(
+            [nestedError, 'https://user:secret@example.org/filter.txt'],
+            'Request failed',
+        );
+
+        redactErrorCredentials(error);
+
+        expect((error.errors[0] as Error).message).toBe('https://example.org/filter.txt');
+        expect(error.errors[1]).toBe('https://example.org/filter.txt');
+    });
+
+    it('returns a redacted copy for a frozen error', () => {
+        const error = Object.freeze(new Error('https://user:secret@example.org/filter.txt'));
+
+        const redactedError = redactErrorCredentials(error) as Error;
+
+        expect(redactedError).not.toBe(error);
+        expect(redactedError.message).toBe('https://example.org/filter.txt');
+    });
+
+    it('keeps the cause of a frozen error', () => {
+        const cause = new Error('https://user:secret@example.org/filter.txt');
+        const error = Object.freeze(new Error(
+            'Request failed for https://user:secret@example.org/filter.txt',
+            { cause },
+        ));
+
+        const redactedError = redactErrorCredentials(error) as Error;
+
+        expect(redactedError).not.toBe(error);
+        expect(redactedError.cause).toBe(cause);
+        expect((redactedError.cause as Error).message).toBe('https://example.org/filter.txt');
+    });
+
+    it('does not fail on a cycle', () => {
+        const error = new Error('Request failed');
+        error.cause = error;
+
+        expect(redactErrorCredentials(error)).toBe(error);
     });
 });
