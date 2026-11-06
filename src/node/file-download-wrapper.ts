@@ -20,7 +20,7 @@ import fs from 'fs';
 
 import { isContentTypeSupported, getContentTypeError } from '../common/content-type';
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
-import { parseUrlCredentials } from '../common/url';
+import { parseUrlCredentials, redactErrorCredentials, redactUrlCredentials } from '../common/url';
 
 /**
  * Result of a prepared HTTP request.
@@ -70,7 +70,9 @@ const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise
 
         return { response, url: sanitizedUrl };
     } catch (error) {
-        throw new Error(`Failed to request url '${sanitizedUrl}'`, { cause: error });
+        throw new Error(`Failed to request url '${redactUrlCredentials(sanitizedUrl)}'`, {
+            cause: redactErrorCredentials(error),
+        });
     }
 };
 
@@ -85,7 +87,7 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
     const { response, url: sanitizedUrl } = await executeRequestAsync(url, 'GET');
 
     if (response.status !== 200) {
-        throw new Error(`Response status for url ${sanitizedUrl} is invalid: ${response.status}`);
+        throw new Error(`Response status for url ${redactUrlCredentials(sanitizedUrl)} is invalid: ${response.status}`);
     }
 
     if (!isContentTypeSupported(response.headers.get('Content-Type'))) {
@@ -96,7 +98,9 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
     try {
         content = await response.text();
     } catch (error) {
-        throw new Error(`Failed to request url '${sanitizedUrl}'`, { cause: error });
+        throw new Error(`Failed to request url '${redactUrlCredentials(sanitizedUrl)}'`, {
+            cause: redactErrorCredentials(error),
+        });
     }
 
     // Capture Last-Modified header
@@ -122,11 +126,15 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
  * and error if rejected.
  */
 const getLocalFile = async (url: string): Promise<FileDownloadResult> => {
-    const content = await fs.promises.readFile(path.resolve(url), 'utf-8');
-    return {
-        content,
-        headers: undefined,
-    };
+    try {
+        const content = await fs.promises.readFile(path.resolve(url), 'utf-8');
+        return {
+            content,
+            headers: undefined,
+        };
+    } catch (error) {
+        throw redactErrorCredentials(error);
+    }
 };
 
 /**

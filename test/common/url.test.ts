@@ -78,6 +78,38 @@ const PARSE_CASES = [
         expected: { url: 'http://A\\@B/filter.txt' },
     },
     {
+        name: 'a url with one slash after the scheme',
+        url: 'https:/user:password@example.org/filter.txt',
+        expected: {
+            url: 'https:/example.org/filter.txt',
+            credentials: { username: 'user', password: 'password' },
+        },
+    },
+    {
+        name: 'a url without slashes after the scheme',
+        url: 'https:user:password@example.org/filter.txt',
+        expected: {
+            url: 'https:example.org/filter.txt',
+            credentials: { username: 'user', password: 'password' },
+        },
+    },
+    {
+        name: 'a url with backslashes after the scheme',
+        url: 'https:\\user:password@example.org\\filter.txt',
+        expected: {
+            url: 'https:\\example.org\\filter.txt',
+            credentials: { username: 'user', password: 'password' },
+        },
+    },
+    {
+        name: 'a url with three slashes after the scheme',
+        url: 'https:///user:password@example.org/filter.txt',
+        expected: {
+            url: 'https:///example.org/filter.txt',
+            credentials: { username: 'user', password: 'password' },
+        },
+    },
+    {
         name: 'an at sign in the userinfo',
         url: 'https://user:p@ss@example.org/filter.txt',
         expected: {
@@ -90,6 +122,17 @@ const PARSE_CASES = [
 describe('parseUrlCredentials', () => {
     it.each(PARSE_CASES)('parses $name', ({ url, expected }) => {
         expect(parseUrlCredentials(url)).toEqual(expected);
+    });
+
+    it.each([
+        'https:/user:password@example.org/filter.txt',
+        'https:user:password@example.org/filter.txt',
+        'https:\\user:password@example.org\\filter.txt',
+        'https:///user:password@example.org/filter.txt',
+    ])('returns a url that fetch accepts for %s', (url) => {
+        const parsedUrl = parseUrlCredentials(url).url;
+
+        expect(new URL(parsedUrl).href).toBe('https://example.org/filter.txt');
     });
 });
 
@@ -124,6 +167,26 @@ const REDACT_CASES = [
         name: 'an at sign in the path',
         text: 'https://example.org/user@example.org/filter.txt',
         expected: 'https://example.org/user@example.org/filter.txt',
+    },
+    {
+        name: 'a url with one slash after the scheme',
+        text: '!include https:/user:password@example.org/filter.txt',
+        expected: '!include https:/example.org/filter.txt',
+    },
+    {
+        name: 'a url without slashes after the scheme',
+        text: '!include https:user:password@example.org/filter.txt',
+        expected: '!include https:example.org/filter.txt',
+    },
+    {
+        name: 'a url with backslashes after the scheme',
+        text: '!include https:\\user:password@example.org\\filter.txt',
+        expected: '!include https:\\example.org\\filter.txt',
+    },
+    {
+        name: 'a url with three slashes after the scheme',
+        text: '!include https:///user:password@example.org/filter.txt',
+        expected: '!include https:///example.org/filter.txt',
     },
     {
         name: 'text without urls',

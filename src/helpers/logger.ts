@@ -47,8 +47,10 @@ export const throwError = (
     }
 
     if (originalError) {
-        const originalErrorMessage = originalError instanceof Error ? originalError.message : String(originalError);
-        errorDetails.push(`\t${originalErrorMessage}`);
+        const originalErrorMessage = originalError instanceof Error
+            ? originalError.message
+            : String(originalError);
+        errorDetails.push(`\t${redactUrlCredentials(originalErrorMessage)}`);
     }
 
     const formattedErrorMessage = mergeErrorDetails(errorDetails);

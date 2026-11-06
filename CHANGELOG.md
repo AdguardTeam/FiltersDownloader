@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Credentials from malformed source URLs no longer appear in error messages,
+  stacks, or error causes. The URL parser now recognizes `https:/`, `https:`,
+  `https:\` and `https:///` forms.
+
 ### Security
 
 ## [3.0.1] - 2026-10-30
