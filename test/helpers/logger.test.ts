@@ -46,6 +46,25 @@ describe('throwError', () => {
         expect(message).not.toContain('secret');
     });
 
+    it.each([
+        { name: 'a single quote', password: "pa'ss" },
+        { name: 'a double quote', password: 'pa"ss' },
+        { name: 'an angle bracket', password: 'pa<ss' },
+    ])('removes $name password from an include directive', ({ password }) => {
+        const rule = `!#include http://user:${password}@example.org/include.txt`;
+        const context = `\t!#include http://user:${password}@example.org/previous.txt`;
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            context,
+        ));
+
+        expect(message).toContain('!#include http://example.org/include.txt');
+        expect(message).toContain('!#include http://example.org/previous.txt');
+        expect(message).not.toContain(password);
+    });
+
     it('keeps rules without credentials unchanged', () => {
         const message = getErrorMessage(() => throwError(
             'Found unexpected condition end:',

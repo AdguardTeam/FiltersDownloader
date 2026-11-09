@@ -6,6 +6,34 @@ import { redactUrlCredentials, stripUrlCredentials } from '../common/url';
 const LINES_BEFORE_DIRECTIVE = 3;
 
 /**
+ * Matches an include directive and the URL that follows it.
+ */
+const INCLUDE_DIRECTIVE_REGEXP = /^(\s*!#include\s+)(\S.*)$/;
+
+/**
+ * Removes the userinfo component from the URL in a rule.
+ *
+ * The generic redaction does not accept every character in the userinfo, for
+ * example quotes, so the URL of an include directive is sanitized as a known
+ * URL first.
+ *
+ * @param rule Rule to redact.
+ *
+ * @returns Rule without the userinfo components.
+ */
+const redactRule = (rule: string): string => {
+    const match = INCLUDE_DIRECTIVE_REGEXP.exec(rule);
+
+    if (!match) {
+        return redactUrlCredentials(rule);
+    }
+
+    const [, directive, url] = match;
+
+    return redactUrlCredentials(`${directive}${stripUrlCredentials(url)}`);
+};
+
+/**
  * Merge an error messages by joining the array strings with a newline character.
  *
  * @param {string[]} messages - The array of message strings to format.
@@ -33,7 +61,7 @@ export const throwError = (
     filterUrl?: string,
     originalError?: unknown,
 ): void => {
-    const sanitizedRule = redactUrlCredentials(errorRule);
+    const sanitizedRule = redactRule(errorRule);
     const errorDetails = [`${errorDescription} '${sanitizedRule}'`];
 
     if (filterUrl) {
@@ -42,7 +70,7 @@ export const throwError = (
 
     if (contextLines) {
         errorDetails.push('Context:');
-        errorDetails.push(redactUrlCredentials(contextLines));
+        errorDetails.push(contextLines.split('\n').map(redactRule).join('\n'));
         errorDetails.push(`\t${sanitizedRule}`);
     }
 
