@@ -16,6 +16,8 @@ import {
 import { PREFERRED_CONTENT_TYPE } from '../../src/common/content-type';
 import { type FileDownloadHeaders } from '../../src/common/types';
 import { FiltersDownloader } from '../../src/index.browser';
+import { getErrorChainText } from '../helpers/get-error-chain-text';
+import { MALFORMED_PASSWORD_CASES } from '../helpers/malformed-password-cases';
 
 const NETWORK_URL = 'https://example.org/filter.txt';
 const LOCAL_URL = 'file:///filters/filter.txt';
@@ -26,32 +28,6 @@ const FILTER_CONTENT = '||example.com^';
 const SUPPORTED_CONTENT_TYPE = 'text/plain';
 const UNSUPPORTED_CONTENT_TYPE = 'application/json';
 const LAST_MODIFIED = 'Wed, 2 Jan 2026 07:28:00 GMT';
-
-/**
- * Passwords with characters that the generic redaction does not accept.
- */
-const MALFORMED_PASSWORD_CASES = [
-    {
-        name: 'a double quote in the password',
-        password: 'pa"ss-secret',
-        leaked: 'pa"ss-secret',
-    },
-    {
-        name: 'an angle bracket in the password',
-        password: 'pa<ss-secret',
-        leaked: 'pa<ss-secret',
-    },
-    {
-        name: 'a single quote in the password',
-        password: "pa'ss-secret",
-        leaked: "pa'ss-secret",
-    },
-    {
-        name: 'a leading space in the password',
-        password: ' pass-secret',
-        leaked: 'pass-secret',
-    },
-];
 
 interface StubHeaders {
     /**
@@ -312,48 +288,6 @@ const XHR_REJECT_CASES: RejectCase[] = [
         contentType: UNSUPPORTED_CONTENT_TYPE,
     },
 ];
-
-/**
- * Collects the message, the stack, the own string properties, the causes, and
- * the nested errors of an error.
- *
- * @param error Error or other value to collect text from.
- *
- * @returns Text of the error and its whole chain.
- */
-const getErrorChainText = (error: unknown): string => {
-    if (typeof error === 'string') {
-        return error;
-    }
-
-    if (!(error instanceof Error)) {
-        return String(error);
-    }
-
-    const parts = [error.message, error.stack ?? ''];
-
-    Object.keys(error).forEach((property) => {
-        const value = (error as unknown as Record<string, unknown>)[property];
-
-        if (typeof value === 'string') {
-            parts.push(value);
-        }
-    });
-
-    const { cause } = error as Error & { cause?: unknown };
-
-    if (cause !== undefined) {
-        parts.push(getErrorChainText(cause));
-    }
-
-    if (error instanceof AggregateError) {
-        error.errors.forEach((nestedError) => {
-            parts.push(getErrorChainText(nestedError));
-        });
-    }
-
-    return parts.join('\n');
-};
 
 describe('browser file download wrapper', () => {
     afterEach(() => {
