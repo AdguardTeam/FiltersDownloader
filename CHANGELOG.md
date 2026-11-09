@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credentials from malformed source URLs no longer appear in error messages,
   stacks, causes, or other error properties, and the URL parser recognizes
   `https:/`, `https:`, `https:\` and `https:///` forms and passwords with
-  `?`, `#`, or spaces.
+  `?`, `#`, or spaces. An at sign in a query or fragment is no longer mistaken
+  for credentials.
 
 ### Security
 
