@@ -46,6 +46,14 @@ export interface ParsedUrl {
 const USERINFO_REGEXP = /^((?:[a-z][a-z0-9+.-]+:[/\\]*)|(?:[/\\]{2,}))([^/\\]*)@/i;
 
 /**
+ * Matches the scheme or the protocol-relative prefix and the userinfo
+ * component of a URL that the WHATWG parser accepts. In such a URL the
+ * authority ends at the first `/`, `\`, `?` or `#`, so an at sign in the query
+ * or fragment is not a userinfo separator.
+ */
+const VALID_USERINFO_REGEXP = /^((?:[a-z][a-z0-9+.-]+:[/\\]*)|(?:[/\\]{2,}))([^/\\?#]*)@/i;
+
+/**
  * Matches a scheme without slashes, for example `https:`.
  */
 const SCHEME_WITHOUT_SLASHES_REGEXP = /^[a-z][a-z0-9+.-]*:$/i;
@@ -68,7 +76,7 @@ const AMBIGUOUS_USERINFO_REGEXP = /[?#\s]/;
  * angle brackets end the userinfo component, so several URLs in one text and
  * a colon in a sentence are not merged into one match.
  */
-const URL_WITH_USERINFO_REGEXP = /((?:[a-z][a-z0-9+.-]+:[/\\]*)|(?:[/\\]{2,}))([^/\\\s<>'"]*)@/gi;
+const URL_WITH_USERINFO_REGEXP = /((?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*)|(?<![/\\])[/\\]{2,})([^/\\\s<>'"]*)@/gi;
 
 /**
  * Matches a URL whose userinfo component contains a colon. The password can
@@ -77,7 +85,7 @@ const URL_WITH_USERINFO_REGEXP = /((?:[a-z][a-z0-9+.-]+:[/\\]*)|(?:[/\\]{2,}))([
  * treated as a credential separator.
  */
 const URL_WITH_COLON_USERINFO_REGEXP = new RegExp(
-    String.raw`((?:[a-z][a-z0-9+.-]+:[/\\]*)|(?:[/\\]{2,}))`
+    String.raw`((?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*)|(?<![/\\])[/\\]{2,})`
     + String.raw`([^/\\\s<>'":?#]+:\S[^/\\<>\n\r'"]*)@`,
     'gi',
 );
@@ -113,7 +121,21 @@ const isCredentialsMatch = (prefix: string, userinfo: string): boolean => {
 };
 
 /**
+ * Matches a protocol-relative URL prefix.
+ */
+const PROTOCOL_RELATIVE_REGEXP = /^[/\\]{2}/;
+
+/**
+ * Base URL used to parse a protocol-relative URL, which the WHATWG parser
+ * cannot parse without a base.
+ */
+const PROTOCOL_RELATIVE_BASE_URL = 'https://example.invalid';
+
+/**
  * Parses a URL with the WHATWG URL parser.
+ *
+ * A protocol-relative URL is parsed against a dummy base, so its authority and
+ * query are recognized too.
  *
  * @param url URL to parse.
  *
@@ -123,7 +145,15 @@ const tryParseUrl = (url: string): URL | undefined => {
     try {
         return new URL(url);
     } catch {
-        return undefined;
+        if (!PROTOCOL_RELATIVE_REGEXP.test(url)) {
+            return undefined;
+        }
+
+        try {
+            return new URL(url, PROTOCOL_RELATIVE_BASE_URL);
+        } catch {
+            return undefined;
+        }
     }
 };
 
@@ -153,13 +183,17 @@ const decodeUserInfo = (value: string): string => {
  * Empty credentials, for example `https://:@example.org`, are treated as no
  * userinfo, as `new URL()` and `fetch` treat such a URL.
  *
+ * When the WHATWG parser accepts the URL, the authority ends at the first
+ * `?`, `#` or whitespace, so an at sign in the query or fragment is not
+ * treated as a userinfo separator.
+ *
  * @param url URL that may contain a username and a password.
  *
  * @returns The URL without userinfo and the credentials, if the URL has
  * userinfo.
  */
 export const parseUrlCredentials = (url: string): ParsedUrl => {
-    const match = USERINFO_REGEXP.exec(url);
+    const match = (tryParseUrl(url) ? VALID_USERINFO_REGEXP : USERINFO_REGEXP).exec(url);
 
     if (!match) {
         return { url };
@@ -210,9 +244,14 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 };
 
 /**
- * Matches a question mark or a hash sign in a userinfo candidate.
+ * Matches whitespace in a userinfo candidate.
  */
-const QUERY_OR_FRAGMENT_REGEXP = /[?#]/;
+const WHITESPACE_REGEXP = /\s/;
+
+/**
+ * Matches a character that ends the authority of a URL.
+ */
+const AUTHORITY_END_REGEXP = /[/\\?#]/;
 
 /**
  * Matches a character that ends a URL in arbitrary text.
@@ -237,29 +276,23 @@ const getUrlCandidate = (text: string, offset: number): string => {
 };
 
 /**
- * Checks whether a URL candidate contains userinfo credentials.
- *
- * @param text Text that contains the URL.
- * @param offset Offset of the URL in the text.
- *
- * @returns `true` if the URL has credentials or cannot be parsed.
- */
-const hasUrlCredentials = (text: string, offset: number): boolean => {
-    const parsedUrl = tryParseUrl(getUrlCandidate(text, offset));
-
-    return parsedUrl === undefined
-        || parsedUrl.username !== ''
-        || parsedUrl.password !== '';
-};
-
-/**
  * Removes the userinfo component from every URL in a text.
+ *
+ * The function is conservative. When a valid URL with credentials is followed
+ * by text that contains an at sign, the text is redacted together with the
+ * URL, because it cannot be told from a malformed password that contains
+ * whitespace and an at sign. Library-generated messages pass the known URL
+ * separately, so their text is not shortened.
  *
  * @param text Text that may contain URLs with credentials.
  *
  * @returns Text without the userinfo components.
  */
 export const redactUrlCredentials = (text: string): string => {
+    if (!text.includes('@')) {
+        return text;
+    }
+
     const redactMatch = (
         match: string,
         prefix: string,
@@ -267,22 +300,50 @@ export const redactUrlCredentials = (text: string): string => {
         offset: number,
         textWithUrl: string,
     ): string => {
-        if (!isCredentialsMatch(prefix, userinfo)) {
+        if (SCHEME_WITHOUT_SLASHES_REGEXP.test(prefix) && !HTTP_SCHEME_REGEXP.test(prefix)) {
             return match;
         }
 
-        // A question mark or a hash sign can end the authority of a valid URL.
-        // When the WHATWG parser accepts the whole URL and finds no
-        // credentials, the at sign is in the query or fragment, not in the
-        // userinfo.
-        if (
-            QUERY_OR_FRAGMENT_REGEXP.test(userinfo)
-            && !hasUrlCredentials(textWithUrl, offset)
-        ) {
+        if (!AMBIGUOUS_USERINFO_REGEXP.test(userinfo)) {
+            return isCredentialsMatch(prefix, userinfo) ? prefix : match;
+        }
+
+        const candidate = getUrlCandidate(textWithUrl, offset);
+        const parsedUrl = tryParseUrl(candidate);
+
+        // A malformed URL cannot be parsed, so the whole ambiguous userinfo
+        // candidate is a malformed userinfo component.
+        if (parsedUrl === undefined) {
+            return prefix;
+        }
+
+        // The WHATWG parser accepts the candidate URL but finds no
+        // credentials, so the at sign is in the query, the fragment or the
+        // following text.
+        if (parsedUrl.username === '' && parsedUrl.password === '') {
             return match;
         }
 
-        return prefix;
+        // Whitespace can be part of a password in a malformed URL, and the
+        // candidate up to the whitespace is a valid URL with credentials, so
+        // the text after the whitespace can belong either to the password or
+        // to the following prose. Redacting the whole match is the only
+        // leak-safe choice.
+        if (WHITESPACE_REGEXP.test(userinfo)) {
+            return prefix;
+        }
+
+        // In a valid URL the authority ends at the first `?` or `#`, so only
+        // the userinfo component of the authority is removed, not the query or
+        // fragment that follows it.
+        const authority = candidate.slice(prefix.length);
+        const authorityEnd = authority.search(AUTHORITY_END_REGEXP);
+        const authorityText = authorityEnd === -1
+            ? authority
+            : authority.slice(0, authorityEnd);
+        const atSignIndex = authorityText.lastIndexOf('@');
+
+        return `${prefix}${match.slice(prefix.length + atSignIndex + 1)}`;
     };
 
     return text
@@ -419,7 +480,8 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
  * @param seen Errors that are already processed, used to stop on cycles.
  * @param knownUrl URL that can contain any character in the userinfo.
  *
- * @returns The same value with redacted error messages.
+ * @returns The same value, or a redacted copy if it cannot be changed in
+ * place.
  */
 export const redactErrorCredentials = (
     error: unknown,
@@ -455,7 +517,7 @@ export const redactErrorCredentials = (
         redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
     }
 
-    const { cause } = error as Error & { cause?: unknown };
+    const { cause } = error;
     if (cause !== undefined) {
         const redactedCause = redactErrorCredentials(cause, seen, knownUrl);
 
@@ -469,10 +531,6 @@ export const redactErrorCredentials = (
     }
 
     if (error instanceof AggregateError) {
-        if (!(redactedError instanceof AggregateError)) {
-            redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
-        }
-
         const redactedErrors = error.errors.map(
             (nestedError) => redactErrorCredentials(nestedError, seen, knownUrl),
         );

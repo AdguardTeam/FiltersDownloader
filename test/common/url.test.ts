@@ -170,6 +170,53 @@ const PARSE_CASES = [
         url: 'https://[::1]:8080?x@y',
         expected: { url: 'https://[::1]:8080?x@y' },
     },
+    {
+        name: 'credentials and an at sign in the query without a path',
+        url: 'https://user:password@example.org?email=user@example.com',
+        expected: {
+            url: 'https://example.org?email=user@example.com',
+            credentials: { username: 'user', password: 'password' },
+        },
+    },
+    {
+        name: 'credentials and an at sign in the fragment without a path',
+        url: 'https://user:password@example.org#user@example.com',
+        expected: {
+            url: 'https://example.org#user@example.com',
+            credentials: { username: 'user', password: 'password' },
+        },
+    },
+    {
+        name: 'a username and an at sign in the query without a path',
+        url: 'https://user@example.org?email=user2@example.com',
+        expected: {
+            url: 'https://example.org?email=user2@example.com',
+            credentials: { username: 'user', password: '' },
+        },
+    },
+    {
+        name: 'an at sign in the password and in the query',
+        url: 'https://user:p@ss@example.org?x=@y',
+        expected: {
+            url: 'https://example.org?x=@y',
+            credentials: { username: 'user', password: 'p@ss' },
+        },
+    },
+    {
+        name: 'a protocol-relative port and an at sign in the query',
+        url: '//example.org:8080?x@y',
+        expected: { url: '//example.org:8080?x@y' },
+    },
+    {
+        name: 'a protocol-relative port and an at sign in the fragment',
+        url: '//example.org:8080#x@y',
+        expected: { url: '//example.org:8080#x@y' },
+    },
+    {
+        name: 'a protocol-relative ipv6 authority and an at sign in the query',
+        url: '//[::1]:8080?x@y',
+        expected: { url: '//[::1]:8080?x@y' },
+    },
 ];
 
 describe('parseUrlCredentials', () => {
@@ -287,6 +334,49 @@ const REDACT_CASES = [
         expected: 'https://[::1]:8080?x@y',
     },
     {
+        name: 'credentials and an at sign in a query without a path',
+        text: "Failed to request url 'https://user:password@example.org?email=user@example.com'",
+        expected: "Failed to request url 'https://example.org?email=user@example.com'",
+    },
+    {
+        name: 'credentials and an at sign in a fragment without a path',
+        text: "Failed to request url 'https://user:password@example.org#user@example.com'",
+        expected: "Failed to request url 'https://example.org#user@example.com'",
+    },
+    {
+        name: 'a username and an at sign in a query without a path',
+        text: "Failed to request url 'https://user@example.org?email=user2@example.com'",
+        expected: "Failed to request url 'https://example.org?email=user2@example.com'",
+    },
+    {
+        name: 'an at sign in the password and in the query',
+        text: "Failed to request url 'https://user:p@ss@example.org?x=@y'",
+        expected: "Failed to request url 'https://example.org?x=@y'",
+    },
+    {
+        name: 'a protocol-relative port and an at sign in a query',
+        text: 'see //example.org:8080?x@y',
+        expected: 'see //example.org:8080?x@y',
+    },
+    {
+        name: 'a protocol-relative port and an at sign in a fragment',
+        text: 'see //example.org:8080#x@y',
+        expected: 'see //example.org:8080#x@y',
+    },
+    {
+        name: 'prose after a url with a port',
+        text: 'See https://example.org:8080 and user@example.org',
+        expected: 'See https://example.org:8080 and user@example.org',
+    },
+    {
+        // A valid URL with credentials followed by prose is indistinguishable
+        // from a malformed password that contains a space and an at sign, so
+        // the whole match is redacted to avoid leaking the password fragment.
+        name: 'a valid url with credentials followed by prose with an at sign',
+        text: 'see https://user:pass@example.org and admin@example.org',
+        expected: 'see https://example.org',
+    },
+    {
         name: 'a non-http scheme without slashes',
         text: 'mailto:someone@example.com',
         expected: 'mailto:someone@example.com',
@@ -306,6 +396,18 @@ const REDACT_CASES = [
 describe('redactUrlCredentials', () => {
     it.each(REDACT_CASES)('redacts $name', ({ text, expected }) => {
         expect(redactUrlCredentials(text)).toBe(expected);
+    });
+
+    it('returns a long text without an at sign unchanged', () => {
+        const text = '/'.repeat(32000);
+
+        expect(redactUrlCredentials(text)).toBe(text);
+    });
+
+    it('redacts a long slash run with an at sign quickly', () => {
+        const slashes = '/'.repeat(100000);
+
+        expect(redactUrlCredentials(`${slashes}@x`)).toBe(`${slashes}x`);
     });
 });
 
