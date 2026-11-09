@@ -133,7 +133,7 @@ const getLocalFile = async (url: string): Promise<FileDownloadResult> => {
             headers: undefined,
         };
     } catch (error) {
-        throw redactErrorCredentials(error);
+        throw redactErrorCredentials(error, undefined, url);
     }
 };
 
