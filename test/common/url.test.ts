@@ -282,6 +282,27 @@ describe('stripUrlCredentials', () => {
     it.each(PARSE_CASES)('returns the url without userinfo for $name', ({ url, expected }) => {
         expect(stripUrlCredentials(url)).toBe(expected.url);
     });
+
+    it('removes credentials from a url inside a path', () => {
+        const pathWithUrl = '/filters/https:/user:pa"ss-secret@example.org/filter.txt';
+
+        expect(stripUrlCredentials(pathWithUrl))
+            .toBe('/filters/https:/example.org/filter.txt');
+    });
+
+    it('removes credentials from a url inside a windows path', () => {
+        const pathWithUrl = 'C:\\filters\\https:\\user:pa"ss-secret@example.org\\filter.txt';
+
+        expect(stripUrlCredentials(pathWithUrl))
+            .toBe('C:\\filters\\https:\\example.org\\filter.txt');
+    });
+
+    it('removes credentials from the first embedded url that has them', () => {
+        const pathWithUrls = '/filters/https://example.org/https:/user:pa"ss-secret@example.org/filter.txt';
+
+        expect(stripUrlCredentials(pathWithUrls))
+            .toBe('/filters/https://example.org/https:/example.org/filter.txt');
+    });
 });
 
 const REDACT_CASES = [
@@ -538,5 +559,60 @@ describe('redactErrorCredentials', () => {
         error.cause = error;
 
         expect(redactErrorCredentials(error)).toBe(error);
+    });
+
+    it('redacts a known url with a space in the username', () => {
+        const url = 'https://user name:secret@example.org/filter.txt';
+        const error = new Error(`Failed to fetch ${url}`);
+
+        redactErrorCredentials(error, undefined, url);
+
+        expect(error.message).toBe('Failed to fetch https://example.org/filter.txt');
+    });
+
+    it('redacts a known url inside a path', () => {
+        const url = '/filters/https:/user:pa"ss-secret@example.org/filter.txt';
+        const error = Object.assign(new Error(`Cannot open ${url}`), { path: url });
+
+        redactErrorCredentials(error, undefined, url);
+
+        expect(error.message).toBe('Cannot open /filters/https:/example.org/filter.txt');
+        expect(error.path).toBe('/filters/https:/example.org/filter.txt');
+    });
+
+    it('redacts a known url and its resolved path', () => {
+        const url = "https:/user:pa'ss-secret@example.org//list.txt";
+        const sanitizedUrl = 'https:/example.org//list.txt';
+        const resolvedUrl = "/cwd/https:/user:pa'ss-secret@example.org/list.txt";
+        const resolvedSanitizedUrl = '/cwd/https:/example.org/list.txt';
+        const error = Object.assign(new Error(`ENOENT: open '${resolvedUrl}'`), {
+            path: resolvedUrl,
+        });
+
+        redactErrorCredentials(error, undefined, [
+            [resolvedUrl, resolvedSanitizedUrl],
+            [url, sanitizedUrl],
+        ]);
+
+        expect(error.message).toBe(`ENOENT: open '${resolvedSanitizedUrl}'`);
+        expect(error.path).toBe(resolvedSanitizedUrl);
+    });
+
+    it('redacts a known url and its windows resolved path', () => {
+        const url = 'https:/user:pa"ss-secret@example.org/filter.txt';
+        const sanitizedUrl = 'https:/example.org/filter.txt';
+        const resolvedUrl = 'C:\\cwd\\https:\\user:pa"ss-secret@example.org\\filter.txt';
+        const resolvedSanitizedUrl = 'C:\\cwd\\https:\\example.org\\filter.txt';
+        const error = Object.assign(new Error(`ENOENT: open '${resolvedUrl}'`), {
+            path: resolvedUrl,
+        });
+
+        redactErrorCredentials(error, undefined, [
+            [resolvedUrl, resolvedSanitizedUrl],
+            [url, sanitizedUrl],
+        ]);
+
+        expect(error.message).toBe(`ENOENT: open '${resolvedSanitizedUrl}'`);
+        expect(error.path).toBe(resolvedSanitizedUrl);
     });
 });

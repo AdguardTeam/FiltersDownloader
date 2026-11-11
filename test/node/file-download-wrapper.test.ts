@@ -385,9 +385,19 @@ describe('Node file download wrapper', () => {
                 url: 'https:/user:pa ss@example.org/filter.txt',
                 leaked: 'pa ss',
             },
+            {
+                name: 'a normalized double slash',
+                url: "https:/user:pa'ss-secret@example.org//list.txt",
+                leaked: "pa'ss-secret",
+            },
             ...MALFORMED_PASSWORD_CASES.map(({ name, password, leaked }) => ({
                 name,
                 url: `https:/user:${password}@example.org/filter.txt`,
+                leaked,
+            })),
+            ...MALFORMED_PASSWORD_CASES.map(({ name, password, leaked }) => ({
+                name: `a directory prefix and ${name}`,
+                url: `/filters/https:/user:${password}@example.org/filter.txt`,
                 leaked,
             })),
         ])('does not leak credentials from a local path error with $name', async ({ url, leaked }) => {

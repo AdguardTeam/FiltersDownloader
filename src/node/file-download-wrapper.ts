@@ -20,7 +20,12 @@ import fs from 'fs';
 
 import { isContentTypeSupported, getContentTypeError } from '../common/content-type';
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
-import { parseUrlCredentials, redactErrorCredentials, redactUrlCredentials } from '../common/url';
+import {
+    parseUrlCredentials,
+    redactErrorCredentials,
+    redactUrlCredentials,
+    stripUrlCredentials,
+} from '../common/url';
 
 /**
  * Result of a prepared HTTP request.
@@ -133,7 +138,12 @@ const getLocalFile = async (url: string): Promise<FileDownloadResult> => {
             headers: undefined,
         };
     } catch (error) {
-        throw redactErrorCredentials(error, undefined, url);
+        const sanitizedUrl = stripUrlCredentials(url);
+
+        throw redactErrorCredentials(error, undefined, [
+            [path.resolve(url), path.resolve(sanitizedUrl)],
+            [url, sanitizedUrl],
+        ]);
     }
 };
 

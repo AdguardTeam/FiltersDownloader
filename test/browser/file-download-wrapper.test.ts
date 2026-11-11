@@ -827,8 +827,18 @@ describe('browser file download wrapper', () => {
             expect(getErrorChainText(error)).not.toContain(leaked);
         });
 
-        it('should not leak credentials from a local path', async () => {
-            const url = '/filters/https:/user:secret@example.org/filter.txt';
+        it.each([
+            {
+                name: 'a password',
+                url: '/filters/https:/user:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+            ...MALFORMED_PASSWORD_CASES.map(({ name, password, leaked }) => ({
+                name,
+                url: `/filters/https:/user:${password}@example.org/filter.txt`,
+                leaked,
+            })),
+        ])('should not leak credentials from a local path with $name', async ({ url, leaked }) => {
             const xhrConstructor = createXhrConstructor({
                 responseUrl: LOCAL_URL,
                 openError: new Error(`Cannot open ${url}`),
@@ -838,7 +848,7 @@ describe('browser file download wrapper', () => {
             const error = await getLocalFile(url).catch((e: unknown) => e);
 
             expect(error).toBeInstanceOf(Error);
-            expect(getErrorChainText(error)).not.toContain('secret');
+            expect(getErrorChainText(error)).not.toContain(leaked);
         });
     });
 });

@@ -278,6 +278,41 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 };
 
 /**
+ * Matches the start of a URL inside a path or other text. The scheme needs at
+ * least two characters, so a Windows drive letter is not a scheme.
+ */
+const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2,})/gi;
+
+/**
+ * Removes the userinfo component from a URL.
+ *
+ * The URL can start at the beginning of the value or inside a path, for
+ * example `/filters/https:/user:password@example.org/filter.txt`.
+ *
+ * @param url URL that may contain a username and a password.
+ *
+ * @returns URL or path without the userinfo component.
+ */
+export const stripUrlCredentials = (url: string): string => {
+    const parsedUrl = parseUrlCredentials(url);
+
+    if (parsedUrl.url !== url) {
+        return parsedUrl.url;
+    }
+
+    for (const match of url.matchAll(EMBEDDED_URL_REGEXP)) {
+        const urlPart = url.slice(match.index);
+        const sanitizedUrl = parseUrlCredentials(urlPart).url;
+
+        if (sanitizedUrl !== urlPart) {
+            return `${url.slice(0, match.index)}${sanitizedUrl}`;
+        }
+    }
+
+    return url;
+};
+
+/**
  * Matches whitespace in a userinfo candidate.
  */
 const WHITESPACE_REGEXP = /\s/;
@@ -398,6 +433,33 @@ export const redactUrlCredentials = (text: string): string => {
 };
 
 /**
+ * Replacement for a URL or a path that contains a URL: the original value and
+ * the value without the userinfo component.
+ */
+export type KnownUrlReplacement = readonly [value: string, sanitizedValue: string];
+
+/**
+ * Returns the known URL replacements for a string or a replacement list.
+ *
+ * @param knownUrl Known URL or replacement list.
+ *
+ * @returns Replacement list.
+ */
+const getKnownUrlReplacements = (
+    knownUrl?: string | readonly KnownUrlReplacement[],
+): readonly KnownUrlReplacement[] => {
+    if (knownUrl === undefined) {
+        return [];
+    }
+
+    if (typeof knownUrl === 'string') {
+        return [[knownUrl, stripUrlCredentials(knownUrl)]];
+    }
+
+    return knownUrl;
+};
+
+/**
  * Removes the credentials from a known URL value in a text and from the other
  * URL forms in the text.
  *
@@ -405,21 +467,25 @@ export const redactUrlCredentials = (text: string): string => {
  * the userinfo, for example quotes, so a known URL is replaced first.
  *
  * @param text Text to redact.
- * @param knownUrl URL that can contain any character in the userinfo.
+ * @param knownUrl URL that can contain any character in the userinfo, or a
+ * list of replacements for a path that contains the URL.
  *
  * @returns Redacted text.
  */
-const redactKnownUrlText = (text: string, knownUrl?: string): string => {
-    if (knownUrl === undefined) {
-        return redactUrlCredentials(text);
-    }
+const redactKnownUrlText = (
+    text: string,
+    knownUrl?: string | readonly KnownUrlReplacement[],
+): string => {
+    const replacements = getKnownUrlReplacements(knownUrl)
+        .filter(([value, sanitizedValue]) => value !== '' && value !== sanitizedValue)
+        .sort(([firstValue], [secondValue]) => secondValue.length - firstValue.length);
 
-    const sanitizedUrl = parseUrlCredentials(knownUrl).url;
-    const textWithSanitizedUrl = sanitizedUrl === knownUrl
-        ? text
-        : text.split(knownUrl).join(sanitizedUrl);
+    const textWithSanitizedUrls = replacements.reduce(
+        (result, [value, sanitizedValue]) => result.split(value).join(sanitizedValue),
+        text,
+    );
 
-    return redactUrlCredentials(textWithSanitizedUrl);
+    return redactUrlCredentials(textWithSanitizedUrls);
 };
 
 /**
@@ -464,11 +530,15 @@ const setErrorProperty = (error: Error, property: string, value: unknown): boole
  * properties of an `fs` error must not keep the userinfo component.
  *
  * @param error Error to change.
- * @param knownUrl URL that can contain any character in the userinfo.
+ * @param knownUrl URL that can contain any character in the userinfo, or a
+ * list of replacements for a path that contains the URL.
  *
  * @returns `true` if all properties are redacted.
  */
-const redactErrorProperties = (error: Error, knownUrl?: string): boolean => {
+const redactErrorProperties = (
+    error: Error,
+    knownUrl?: string | readonly KnownUrlReplacement[],
+): boolean => {
     let isRedacted = true;
 
     Object.keys(error).forEach((property) => {
@@ -524,7 +594,8 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
  *
  * @param error Error or other value to redact.
  * @param seen Errors that are already processed, used to stop on cycles.
- * @param knownUrl URL that can contain any character in the userinfo.
+ * @param knownUrl URL that can contain any character in the userinfo, or a
+ * list of replacements for a path that contains the URL.
  *
  * @returns The same value, or a redacted copy if it cannot be changed in
  * place.
@@ -532,7 +603,7 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
 export const redactErrorCredentials = (
     error: unknown,
     seen = new WeakSet<object>(),
-    knownUrl?: string,
+    knownUrl?: string | readonly KnownUrlReplacement[],
 ): unknown => {
     if (typeof error === 'string') {
         return redactKnownUrlText(error, knownUrl);
@@ -586,12 +657,3 @@ export const redactErrorCredentials = (
 
     return redactedError;
 };
-
-/**
- * Removes the userinfo component from a URL.
- *
- * @param url URL that may contain a username and a password.
- *
- * @returns URL without the userinfo component.
- */
-export const stripUrlCredentials = (url: string): string => parseUrlCredentials(url).url;
