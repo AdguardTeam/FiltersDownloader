@@ -297,36 +297,51 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2,})/gi;
 
 /**
- * Removes the userinfo component from a URL.
+ * Removes the userinfo component from every URL in a value.
  *
- * The URL can start at the beginning of the value or inside a path, for
- * example `/filters/https:/user:password@example.org/filter.txt`.
+ * A URL can start at the beginning of the value or inside a path, for example
+ * `/filters/https:/user:password@example.org/filter.txt`. An error line can
+ * contain several URLs, so the function processes every one of them.
  *
- * @param url URL that may contain a username and a password.
+ * @param url Value that may contain URLs with a username and a password.
  *
- * @returns URL or path without the userinfo component.
+ * @returns Value without the userinfo components.
  */
 export const stripUrlCredentials = (url: string): string => {
     if (!url.includes('@')) {
         return url;
     }
 
-    const parsedUrl = parseUrlCredentials(url);
-
-    if (parsedUrl.url !== url) {
-        return parsedUrl.url;
-    }
+    let result = '';
+    let lastIndex = 0;
 
     for (const match of url.matchAll(EMBEDDED_URL_REGEXP)) {
-        const urlPart = url.slice(match.index);
+        const { index = 0 } = match;
+
+        if (index < lastIndex) {
+            continue;
+        }
+
+        const urlPart = url.slice(index);
         const sanitizedUrl = parseUrlCredentials(urlPart).url;
 
-        if (sanitizedUrl !== urlPart) {
-            return `${url.slice(0, match.index)}${sanitizedUrl}`;
+        if (sanitizedUrl === urlPart) {
+            continue;
         }
+
+        // The parser removed the userinfo component and the at sign from the
+        // URL that starts at the match. The rest of the value is unchanged.
+        const userinfoEnd = match[0].length + urlPart.length - sanitizedUrl.length;
+
+        result += url.slice(lastIndex, index) + match[0];
+        lastIndex = index + userinfoEnd;
     }
 
-    return url;
+    if (lastIndex === 0) {
+        return url;
+    }
+
+    return result + url.slice(lastIndex);
 };
 
 /**

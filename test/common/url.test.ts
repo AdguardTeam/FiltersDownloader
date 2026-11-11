@@ -319,6 +319,18 @@ describe('stripUrlCredentials', () => {
         expect(stripUrlCredentials(pathWithUrls))
             .toBe('/filters/https://example.org/https:/example.org/filter.txt');
     });
+
+    it('removes credentials from every embedded url', () => {
+        const line = '! a https://user:pa"ss1@a.org/x https://user:pa\'ss2@b.org/y';
+
+        expect(stripUrlCredentials(line)).toBe('! a https://a.org/x https://b.org/y');
+    });
+
+    it('removes credentials from an url at the start and an embedded url', () => {
+        const line = 'https://user:pa"ss1@a.org/x https://user:pa\'ss2@b.org/y';
+
+        expect(stripUrlCredentials(line)).toBe('https://a.org/x https://b.org/y');
+    });
 });
 
 const REDACT_CASES = [

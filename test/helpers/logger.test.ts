@@ -89,6 +89,20 @@ describe('throwError', () => {
         expect(message).not.toContain(password);
     });
 
+    it('removes credentials from every url in a context line', () => {
+        const context = '\t! a https://user:pa"ss1@example.org/x https://user:pa\'ss2@example.org/y';
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            context,
+        ));
+
+        expect(message).toContain('\t! a https://example.org/x https://example.org/y');
+        expect(message).not.toContain('ss1');
+        expect(message).not.toContain('ss2');
+    });
+
     it('keeps rules without credentials unchanged', () => {
         const message = getErrorMessage(() => throwError(
             'Found unexpected condition end:',
