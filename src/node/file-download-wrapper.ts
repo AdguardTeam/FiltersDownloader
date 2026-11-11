@@ -71,7 +71,7 @@ const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise
         return { response, url: sanitizedUrl };
     } catch (error) {
         throw new Error(`Failed to request url '${redactUrlCredentials(sanitizedUrl)}'`, {
-            cause: redactErrorCredentials(error),
+            cause: redactErrorCredentials(error, undefined, url),
         });
     }
 };

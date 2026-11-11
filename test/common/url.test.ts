@@ -135,6 +135,38 @@ const PARSE_CASES = [
         },
     },
     {
+        name: 'a space in the username',
+        url: 'https://user name:password@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'user name', password: 'password' },
+        },
+    },
+    {
+        name: 'a hash at the start of the password',
+        url: 'https://admin:#Secret1@example.org/list.txt',
+        expected: {
+            url: 'https://example.org/list.txt',
+            credentials: { username: 'admin', password: '#Secret1' },
+        },
+    },
+    {
+        name: 'a question mark at the start of the password',
+        url: 'https://admin:?Secret1@example.org/list.txt',
+        expected: {
+            url: 'https://example.org/list.txt',
+            credentials: { username: 'admin', password: '?Secret1' },
+        },
+    },
+    {
+        name: 'a protocol-relative hash at the start of the password',
+        url: '//admin:#Secret1@example.org/list.txt',
+        expected: {
+            url: '//example.org/list.txt',
+            credentials: { username: 'admin', password: '#Secret1' },
+        },
+    },
+    {
         name: 'an at sign and a space in the password',
         url: 'https://user:pa@ss word@example.org/filter.txt',
         expected: {
@@ -364,9 +396,32 @@ const REDACT_CASES = [
         expected: 'see //example.org:8080#x@y',
     },
     {
+        // A port before the whitespace is indistinguishable from the first
+        // word of a numeric password, so the text is redacted to prevent a
+        // leak. The host in the redacted text can be wrong, but it is safe.
         name: 'prose after a url with a port',
         text: 'See https://example.org:8080 and user@example.org',
-        expected: 'See https://example.org:8080 and user@example.org',
+        expected: 'See https://example.org',
+    },
+    {
+        name: 'a password that starts with a number and contains a space',
+        text: '! Source: https://user:123 secret@example.org/list.txt',
+        expected: '! Source: https://example.org/list.txt',
+    },
+    {
+        name: 'a hash at the start of the password',
+        text: "Failed to request url 'https://admin:#Secret1@example.org/list.txt'",
+        expected: "Failed to request url 'https://example.org/list.txt'",
+    },
+    {
+        name: 'a question mark at the start of the password',
+        text: "Failed to request url 'https://admin:?Secret1@example.org/list.txt'",
+        expected: "Failed to request url 'https://example.org/list.txt'",
+    },
+    {
+        name: 'a protocol-relative hash at the start of the password',
+        text: 'see //admin:#Secret1@example.org/list.txt',
+        expected: 'see //example.org/list.txt',
     },
     {
         // A valid URL with credentials followed by prose is indistinguishable

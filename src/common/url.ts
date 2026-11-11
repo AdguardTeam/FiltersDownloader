@@ -70,6 +70,18 @@ const HTTP_SCHEME_REGEXP = /^https?:$/i;
 const AMBIGUOUS_USERINFO_REGEXP = /[?#\s]/;
 
 /**
+ * Matches malformed userinfo where a colon comes directly before `?` or `#`.
+ * This form never occurs in a valid URL, so it is safe to treat it as
+ * credentials even when the WHATWG parser accepts the URL as a host with a
+ * query or a fragment.
+ *
+ * A password that starts with digits and then contains `?` or `#`, for
+ * example `admin:2024#Secret1`, is not recognized: it has the same form as a
+ * host with a port and a fragment.
+ */
+const MALFORMED_USERINFO_REGEXP = /^[^:?#\s]*:[?#]/;
+
+/**
  * Matches a URL with a userinfo component inside arbitrary text. The prefix
  * must contain a scheme or at least two slashes, so an at sign in a plain path
  * or a rule is not treated as a userinfo separator. Whitespace, quotes and
@@ -184,8 +196,9 @@ const decodeUserInfo = (value: string): string => {
  * userinfo, as `new URL()` and `fetch` treat such a URL.
  *
  * When the WHATWG parser accepts the URL, the authority ends at the first
- * `?`, `#` or whitespace, so an at sign in the query or fragment is not
- * treated as a userinfo separator.
+ * `/`, `\`, `?` or `#`, so an at sign in the query or fragment is not treated
+ * as a userinfo separator. The parser also accepts whitespace in the
+ * username, so its userinfo is used when the URL has one.
  *
  * @param url URL that may contain a username and a password.
  *
@@ -193,7 +206,22 @@ const decodeUserInfo = (value: string): string => {
  * userinfo.
  */
 export const parseUrlCredentials = (url: string): ParsedUrl => {
-    const match = (tryParseUrl(url) ? VALID_USERINFO_REGEXP : USERINFO_REGEXP).exec(url);
+    const parsedUrl = tryParseUrl(url);
+
+    let match = (parsedUrl ? VALID_USERINFO_REGEXP : USERINFO_REGEXP).exec(url);
+
+    // A URL that the WHATWG parser accepts can hide malformed userinfo behind
+    // `?` or `#`, for example `https://admin:#Secret1@example.org`. The parser
+    // treats `admin` as the host and the rest as the fragment. A colon
+    // directly before `?` or `#` never occurs in a valid userinfo, so use the
+    // broad match for this form.
+    if (!match && parsedUrl) {
+        const malformedMatch = USERINFO_REGEXP.exec(url);
+
+        if (malformedMatch && MALFORMED_USERINFO_REGEXP.test(malformedMatch[2])) {
+            match = malformedMatch;
+        }
+    }
 
     if (!match) {
         return { url };
@@ -201,26 +229,32 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 
     const [, prefix, userinfo] = match;
 
-    if (!isCredentialsMatch(prefix, userinfo)) {
-        return { url };
-    }
+    // The WHATWG parser accepts a whitespace in the username, which the
+    // conservative match rejects, so prefer the userinfo that it finds.
+    const parsedCredentials = parsedUrl
+        && (parsedUrl.username !== '' || parsedUrl.password !== '')
+        ? {
+            username: decodeUserInfo(parsedUrl.username),
+            password: decodeUserInfo(parsedUrl.password),
+        }
+        : undefined;
 
-    // The WHATWG parser accepts valid URLs with a port and an at sign in the
-    // query or fragment, for example `https://example.org:8080?x@y`. In such a
-    // URL the at sign is not a userinfo separator. Only an empty userinfo
-    // component is still removed, for example `https://@example.org`.
-    const parsedUrl = tryParseUrl(url);
     if (
-        parsedUrl
-        && parsedUrl.username === ''
-        && parsedUrl.password === ''
-        && userinfo !== ''
-        && userinfo !== ':'
+        parsedCredentials === undefined
+        && !MALFORMED_USERINFO_REGEXP.test(userinfo)
+        && !isCredentialsMatch(prefix, userinfo)
     ) {
         return { url };
     }
 
     const sanitizedUrl = `${prefix}${url.slice(match[0].length)}`;
+
+    if (parsedCredentials) {
+        return {
+            url: sanitizedUrl,
+            credentials: parsedCredentials,
+        };
+    }
 
     const separatorIndex = userinfo.indexOf(':');
     const username = decodeUserInfo(separatorIndex === -1
@@ -305,7 +339,14 @@ export const redactUrlCredentials = (text: string): string => {
         }
 
         if (!AMBIGUOUS_USERINFO_REGEXP.test(userinfo)) {
-            return isCredentialsMatch(prefix, userinfo) ? prefix : match;
+            return prefix;
+        }
+
+        // A colon directly before `?` or `#` is malformed userinfo. The WHATWG
+        // parser treats this form as a host with an empty port and a query or
+        // a fragment, so it cannot detect the credentials.
+        if (MALFORMED_USERINFO_REGEXP.test(userinfo)) {
+            return prefix;
         }
 
         const candidate = getUrlCandidate(textWithUrl, offset);
@@ -318,10 +359,15 @@ export const redactUrlCredentials = (text: string): string => {
         }
 
         // The WHATWG parser accepts the candidate URL but finds no
-        // credentials, so the at sign is in the query, the fragment or the
-        // following text.
+        // credentials. The at sign is in the query, the fragment or the
+        // following text. However, a candidate that ends at a port and is
+        // followed by text after whitespace can be a password whose first word
+        // is a number, for example `https://user:123 secret@example.org`.
+        // Redacting is the leak-safe choice.
         if (parsedUrl.username === '' && parsedUrl.password === '') {
-            return match;
+            return WHITESPACE_REGEXP.test(userinfo) && parsedUrl.port !== ''
+                ? prefix
+                : match;
         }
 
         // Whitespace can be part of a password in a malformed URL, and the

@@ -409,6 +409,20 @@ describe('browser file download wrapper', () => {
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain(leaked);
         });
+
+        it('should not leak credentials when the username contains a space', async () => {
+            const url = 'https://user name:secret@example.org/filter.txt';
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(`Cannot fetch ${url}`, 'SecurityError'),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
+        });
     });
 
     describe('HEAD path', () => {

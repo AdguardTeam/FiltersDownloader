@@ -62,6 +62,11 @@ const CREDENTIALS_CASES = [
         url: `http://user:pa ss@example.org${TEST_PATH}`,
         authorization: basicAuth('user:pa ss'),
     },
+    {
+        name: 'a space in the username',
+        url: `http://user name:password@example.org${TEST_PATH}`,
+        authorization: basicAuth('user name:password'),
+    },
 ];
 
 describe('Node file download wrapper', () => {
@@ -123,6 +128,35 @@ describe('Node file download wrapper', () => {
 
             expect(result.content).toBe(FILTER_CONTENT);
             expect(requestPath).toBe(TEST_PATH);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it.each([
+            {
+                name: 'a hash at the start of the password',
+                url: 'http://admin:#Secret1@example.org/list.txt',
+                path: '/list.txt',
+                authorization: basicAuth('admin:#Secret1'),
+            },
+            {
+                name: 'a question mark at the start of the password',
+                url: 'http://admin:?Secret1@example.org/list.txt',
+                path: '/list.txt',
+                authorization: basicAuth('admin:?Secret1'),
+            },
+        ])('sends $name to the sanitized URL with Basic auth', async ({
+            url,
+            path,
+            authorization,
+        }) => {
+            const scope = nock(TEST_HOST)
+                .get(path)
+                .matchHeader('Authorization', authorization)
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile(url);
+
+            expect(result.content).toBe(FILTER_CONTENT);
             expect(scope.isDone()).toBe(true);
         });
 
@@ -188,6 +222,11 @@ describe('Node file download wrapper', () => {
                 name: 'a space in the password',
                 url: 'https://user:pa ss@example.org/filter.txt',
                 leaked: 'pa ss',
+            },
+            {
+                name: 'a space in the username',
+                url: 'https://user name:secret@example.org/filter.txt',
+                leaked: 'secret',
             },
         ])('does not leak credentials from any URL form with $name', async ({ url, leaked }) => {
             const fetchMock = vi.fn().mockRejectedValue(
