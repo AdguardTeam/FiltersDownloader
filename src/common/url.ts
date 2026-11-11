@@ -172,16 +172,23 @@ const tryParseUrl = (url: string): URL | undefined => {
 /**
  * Decodes a percent-encoded userinfo component.
  *
- * @param value Percent-encoded userinfo component.
+ * The WHATWG parser encodes a literal `%` as `%25`, but it keeps a `%` that is
+ * not a valid escape sequence. For example, the password `50% off` becomes
+ * `50%%20off`, which cannot be decoded. In this case the raw value is used, so
+ * the credentials are sent as typed.
  *
- * @returns Decoded value, or the original value if the percent-encoding is
+ * @param value Percent-encoded userinfo component.
+ * @param rawValue Raw userinfo component, used if the percent-encoding is
+ * malformed.
+ *
+ * @returns Decoded value, or the raw value if the percent-encoding is
  * malformed.
  */
-const decodeUserInfo = (value: string): string => {
+const decodeUserInfo = (value: string, rawValue = value): string => {
     try {
         return decodeURIComponent(value);
     } catch {
-        return value;
+        return rawValue;
     }
 };
 
@@ -198,7 +205,8 @@ const decodeUserInfo = (value: string): string => {
  * When the WHATWG parser accepts the URL, the authority ends at the first
  * `/`, `\`, `?` or `#`, so an at sign in the query or fragment is not treated
  * as a userinfo separator. The parser also accepts whitespace in the
- * username, so its userinfo is used when the URL has one.
+ * username, so its userinfo is used when the URL has one. A literal `%` in a
+ * credential makes the decoded part unusable, so the raw part is used then.
  *
  * @param url URL that may contain a username and a password.
  *
@@ -229,13 +237,23 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 
     const [, prefix, userinfo] = match;
 
+    const separatorIndex = userinfo.indexOf(':');
+    const rawUsername = separatorIndex === -1
+        ? userinfo
+        : userinfo.slice(0, separatorIndex);
+    const rawPassword = separatorIndex === -1
+        ? ''
+        : userinfo.slice(separatorIndex + 1);
+
     // The WHATWG parser accepts a whitespace in the username, which the
-    // conservative match rejects, so prefer the userinfo that it finds.
+    // conservative match rejects, so prefer the userinfo that it finds. A
+    // literal `%` makes the decoded part unusable, so the raw part is used
+    // then.
     const parsedCredentials = parsedUrl
         && (parsedUrl.username !== '' || parsedUrl.password !== '')
         ? {
-            username: decodeUserInfo(parsedUrl.username),
-            password: decodeUserInfo(parsedUrl.password),
+            username: decodeUserInfo(parsedUrl.username, rawUsername),
+            password: decodeUserInfo(parsedUrl.password, rawPassword),
         }
         : undefined;
 
@@ -256,13 +274,8 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
         };
     }
 
-    const separatorIndex = userinfo.indexOf(':');
-    const username = decodeUserInfo(separatorIndex === -1
-        ? userinfo
-        : userinfo.slice(0, separatorIndex));
-    const password = decodeUserInfo(separatorIndex === -1
-        ? ''
-        : userinfo.slice(separatorIndex + 1));
+    const username = decodeUserInfo(rawUsername);
+    const password = decodeUserInfo(rawPassword);
 
     if (username === '' && password === '') {
         return { url: sanitizedUrl };

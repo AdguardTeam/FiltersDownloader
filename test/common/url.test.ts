@@ -64,6 +64,22 @@ const PARSE_CASES = [
         },
     },
     {
+        name: 'a literal percent sign in the password',
+        url: 'https://user:50% off@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'user', password: '50% off' },
+        },
+    },
+    {
+        name: 'a literal percent sign in the username',
+        url: 'https://p%ss^word:password@example.org/filter.txt',
+        expected: {
+            url: 'https://example.org/filter.txt',
+            credentials: { username: 'p%ss^word', password: 'password' },
+        },
+    },
+    {
         name: 'an at sign in the path',
         url: 'https://example.org/user@example.org/filter.txt',
         expected: { url: 'https://example.org/user@example.org/filter.txt' },

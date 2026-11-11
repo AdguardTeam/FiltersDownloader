@@ -48,6 +48,16 @@ const CREDENTIALS_CASES = [
         authorization: basicAuth('user%zz:password'),
     },
     {
+        name: 'a literal percent sign in the password',
+        url: `http://user:50% off@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:50% off'),
+    },
+    {
+        name: 'a literal percent sign in the username',
+        url: `http://p%ss^word:password@example.org${TEST_PATH}`,
+        authorization: basicAuth('p%ss^word:password'),
+    },
+    {
         name: 'a question mark in the password',
         url: `http://user:pa?ss@example.org${TEST_PATH}`,
         authorization: basicAuth('user:pa?ss'),
