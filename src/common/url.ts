@@ -364,11 +364,10 @@ const getUrlCandidate = (text: string, offset: number): string => {
 /**
  * Removes the userinfo component from every URL in a text.
  *
- * The function is conservative. When a valid URL with credentials is followed
- * by text that contains an at sign, the text is redacted together with the
- * URL, because it cannot be told from a malformed password that contains
- * whitespace and an at sign. Library-generated messages pass the known URL
- * separately, so their text is not shortened.
+ * The function is conservative. When a URL is followed by text that contains
+ * an at sign, the text can belong to a malformed password that contains
+ * whitespace, so the text is redacted together with the URL. Library-generated
+ * messages pass the known URL separately, so their text is not shortened.
  *
  * @param text Text that may contain URLs with credentials.
  *
@@ -412,14 +411,15 @@ export const redactUrlCredentials = (text: string): string => {
 
         // The WHATWG parser accepts the candidate URL but finds no
         // credentials. The at sign is in the query, the fragment or the
-        // following text. However, a candidate that ends at a port and is
-        // followed by text after whitespace can be a password whose first word
-        // is a number, for example `https://user:123 secret@example.org`.
-        // Redacting is the leak-safe choice.
+        // following text. However, a whitespace-separated candidate can also
+        // be the first word of a password, for example
+        // `https://user:123 secret@example.org`, and the newline-free text
+        // after it belongs to the password. The candidate can end at a port,
+        // and `new URL()` hides a port that is the default port of the scheme,
+        // for example `https://user:443 secret@example.org`. Redacting is the
+        // leak-safe choice for every whitespace-separated candidate.
         if (parsedUrl.username === '' && parsedUrl.password === '') {
-            return WHITESPACE_REGEXP.test(userinfo) && parsedUrl.port !== ''
-                ? prefix
-                : match;
+            return WHITESPACE_REGEXP.test(userinfo) ? prefix : match;
         }
 
         // Whitespace can be part of a password in a malformed URL, and the

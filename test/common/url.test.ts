@@ -446,6 +446,24 @@ const REDACT_CASES = [
         expected: '! Source: https://example.org/list.txt',
     },
     {
+        // `new URL()` hides a port that is the default port of the scheme, so
+        // the candidate `https://user:443` has no port. It is still
+        // indistinguishable from the first word of a password.
+        name: 'a default https port at the start of a password',
+        text: '! Source: https://user:443 secret@example.org/list.txt',
+        expected: '! Source: https://example.org/list.txt',
+    },
+    {
+        name: 'a default http port at the start of a password',
+        text: '! Source: http://user:80 secret@example.org/list.txt',
+        expected: '! Source: http://example.org/list.txt',
+    },
+    {
+        name: 'a protocol-relative default port at the start of a password',
+        text: '! Source: //user:443 secret@example.org/list.txt',
+        expected: '! Source: //example.org/list.txt',
+    },
+    {
         name: 'a hash at the start of the password',
         text: "Failed to request url 'https://admin:#Secret1@example.org/list.txt'",
         expected: "Failed to request url 'https://example.org/list.txt'",
