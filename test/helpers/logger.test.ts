@@ -65,6 +65,30 @@ describe('throwError', () => {
         expect(message).not.toContain(password);
     });
 
+    it.each([
+        { name: 'a single quote', password: "pa'ss" },
+        { name: 'a double quote', password: 'pa"ss' },
+        { name: 'an angle bracket', password: 'pa<ss' },
+    ])('removes $name password from a context line and the original error', ({ password }) => {
+        const rule = '!#endif';
+        const context = `\t! Source: https://user:${password}@example.org/list.txt`;
+        const originalError = new Error(
+            `Failed to request url 'https://user:${password}@example.org/list.txt'`,
+        );
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            rule,
+            context,
+            undefined,
+            originalError,
+        ));
+
+        expect(message).toContain('\t! Source: https://example.org/list.txt');
+        expect(message).toContain("\tFailed to request url 'https://example.org/list.txt'");
+        expect(message).not.toContain(password);
+    });
+
     it('keeps rules without credentials unchanged', () => {
         const message = getErrorMessage(() => throwError(
             'Found unexpected condition end:',

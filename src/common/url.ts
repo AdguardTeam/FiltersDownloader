@@ -307,6 +307,10 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  * @returns URL or path without the userinfo component.
  */
 export const stripUrlCredentials = (url: string): string => {
+    if (!url.includes('@')) {
+        return url;
+    }
+
     const parsedUrl = parseUrlCredentials(url);
 
     if (parsedUrl.url !== url) {
