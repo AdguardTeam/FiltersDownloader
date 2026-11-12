@@ -21,14 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stacks, causes, or other error properties. The URL parser recognizes
   `https:/`, `https:`, `https:\` and `https:///` forms, passwords with `?`,
   `#`, or spaces, and a username with a space. A password that starts with `?`
-  or `#` is recognized too. An at sign in a query or fragment is no longer
-  mistaken for credentials. A valid URL with an empty port and an at sign in
-  the query is not treated as credentials either. Credentials inside a local
-  path are removed from the error path as well as from the message. A plain
-  object in a cause chain is redacted too. Rule syntax after `//` in an error
-  context is no longer shortened. A password that starts with digits and then
-  contains `?` or `#` still cannot be told from a port and a fragment, so the
-  parser leaves it as is.
+  or `#` is recognized too, including for a single-label host with a path. An
+  at sign in a query or fragment is no longer mistaken for credentials. A
+  valid URL with an empty port and an at sign in the query is not treated as
+  credentials either. Credentials inside a local path are removed from the
+  error path as well as from the message. Nested plain objects and arrays in a
+  cause chain are redacted too. Rule syntax after `//` in an error context is
+  no longer shortened. A password that starts with digits and then contains
+  `?` or `#` still cannot be told from a port and a fragment, so the parser
+  leaves it as is.
 
 ### Security
 
