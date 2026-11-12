@@ -89,6 +89,26 @@ describe('throwError', () => {
         expect(message).not.toContain(password);
     });
 
+    it.each([
+        'https://admin:2024#Secret1@example.org/list.txt',
+        'https://admin:2024?Secret1@example.org/list.txt',
+    ])('removes a password that starts with digits and contains ? or #: %s', (url) => {
+        const context = `\t! Source: ${url}`;
+        const originalError = new Error(`Failed to request url '${url}'`);
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            context,
+            undefined,
+            originalError,
+        ));
+
+        expect(message).toContain('\t! Source: https://example.org/list.txt');
+        expect(message).toContain("\tFailed to request url 'https://example.org/list.txt'");
+        expect(message).not.toContain('Secret1');
+    });
+
     it('removes credentials from every url in a context line', () => {
         const context = '\t! a https://user:pa"ss1@example.org/x https://user:pa\'ss2@example.org/y';
 

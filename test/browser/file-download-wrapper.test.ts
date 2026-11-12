@@ -438,6 +438,23 @@ describe('browser file download wrapper', () => {
             expect(getErrorChainText(error)).not.toContain('#pw');
             expect(getErrorChainText(error)).toContain('http://fileserver/filter.txt');
         });
+
+        it.each([
+            'https://admin:2024#Secret1@example.org/filter.txt',
+            'https://admin:2024?Secret1@example.org/filter.txt',
+        ])('should not leak a password that starts with digits and contains ? or #: %s', async (url) => {
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(`Cannot fetch ${url}`, 'SecurityError'),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('Secret1');
+            expect(getErrorChainText(error)).toContain('https://example.org/filter.txt');
+        });
     });
 
     describe('HEAD path', () => {

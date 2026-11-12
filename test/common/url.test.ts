@@ -352,6 +352,13 @@ describe('parseUrlCredentials', () => {
         expect(parseUrlCredentials(url)).toEqual({ url });
         expect(stripUrlCredentials(url)).toBe(url);
     });
+
+    it.each([
+        'https://admin:2024#Secret1@example.org/list.txt',
+        'https://admin:2024?Secret1@example.org/list.txt',
+    ])('leaves a password that starts with digits and contains ? or # unchanged: %s', (url) => {
+        expect(parseUrlCredentials(url)).toEqual({ url });
+    });
 });
 
 describe('stripUrlCredentials', () => {
@@ -416,6 +423,40 @@ describe('stripUrlCredentials', () => {
         const unit = 'https://u:p@a/';
 
         expect(stripUrlCredentials(unit.repeat(4000))).toBe('https://a/'.repeat(4000));
+    });
+
+    it.each([
+        {
+            name: 'a digit-first hash password',
+            url: 'https://admin:2024#Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            name: 'a digit-first question mark password',
+            url: 'https://admin:2024?Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            name: 'a protocol-relative digit-first hash password',
+            url: '//admin:2024#Secret1@example.org/list.txt',
+            expected: '//example.org/list.txt',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host with a path',
+            url: 'https://admin:2024#Secret1@fileserver/list.txt',
+            expected: 'https://fileserver/list.txt',
+        },
+    ])('removes $name from display text', ({ url, expected }) => {
+        expect(stripUrlCredentials(url)).toBe(expected);
+    });
+
+    it.each([
+        'https://example.org:8080#contact@example.org',
+        'https://example.org:8080?x@y',
+        'https://localhost:8080#contact@example.org',
+        'https://[::1]:8080#contact@example.org',
+    ])('keeps a valid url with a port and an at sign in the query or fragment: %s', (url) => {
+        expect(stripUrlCredentials(url)).toBe(url);
     });
 });
 

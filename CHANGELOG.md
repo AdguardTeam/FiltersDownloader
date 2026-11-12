@@ -30,7 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cause chain are redacted too. Rule syntax after `//` in an error context is
   no longer shortened. A password that starts with digits and then contains
   `?` or `#` still cannot be told from a port and a fragment, so the parser
-  leaves it as is.
+  leaves it as is. Error text and local-path errors no longer show such a
+  password: the display redaction removes it, but the parser still does not
+  send it as Basic auth.
 
 ### Security
 
