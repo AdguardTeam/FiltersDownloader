@@ -253,6 +253,21 @@ describe('Node file download wrapper', () => {
                 .toBe('https://example.org/filter.txt');
         });
 
+        it('does not treat a valid url with an empty port as credentials', async () => {
+            const url = 'http://example.org:?token=a@b';
+            const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+            vi.stubGlobal('fetch', fetchMock);
+
+            const error = await getExternalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+
+            const [requestUrl, requestOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+            expect(requestUrl).toBe(url);
+            expect(requestOptions.headers).toEqual({ Pragma: 'no-cache' });
+        });
+
         it('downloads an https URL with credentials and sends Basic auth', async () => {
             const scope = nock('https://example.org')
                 .get(TEST_PATH)

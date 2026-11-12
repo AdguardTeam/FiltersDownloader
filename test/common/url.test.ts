@@ -209,6 +209,11 @@ const PARSE_CASES = [
         expected: { url: 'https://example.org:8080?x@y' },
     },
     {
+        name: 'an empty port and an at sign in the query',
+        url: 'http://example.org:?token=a@b',
+        expected: { url: 'http://example.org:?token=a@b' },
+    },
+    {
         name: 'a port and credentials in the query',
         url: 'https://example.org:8443?token=user@example.org',
         expected: { url: 'https://example.org:8443?token=user@example.org' },
@@ -330,6 +335,32 @@ describe('stripUrlCredentials', () => {
         const line = 'https://user:pa"ss1@a.org/x https://user:pa\'ss2@b.org/y';
 
         expect(stripUrlCredentials(line)).toBe('https://a.org/x https://b.org/y');
+    });
+
+    it.each([
+        {
+            name: 'a scriptlet rule',
+            rule: "estuary.dev#%#//scriptlet('set-local-storage-item', "
+                + "'@estuary/closeBlogPostPopup/blogPostPopup_2025/03/12', '1')",
+        },
+        {
+            name: 'an xpath rule',
+            rule: 'hulu.com##+js(xml-prune, xpath(//*[name()="Period"][starts-with(@id,"ad")]))',
+        },
+    ])('keeps rule syntax without credentials for $name', ({ rule }) => {
+        expect(stripUrlCredentials(rule)).toBe(rule);
+    });
+
+    it('returns a long text with many urls unchanged', () => {
+        const text = `${'https://example.org/x '.repeat(9000)}x@`;
+
+        expect(stripUrlCredentials(text)).toBe(text);
+    });
+
+    it('removes credentials from a long text with many urls', () => {
+        const unit = 'https://u:p@a/';
+
+        expect(stripUrlCredentials(unit.repeat(4000))).toBe('https://a/'.repeat(4000));
     });
 });
 

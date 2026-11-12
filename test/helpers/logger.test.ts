@@ -117,4 +117,26 @@ describe('throwError', () => {
             '\t!#endif',
         ].join('\n')}\n`);
     });
+
+    it.each([
+        {
+            name: 'a scriptlet rule',
+            rule: "estuary.dev#%#//scriptlet('set-local-storage-item', "
+                + "'@estuary/closeBlogPostPopup/blogPostPopup_2025/03/12', '1')",
+        },
+        {
+            name: 'an xpath rule',
+            rule: 'hulu.com##+js(xml-prune, xpath(//*[name()="Period"][starts-with(@id,"ad")]))',
+        },
+    ])('keeps rule syntax without credentials for $name', ({ rule }) => {
+        const context = `\t${rule}`;
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            context,
+        ));
+
+        expect(message).toContain(context);
+    });
 });
