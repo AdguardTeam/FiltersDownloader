@@ -521,21 +521,21 @@ const redactKnownUrlText = (
 };
 
 /**
- * Sets a property of an error to a new value.
+ * Sets a property of an object to a new value.
  *
  * The function first tries a normal assignment. If the property does not allow
  * it, for example the read-only `message` of a `DOMException`, the function
  * defines an own property with the new value.
  *
- * @param error Error to change.
+ * @param object Object to change.
  * @param property Property name.
  * @param value New value.
  *
  * @returns `true` if the property has the new value.
  */
-const setErrorProperty = (error: Error, property: string, value: unknown): boolean => {
+const setObjectProperty = (object: object, property: string, value: unknown): boolean => {
     try {
-        if (Reflect.set(error, property, value)) {
+        if (Reflect.set(object, property, value)) {
             return true;
         }
     } catch {
@@ -543,7 +543,7 @@ const setErrorProperty = (error: Error, property: string, value: unknown): boole
     }
 
     try {
-        Object.defineProperty(error, property, {
+        Object.defineProperty(object, property, {
             value,
             configurable: true,
             writable: true,
@@ -556,25 +556,26 @@ const setErrorProperty = (error: Error, property: string, value: unknown): boole
 };
 
 /**
- * Removes credentials from all own enumerable string properties of an error.
+ * Removes credentials from all own enumerable string properties of an object.
  *
  * The default error printer shows these properties, so the `path` and `dest`
- * properties of an `fs` error must not keep the userinfo component.
+ * properties of an `fs` error must not keep the userinfo component. A plain
+ * object in a cause chain is handled the same way.
  *
- * @param error Error to change.
+ * @param object Object to change.
  * @param knownUrl URL that can contain any character in the userinfo, or a
  * list of replacements for a path that contains the URL.
  *
  * @returns `true` if all properties are redacted.
  */
-const redactErrorProperties = (
-    error: Error,
+const redactObjectProperties = (
+    object: object,
     knownUrl?: string | readonly KnownUrlReplacement[],
 ): boolean => {
     let isRedacted = true;
 
-    Object.keys(error).forEach((property) => {
-        const value = (error as unknown as Record<string, unknown>)[property];
+    Object.keys(object).forEach((property) => {
+        const value = (object as Record<string, unknown>)[property];
 
         if (typeof value !== 'string') {
             return;
@@ -582,12 +583,40 @@ const redactErrorProperties = (
 
         const redactedValue = redactKnownUrlText(value, knownUrl);
 
-        if (redactedValue !== value && !setErrorProperty(error, property, redactedValue)) {
+        if (redactedValue !== value && !setObjectProperty(object, property, redactedValue)) {
             isRedacted = false;
         }
     });
 
     return isRedacted;
+};
+
+/**
+ * Creates a copy of an object with redacted own enumerable string properties.
+ *
+ * The function is used when the properties of the original object cannot be
+ * changed.
+ *
+ * @param object Original object.
+ * @param knownUrl URL that can contain any character in the userinfo, or a
+ * list of replacements for a path that contains the URL.
+ *
+ * @returns Copy with the redacted text.
+ */
+const createRedactedObject = (
+    object: object,
+    knownUrl?: string | readonly KnownUrlReplacement[],
+): object => {
+    const redactedObject = (Array.isArray(object) ? [] : {}) as Record<string, unknown>;
+
+    Object.keys(object).forEach((property) => {
+        const value = (object as Record<string, unknown>)[property];
+        redactedObject[property] = typeof value === 'string'
+            ? redactKnownUrlText(value, knownUrl)
+            : value;
+    });
+
+    return redactedObject;
 };
 
 /**
@@ -617,15 +646,17 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
 };
 
 /**
- * Removes the userinfo components from the message and the stack of an error
- * and from the whole chain of its causes and nested errors.
+ * Removes the userinfo components from the message and the stack of an error,
+ * from its own enumerable string properties, and from the whole chain of its
+ * causes and nested errors.
  *
- * The function changes the error objects in place, so their identity, type and
- * additional properties are kept. If a property cannot be changed, the
- * function returns a new error with the redacted text instead.
+ * A string or a plain object in the chain is redacted too. The function
+ * changes the objects in place, so their identity, type and additional
+ * properties are kept. If a property cannot be changed, the function returns a
+ * new object with the redacted text instead.
  *
  * @param error Error or other value to redact.
- * @param seen Errors that are already processed, used to stop on cycles.
+ * @param seen Objects that are already processed, used to stop on cycles.
  * @param knownUrl URL that can contain any character in the userinfo, or a
  * list of replacements for a path that contains the URL.
  *
@@ -641,7 +672,7 @@ export const redactErrorCredentials = (
         return redactKnownUrlText(error, knownUrl);
     }
 
-    if (!(error instanceof Error)) {
+    if (typeof error !== 'object' || error === null) {
         return error;
     }
 
@@ -650,19 +681,27 @@ export const redactErrorCredentials = (
     }
     seen.add(error);
 
+    if (!(error instanceof Error)) {
+        if (redactObjectProperties(error, knownUrl)) {
+            return error;
+        }
+
+        return createRedactedObject(error, knownUrl);
+    }
+
     const message = redactKnownUrlText(error.message, knownUrl);
     const stack = typeof error.stack === 'string'
         ? redactKnownUrlText(error.stack, knownUrl)
         : error.stack;
 
     const isMessageRedacted = message === error.message
-        || setErrorProperty(error, 'message', message);
+        || setObjectProperty(error, 'message', message);
     const isStackRedacted = stack === error.stack
-        || (typeof stack === 'string' && setErrorProperty(error, 'stack', stack));
+        || (typeof stack === 'string' && setObjectProperty(error, 'stack', stack));
 
     let redactedError = error;
 
-    if (!isMessageRedacted || !isStackRedacted || !redactErrorProperties(error, knownUrl)) {
+    if (!isMessageRedacted || !isStackRedacted || !redactObjectProperties(error, knownUrl)) {
         redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
     }
 
@@ -672,10 +711,10 @@ export const redactErrorCredentials = (
 
         if (
             (redactedError !== error || redactedCause !== cause)
-            && !setErrorProperty(redactedError, 'cause', redactedCause)
+            && !setObjectProperty(redactedError, 'cause', redactedCause)
         ) {
             redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
-            setErrorProperty(redactedError, 'cause', redactedCause);
+            setObjectProperty(redactedError, 'cause', redactedCause);
         }
     }
 
@@ -684,7 +723,7 @@ export const redactErrorCredentials = (
             (nestedError) => redactErrorCredentials(nestedError, seen, knownUrl),
         );
 
-        setErrorProperty(redactedError, 'errors', redactedErrors);
+        setObjectProperty(redactedError, 'errors', redactedErrors);
     }
 
     return redactedError;

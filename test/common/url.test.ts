@@ -661,4 +661,34 @@ describe('redactErrorCredentials', () => {
         expect(error.message).toBe(`ENOENT: open '${resolvedSanitizedUrl}'`);
         expect(error.path).toBe(resolvedSanitizedUrl);
     });
+
+    it('redacts string properties of a plain object cause', () => {
+        const cause = { url: 'https://user:secret@example.org/filter.txt' };
+        const error = new Error('Request failed', { cause });
+
+        redactErrorCredentials(error);
+
+        expect(error.cause).toBe(cause);
+        expect(cause.url).toBe('https://example.org/filter.txt');
+    });
+
+    it('redacts string properties of a plain object in nested errors', () => {
+        const nestedError = { message: 'https://user:secret@example.org/filter.txt' };
+        const error = new AggregateError([nestedError], 'Request failed');
+
+        redactErrorCredentials(error);
+
+        expect(nestedError.message).toBe('https://example.org/filter.txt');
+    });
+
+    it('returns a redacted copy for a frozen plain object cause', () => {
+        const cause = Object.freeze({ url: 'https://user:secret@example.org/filter.txt' });
+        const error = new Error('Request failed', { cause });
+
+        const redactedError = redactErrorCredentials(error) as Error;
+
+        expect(redactedError.cause).not.toBe(cause);
+        expect((redactedError.cause as { url: string }).url)
+            .toBe('https://example.org/filter.txt');
+    });
 });
