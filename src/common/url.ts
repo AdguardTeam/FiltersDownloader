@@ -729,32 +729,26 @@ const setObjectProperty = (object: object, property: string, value: unknown): bo
 };
 
 /**
- * Removes credentials from all own enumerable string properties of an object.
+ * Removes credentials from all own enumerable properties of an object.
  *
  * The default error printer shows these properties, so the `path` and `dest`
  * properties of an `fs` error must not keep the userinfo component. A plain
- * object in a cause chain is handled the same way.
+ * object or an array in a cause chain is walked the same way.
  *
  * @param object Object to change.
- * @param knownUrl URL that can contain any character in the userinfo, or a
- * list of replacements for a path that contains the URL.
+ * @param getRedactedValue Returns the redacted value of a property.
  *
  * @returns `true` if all properties are redacted.
  */
 const redactObjectProperties = (
     object: object,
-    knownUrl?: string | readonly KnownUrlReplacement[],
+    getRedactedValue: (value: unknown) => unknown,
 ): boolean => {
     let isRedacted = true;
 
     Object.keys(object).forEach((property) => {
         const value = (object as Record<string, unknown>)[property];
-
-        if (typeof value !== 'string') {
-            return;
-        }
-
-        const redactedValue = redactKnownUrlText(value, knownUrl);
+        const redactedValue = getRedactedValue(value);
 
         if (redactedValue !== value && !setObjectProperty(object, property, redactedValue)) {
             isRedacted = false;
@@ -765,32 +759,65 @@ const redactObjectProperties = (
 };
 
 /**
- * Creates a copy of an object with redacted own enumerable string properties.
+ * Creates a copy of an object with redacted own enumerable properties.
  *
  * The function is used when the properties of the original object cannot be
- * changed.
+ * changed. Nested plain objects and arrays are copied too.
  *
  * @param object Original object.
- * @param knownUrl URL that can contain any character in the userinfo, or a
- * list of replacements for a path that contains the URL.
+ * @param getRedactedValue Returns the redacted value of a property.
+ * @param seen Map of the objects that are already processed to their redacted
+ * value, used to stop on cycles and reuse a redacted copy.
  *
  * @returns Copy with the redacted text.
  */
 const createRedactedObject = (
     object: object,
-    knownUrl?: string | readonly KnownUrlReplacement[],
+    getRedactedValue: (value: unknown) => unknown,
+    seen?: WeakMap<object, unknown>,
 ): object => {
     const redactedObject = (Array.isArray(object) ? [] : {}) as Record<string, unknown>;
 
+    // Register the copy before the properties are filled, so a reference back
+    // to the original object in a cycle points to the copy.
+    seen?.set(object, redactedObject);
+
     Object.keys(object).forEach((property) => {
         const value = (object as Record<string, unknown>)[property];
-        redactedObject[property] = typeof value === 'string'
-            ? redactKnownUrlText(value, knownUrl)
-            : value;
+        redactedObject[property] = getRedactedValue(value);
     });
 
     return redactedObject;
 };
+
+/**
+ * Checks if a value is a plain object, for example an object literal from a
+ * request config, rather than a class instance such as a `Buffer`.
+ *
+ * @param value Value to check.
+ *
+ * @returns `true` if the value is a plain object.
+ */
+const isPlainObject = (value: object): boolean => {
+    const prototype = Object.getPrototypeOf(value);
+
+    return prototype === Object.prototype || prototype === null;
+};
+
+/**
+ * Checks if a nested value should be redacted recursively.
+ *
+ * Only arrays, errors, and plain objects are walked. Other objects, for example
+ * a `Buffer` or a `Map`, do not expose their data as own enumerable string
+ * properties, so walking them would be wasteful or would not redact anything.
+ *
+ * @param value Value to check.
+ *
+ * @returns `true` if the value should be redacted recursively.
+ */
+const isRedactableObject = (value: unknown): value is object => typeof value === 'object'
+    && value !== null
+    && (value instanceof Error || Array.isArray(value) || isPlainObject(value));
 
 /**
  * Creates an error with a redacted message and stack.
@@ -823,13 +850,15 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
  * from its own enumerable string properties, and from the whole chain of its
  * causes and nested errors.
  *
- * A string or a plain object in the chain is redacted too. The function
- * changes the objects in place, so their identity, type and additional
- * properties are kept. If a property cannot be changed, the function returns a
- * new object with the redacted text instead.
+ * A string, a plain object, or an array in the chain is redacted too, including
+ * the objects nested in them. The function changes the objects in place, so
+ * their identity, type and additional properties are kept. If a property
+ * cannot be changed, the function returns a new object with the redacted text
+ * instead.
  *
  * @param error Error or other value to redact.
- * @param seen Objects that are already processed, used to stop on cycles.
+ * @param seen Map of the objects that are already processed to their redacted
+ * value, used to stop on cycles and reuse a redacted copy.
  * @param knownUrl URL that can contain any character in the userinfo, or a
  * list of replacements for a path that contains the URL.
  *
@@ -838,7 +867,7 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
  */
 export const redactErrorCredentials = (
     error: unknown,
-    seen = new WeakSet<object>(),
+    seen = new WeakMap<object, unknown>(),
     knownUrl?: string | readonly KnownUrlReplacement[],
 ): unknown => {
     if (typeof error === 'string') {
@@ -850,16 +879,30 @@ export const redactErrorCredentials = (
     }
 
     if (seen.has(error)) {
-        return error;
+        return seen.get(error);
     }
-    seen.add(error);
+    seen.set(error, error);
+
+    // A nested plain object or an array is redacted recursively with the same
+    // map, so a cause such as `{ config: { url } }` is covered too.
+    const getRedactedValue = (value: unknown): unknown => {
+        if (typeof value === 'string') {
+            return redactKnownUrlText(value, knownUrl);
+        }
+
+        if (isRedactableObject(value)) {
+            return redactErrorCredentials(value, seen, knownUrl);
+        }
+
+        return value;
+    };
 
     if (!(error instanceof Error)) {
-        if (redactObjectProperties(error, knownUrl)) {
+        if (redactObjectProperties(error, getRedactedValue)) {
             return error;
         }
 
-        return createRedactedObject(error, knownUrl);
+        return createRedactedObject(error, getRedactedValue, seen);
     }
 
     const message = redactKnownUrlText(error.message, knownUrl);
@@ -874,8 +917,9 @@ export const redactErrorCredentials = (
 
     let redactedError = error;
 
-    if (!isMessageRedacted || !isStackRedacted || !redactObjectProperties(error, knownUrl)) {
+    if (!isMessageRedacted || !isStackRedacted || !redactObjectProperties(error, getRedactedValue)) {
         redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
+        seen.set(error, redactedError);
     }
 
     const { cause } = error;
@@ -887,6 +931,7 @@ export const redactErrorCredentials = (
             && !setObjectProperty(redactedError, 'cause', redactedCause)
         ) {
             redactedError = createRedactedError(error, message, typeof stack === 'string' ? stack : undefined);
+            seen.set(error, redactedError);
             setObjectProperty(redactedError, 'cause', redactedCause);
         }
     }

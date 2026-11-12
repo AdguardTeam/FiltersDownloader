@@ -761,4 +761,52 @@ describe('redactErrorCredentials', () => {
         expect((redactedError.cause as { url: string }).url)
             .toBe('https://example.org/filter.txt');
     });
+
+    it('redacts strings in a nested plain object cause', () => {
+        const cause = { config: { url: 'https://user:secret@example.org/filter.txt' } };
+        const error = new Error('Request failed', { cause });
+
+        redactErrorCredentials(error);
+
+        expect(cause.config.url).toBe('https://example.org/filter.txt');
+    });
+
+    it('redacts strings in nested objects and arrays of a cause', () => {
+        const nestedRequest = { url: 'https://user:secret@example.org/a.txt' };
+        const cause = {
+            requests: [
+                nestedRequest,
+                'https://user:secret@example.org/b.txt',
+            ],
+        };
+        const error = new Error('Request failed', { cause });
+
+        redactErrorCredentials(error);
+
+        expect(nestedRequest.url).toBe('https://example.org/a.txt');
+        expect(cause.requests[1]).toBe('https://example.org/b.txt');
+    });
+
+    it('redacts a nested frozen plain object in a cause', () => {
+        const config = Object.freeze({ url: 'https://user:secret@example.org/filter.txt' });
+        const cause = { config };
+        const error = new Error('Request failed', { cause });
+
+        redactErrorCredentials(error);
+
+        expect(error.cause).toBe(cause);
+        expect((cause.config as { url: string }).url).toBe('https://example.org/filter.txt');
+    });
+
+    it('returns a redacted copy for a frozen cause with a nested frozen object', () => {
+        const config = Object.freeze({ url: 'https://user:secret@example.org/filter.txt' });
+        const cause = Object.freeze({ config });
+        const error = new Error('Request failed', { cause });
+
+        const redactedError = redactErrorCredentials(error) as Error;
+
+        expect(redactedError.cause).not.toBe(cause);
+        expect((redactedError.cause as { config: { url: string } }).config.url)
+            .toBe('https://example.org/filter.txt');
+    });
 });
