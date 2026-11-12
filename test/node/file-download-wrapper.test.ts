@@ -253,8 +253,11 @@ describe('Node file download wrapper', () => {
                 .toBe('https://example.org/filter.txt');
         });
 
-        it('does not treat a valid url with an empty port as credentials', async () => {
-            const url = 'http://example.org:?token=a@b';
+        it.each([
+            'http://example.org:?token=a@b',
+            'https://example.org:?email=user@example.com',
+            'http://example.org:#x@y.z/p',
+        ])('does not treat a valid url with an empty port as credentials: %s', async (url) => {
             const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
             vi.stubGlobal('fetch', fetchMock);
 
@@ -266,6 +269,18 @@ describe('Node file download wrapper', () => {
             const [requestUrl, requestOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
             expect(requestUrl).toBe(url);
             expect(requestOptions.headers).toEqual({ Pragma: 'no-cache' });
+        });
+
+        it('sends credentials to a single-label host with a hash at the start of the password', async () => {
+            const scope = nock('http://fileserver')
+                .get('/list.txt')
+                .matchHeader('Authorization', basicAuth('user:#pw'))
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile('http://user:#pw@fileserver/list.txt');
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(scope.isDone()).toBe(true);
         });
 
         it('downloads an https URL with credentials and sends Basic auth', async () => {

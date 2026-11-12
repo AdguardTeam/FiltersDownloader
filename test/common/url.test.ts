@@ -207,6 +207,22 @@ const PARSE_CASES = [
         },
     },
     {
+        name: 'a hash at the start of the password and a single-label host with a path',
+        url: 'http://user:#pw@fileserver/list.txt',
+        expected: {
+            url: 'http://fileserver/list.txt',
+            credentials: { username: 'user', password: '#pw' },
+        },
+    },
+    {
+        name: 'a question mark at the start of the password and a single-label host with a path',
+        url: 'http://user:?pw@fileserver/list.txt',
+        expected: {
+            url: 'http://fileserver/list.txt',
+            credentials: { username: 'user', password: '?pw' },
+        },
+    },
+    {
         name: 'an at sign and a space in the password',
         url: 'https://user:pa@ss word@example.org/filter.txt',
         expected: {
@@ -241,6 +257,16 @@ const PARSE_CASES = [
         name: 'an empty port and an at sign in a query value with a path',
         url: 'http://example.org:?token=a@b/path',
         expected: { url: 'http://example.org:?token=a@b/path' },
+    },
+    {
+        name: 'an empty port and a dotted value after the at sign',
+        url: 'https://example.org:?email=user@example.com',
+        expected: { url: 'https://example.org:?email=user@example.com' },
+    },
+    {
+        name: 'an empty port and a dotted value after the at sign in a fragment',
+        url: 'http://example.org:#x@y.z/p',
+        expected: { url: 'http://example.org:#x@y.z/p' },
     },
     {
         name: 'a port and credentials in the query',
@@ -559,6 +585,11 @@ const REDACT_CASES = [
         name: 'a question mark at the start of the password and a single-label host',
         text: "Failed to request url 'https://admin:?Secret1@localhost/list.txt'",
         expected: "Failed to request url 'https://localhost/list.txt'",
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host with a path',
+        text: "Failed to request url 'http://user:#pw@fileserver/list.txt'",
+        expected: "Failed to request url 'http://fileserver/list.txt'",
     },
     {
         // A valid URL with credentials followed by prose is indistinguishable

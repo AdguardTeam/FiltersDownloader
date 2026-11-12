@@ -423,6 +423,21 @@ describe('browser file download wrapper', () => {
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain('secret');
         });
+
+        it('should not leak a hash at the start of the password for a single-label host', async () => {
+            const url = 'http://user:#pw@fileserver/filter.txt';
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(`Cannot fetch ${url}`, 'SecurityError'),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('#pw');
+            expect(getErrorChainText(error)).toContain('http://fileserver/filter.txt');
+        });
     });
 
     describe('HEAD path', () => {
