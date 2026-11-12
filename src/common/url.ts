@@ -76,8 +76,8 @@ const AMBIGUOUS_USERINFO_REGEXP = /[?#\s]/;
  * query or a fragment, so the parser cannot detect the credentials. The same
  * form also occurs in a valid URL, for example
  * `http://example.org:?token=a@b`, so the caller must also check that the
- * text after the at sign looks like the rest of a URL. See
- * {@link MALFORMED_USERINFO_TAIL_REGEXP}.
+ * part before the colon is a username and that the text after the at sign
+ * looks like the rest of a URL. See {@link isMalformedUserinfoForm}.
  *
  * A password that starts with digits and then contains `?` or `#`, for
  * example `admin:2024#Secret1`, is not recognized: it has the same form as a
@@ -99,8 +99,64 @@ const MALFORMED_USERINFO_REGEXP = /^[^:?#\s]*:[?#]/;
  * whitespace or quote, not to the parse candidate, which ends at the first `/`.
  * This keeps a single-label host with a path, for example
  * `http://admin:#Secret1@localhost/filter.txt`, from being missed.
+ *
+ * See {@link SINGLE_LABEL_HOST_WITH_PATH_REGEXP} for the other single-label
+ * hosts, for example `http://user:#pw@fileserver/list.txt`.
  */
 const MALFORMED_USERINFO_TAIL_REGEXP = /^[^/\\?#:]*[.:]|^localhost(?=[/\\?#])/i;
+
+/**
+ * Matches the text after the at sign of malformed userinfo when it starts with
+ * a single-label host followed by a path, for example
+ * `http://user:#pw@fileserver/list.txt`.
+ *
+ * The host must not contain a dot: a host with a domain is covered by
+ * {@link MALFORMED_USERINFO_TAIL_REGEXP}. See
+ * {@link isMalformedUserinfoForm}.
+ */
+const SINGLE_LABEL_HOST_WITH_PATH_REGEXP = /^[^/\\?#:.]+[/\\]/;
+
+/**
+ * Checks that the part before the colon of a userinfo component contains a
+ * dot. Such a part is a host with an empty port, not a username, for example
+ * `example.org:` in `http://example.org:?token=a@b`.
+ *
+ * @param userinfo Userinfo component.
+ *
+ * @returns `true` if the part before the colon contains a dot.
+ */
+const isDottedUserinfoHost = (userinfo: string): boolean => {
+    const separatorIndex = userinfo.indexOf(':');
+
+    return separatorIndex !== -1 && userinfo.slice(0, separatorIndex).includes('.');
+};
+
+/**
+ * Checks that a malformed userinfo match is credentials rather than a valid
+ * URL with an empty port and an at sign in the query or fragment.
+ *
+ * A colon directly before `?` or `#` is the malformed form. The part before
+ * the colon must be a username, not a host: a dot in this part means a host
+ * with an empty port, for example `http://example.org:?email=user@example.com`.
+ *
+ * The text after the at sign must look like the rest of a URL: a name with a
+ * dot, a port or an IPv6 literal, or `localhost` or a single-label host
+ * followed by a path. A bare single label such as `b` is ambiguous with a
+ * value in a query or a fragment, so it is not treated as credentials.
+ *
+ * @param userinfo Userinfo component of the match.
+ * @param tail Text after the at sign up to the first whitespace or quote.
+ *
+ * @returns `true` if the match contains malformed userinfo.
+ */
+const isMalformedUserinfoForm = (userinfo: string, tail: string): boolean => {
+    if (!MALFORMED_USERINFO_REGEXP.test(userinfo) || isDottedUserinfoHost(userinfo)) {
+        return false;
+    }
+
+    return MALFORMED_USERINFO_TAIL_REGEXP.test(tail)
+        || SINGLE_LABEL_HOST_WITH_PATH_REGEXP.test(tail);
+};
 
 /**
  * Sticky variants of the userinfo regexps.
@@ -360,8 +416,7 @@ const parseUrlCredentialsAt = (text: string, offset: number): ParsedUrlAt | unde
         // The tail is read from the text to recognize a single-label host with
         // a path.
         const tail = getUrlCandidate(text, offset + broadMatch[0].length);
-        const isMalformedUserinfo = MALFORMED_USERINFO_REGEXP.test(userinfo)
-            && MALFORMED_USERINFO_TAIL_REGEXP.test(tail);
+        const isMalformedUserinfo = isMalformedUserinfoForm(userinfo, tail);
 
         if (candidateParsedUrl === undefined) {
             // A malformed URL cannot be parsed, so the whole candidate is a
@@ -411,7 +466,7 @@ const parseUrlCredentialsAt = (text: string, offset: number): ParsedUrlAt | unde
     const tail = getUrlCandidate(text, end);
 
     if (
-        !(MALFORMED_USERINFO_REGEXP.test(userinfo) && MALFORMED_USERINFO_TAIL_REGEXP.test(tail))
+        !isMalformedUserinfoForm(userinfo, tail)
         && !isCredentialsMatch(prefix, userinfo)
     ) {
         return undefined;
@@ -583,7 +638,8 @@ export const redactUrlCredentials = (text: string): string => {
         // belong to a valid URL with an empty port, for example
         // `http://example.org:?token=a@b`, so the redaction can shorten such a
         // URL. A leak is worse than a wrong host in arbitrary text, so the
-        // redaction stays conservative here.
+        // redaction stays conservative here. The parser uses the dot rule in
+        // {@link isMalformedUserinfoForm} to keep the request target correct.
         if (MALFORMED_USERINFO_REGEXP.test(userinfo)) {
             return prefix;
         }
