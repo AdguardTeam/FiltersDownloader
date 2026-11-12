@@ -86,13 +86,21 @@ const AMBIGUOUS_USERINFO_REGEXP = /[?#\s]/;
 const MALFORMED_USERINFO_REGEXP = /^[^:?#\s]*:[?#]/;
 
 /**
- * Matches the text after the at sign of malformed userinfo that looks like a
- * URL tail: a host with a dot, a port, or a path. A tail without these
- * characters is ambiguous with a value in a query or a fragment, so it is not
- * treated as credentials. For example, `http://example.org:?token=a@b` is a
- * valid URL with an at sign in the query, not a userinfo component.
+ * Matches the text after the at sign of malformed userinfo that starts with a
+ * host that looks like the rest of a URL: a name with a dot, a port or an IPv6
+ * literal, or the special-use `localhost` name followed by the rest of the
+ * URL. The path, query, and fragment that follow the host are not checked. A
+ * bare single label such as `b` is ambiguous with a value in a query or a
+ * fragment, so it is not treated as credentials. For example,
+ * `http://example.org:?token=a@b` is a valid URL with an at sign in the query,
+ * not a userinfo component.
+ *
+ * The function is applied to the text after the at sign up to the first
+ * whitespace or quote, not to the parse candidate, which ends at the first `/`.
+ * This keeps a single-label host with a path, for example
+ * `http://admin:#Secret1@localhost/filter.txt`, from being missed.
  */
-const MALFORMED_USERINFO_TAIL_REGEXP = /^[^\s<>'"]*[.:/]/;
+const MALFORMED_USERINFO_TAIL_REGEXP = /^[^/\\?#:]*[.:]|^localhost(?=[/\\?#])/i;
 
 /**
  * Sticky variants of the userinfo regexps.
@@ -275,6 +283,30 @@ const getCandidate = (text: string, offset: number, match: RegExpExecArray): str
 };
 
 /**
+ * Matches a character that ends a URL in arbitrary text.
+ */
+const URL_TERMINATOR_REGEXP = /[\s<>'"]/g;
+
+/**
+ * Returns the URL that starts at the given position in a text.
+ *
+ * The function uses the `lastIndex` property, so it does not copy the text
+ * after the position.
+ *
+ * @param text Text that contains the URL.
+ * @param offset Offset of the URL in the text.
+ *
+ * @returns URL candidate.
+ */
+const getUrlCandidate = (text: string, offset: number): string => {
+    URL_TERMINATOR_REGEXP.lastIndex = offset;
+    const match = URL_TERMINATOR_REGEXP.exec(text);
+    const end = match === null ? text.length : match.index;
+
+    return text.slice(offset, end);
+};
+
+/**
  * A URL with userinfo found at an offset in a text.
  */
 interface ParsedUrlAt {
@@ -323,7 +355,11 @@ const parseUrlCredentialsAt = (text: string, offset: number): ParsedUrlAt | unde
         const candidate = getCandidate(text, offset, broadMatch);
         const candidateParsedUrl = tryParseUrl(candidate);
         const userinfo = broadMatch[2];
-        const tail = candidate.slice(broadMatch[0].length);
+        // The candidate ends at the first `/`, so it can keep only the host,
+        // for example `localhost` in `http://admin:#Secret1@localhost/f.txt`.
+        // The tail is read from the text to recognize a single-label host with
+        // a path.
+        const tail = getUrlCandidate(text, offset + broadMatch[0].length);
         const isMalformedUserinfo = MALFORMED_USERINFO_REGEXP.test(userinfo)
             && MALFORMED_USERINFO_TAIL_REGEXP.test(tail);
 
@@ -372,7 +408,7 @@ const parseUrlCredentialsAt = (text: string, offset: number): ParsedUrlAt | unde
         };
     }
 
-    const tail = text.slice(end, getCandidateEnd(text, end));
+    const tail = getUrlCandidate(text, end);
 
     if (
         !(MALFORMED_USERINFO_REGEXP.test(userinfo) && MALFORMED_USERINFO_TAIL_REGEXP.test(tail))
@@ -508,28 +544,6 @@ const WHITESPACE_REGEXP = /\s/;
  * Matches a character that ends the authority of a URL.
  */
 const AUTHORITY_END_REGEXP = /[/\\?#]/;
-
-/**
- * Matches a character that ends a URL in arbitrary text.
- */
-const URL_TERMINATOR_REGEXP = /[\s<>'"]/;
-
-/**
- * Returns the URL that starts at the given position in a text.
- *
- * @param text Text that contains the URL.
- * @param offset Offset of the URL in the text.
- *
- * @returns URL candidate.
- */
-const getUrlCandidate = (text: string, offset: number): string => {
-    const rest = text.slice(offset);
-    const terminatorIndex = rest.search(URL_TERMINATOR_REGEXP);
-
-    return terminatorIndex === -1
-        ? rest
-        : rest.slice(0, terminatorIndex);
-};
 
 /**
  * Removes the userinfo component from every URL in a text.

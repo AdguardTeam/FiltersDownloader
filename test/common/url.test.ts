@@ -183,6 +183,30 @@ const PARSE_CASES = [
         },
     },
     {
+        name: 'a hash at the start of the password and a single-label host',
+        url: 'https://admin:#Secret1@localhost/list.txt',
+        expected: {
+            url: 'https://localhost/list.txt',
+            credentials: { username: 'admin', password: '#Secret1' },
+        },
+    },
+    {
+        name: 'a question mark at the start of the password and a single-label host',
+        url: 'https://admin:?Secret1@localhost/list.txt',
+        expected: {
+            url: 'https://localhost/list.txt',
+            credentials: { username: 'admin', password: '?Secret1' },
+        },
+    },
+    {
+        name: 'a protocol-relative hash at the start of the password and a single-label host',
+        url: '//admin:#Secret1@localhost/list.txt',
+        expected: {
+            url: '//localhost/list.txt',
+            credentials: { username: 'admin', password: '#Secret1' },
+        },
+    },
+    {
         name: 'an at sign and a space in the password',
         url: 'https://user:pa@ss word@example.org/filter.txt',
         expected: {
@@ -212,6 +236,11 @@ const PARSE_CASES = [
         name: 'an empty port and an at sign in the query',
         url: 'http://example.org:?token=a@b',
         expected: { url: 'http://example.org:?token=a@b' },
+    },
+    {
+        name: 'an empty port and an at sign in a query value with a path',
+        url: 'http://example.org:?token=a@b/path',
+        expected: { url: 'http://example.org:?token=a@b/path' },
     },
     {
         name: 'a port and credentials in the query',
@@ -520,6 +549,16 @@ const REDACT_CASES = [
         name: 'a protocol-relative hash at the start of the password',
         text: 'see //admin:#Secret1@example.org/list.txt',
         expected: 'see //example.org/list.txt',
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host',
+        text: "Failed to request url 'https://admin:#Secret1@localhost/list.txt'",
+        expected: "Failed to request url 'https://localhost/list.txt'",
+    },
+    {
+        name: 'a question mark at the start of the password and a single-label host',
+        text: "Failed to request url 'https://admin:?Secret1@localhost/list.txt'",
+        expected: "Failed to request url 'https://localhost/list.txt'",
     },
     {
         // A valid URL with credentials followed by prose is indistinguishable

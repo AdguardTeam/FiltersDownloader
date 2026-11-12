@@ -415,6 +415,16 @@ describe('Node file download wrapper', () => {
                 url: "https:/user:pa'ss-secret@example.org//list.txt",
                 leaked: "pa'ss-secret",
             },
+            {
+                name: 'a single-label host with a hash at the start of the password',
+                url: 'https:/admin:#Secret1@localhost/filter.txt',
+                leaked: '#Secret1',
+            },
+            {
+                name: 'a single-label host with a question mark at the start of the password',
+                url: 'https:/admin:?Secret1@localhost/filter.txt',
+                leaked: '?Secret1',
+            },
             ...MALFORMED_PASSWORD_CASES.map(({ name, password, leaked }) => ({
                 name,
                 url: `https:/user:${password}@example.org/filter.txt`,
