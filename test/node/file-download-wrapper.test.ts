@@ -283,6 +283,19 @@ describe('Node file download wrapper', () => {
             expect(scope.isDone()).toBe(true);
         });
 
+        it('sends credentials to a single-label host with a query after a hash password', async () => {
+            const scope = nock('http://fileserver')
+                .get('/')
+                .query({ format: 'adblock' })
+                .matchHeader('Authorization', basicAuth('user:#Secret1'))
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile('http://user:#Secret1@fileserver?format=adblock');
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(scope.isDone()).toBe(true);
+        });
+
         it('downloads an https URL with credentials and sends Basic auth', async () => {
             const scope = nock('https://example.org')
                 .get(TEST_PATH)

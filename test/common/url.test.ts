@@ -223,6 +223,50 @@ const PARSE_CASES = [
         },
     },
     {
+        name: 'a hash at the start of the password and a single-label host with a query',
+        url: 'http://user:#Secret1@fileserver?format=adblock',
+        expected: {
+            url: 'http://fileserver?format=adblock',
+            credentials: { username: 'user', password: '#Secret1' },
+        },
+    },
+    {
+        name: 'a question mark at the start of the password and a single-label host with a query',
+        url: 'http://user:?Secret1@fileserver?format=adblock',
+        expected: {
+            url: 'http://fileserver?format=adblock',
+            credentials: { username: 'user', password: '?Secret1' },
+        },
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host at the end of the value',
+        url: 'http://user:#Secret1@fileserver',
+        expected: {
+            url: 'http://fileserver',
+            credentials: { username: 'user', password: '#Secret1' },
+        },
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host with a fragment',
+        url: 'http://user:#Secret1@fileserver#section',
+        expected: {
+            url: 'http://fileserver#section',
+            credentials: { username: 'user', password: '#Secret1' },
+        },
+    },
+    {
+        // A single-label host with an empty port is ambiguous with malformed
+        // userinfo, so a valid URL with an at sign in the query is read as
+        // credentials. A credential leak is worse than a wrong request target
+        // for this rare form.
+        name: 'an empty port on a single-label host and an at sign in the query',
+        url: 'http://localhost:?token=a@b',
+        expected: {
+            url: 'http://b',
+            credentials: { username: 'localhost', password: '?token=a' },
+        },
+    },
+    {
         name: 'an at sign and a space in the password',
         url: 'https://user:pa@ss word@example.org/filter.txt',
         expected: {
@@ -590,6 +634,26 @@ const REDACT_CASES = [
         name: 'a hash at the start of the password and a single-label host with a path',
         text: "Failed to request url 'http://user:#pw@fileserver/list.txt'",
         expected: "Failed to request url 'http://fileserver/list.txt'",
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host with a query',
+        text: "Failed to request url 'http://user:#Secret1@fileserver?format=adblock'",
+        expected: "Failed to request url 'http://fileserver?format=adblock'",
+    },
+    {
+        name: 'a question mark at the start of the password and a single-label host with a query',
+        text: "Failed to request url 'http://user:?Secret1@fileserver?format=adblock'",
+        expected: "Failed to request url 'http://fileserver?format=adblock'",
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host at the end of the value',
+        text: "Failed to request url 'http://user:#Secret1@fileserver'",
+        expected: "Failed to request url 'http://fileserver'",
+    },
+    {
+        name: 'a hash at the start of the password and a single-label host with a fragment',
+        text: "Failed to request url 'http://user:#Secret1@fileserver#section'",
+        expected: "Failed to request url 'http://fileserver#section'",
     },
     {
         // A valid URL with credentials followed by prose is indistinguishable
