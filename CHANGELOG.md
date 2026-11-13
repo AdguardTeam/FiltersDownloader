@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A relative `!#include` path that escapes the directory of the file containing
+  the directive is now ignored instead of being downloaded or failing the
+  filter update. The filter list still compiles, as in uBO
+  [FiltersDownloader#27].
 - Credentials from malformed source URLs no longer appear in error messages,
   stacks, causes, or other error properties. The URL parser recognizes
   `https:/`, `https:`, `https:\` and `https:///` forms, passwords with `?`,
@@ -331,3 +335,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
 [FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
+[FiltersDownloader#27]: https://github.com/AdguardTeam/FiltersDownloader/issues/27

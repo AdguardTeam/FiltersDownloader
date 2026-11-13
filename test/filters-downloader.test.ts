@@ -190,6 +190,132 @@ describe('FiltersDownloader', () => {
             expect(scope.isDone()).toBe(true);
         });
     });
+
+    describe('!#include path resolution', () => {
+        const host = 'http://localhost:3000';
+        const parentDirectory = '/fixtures/05_includes/dir2';
+        const filterUrl = `${host}${parentDirectory}/filter.txt`;
+
+        afterEach(() => {
+            nock.cleanAll();
+        });
+
+        it('resolves a relative include in the same directory', async () => {
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, '||main.com^\n!#include inclusion.txt', { 'Content-Type': 'text/plain' })
+                .get(`${parentDirectory}/inclusion.txt`)
+                .reply(200, '||included.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.download(filterUrl);
+
+            expect(filter).toEqual(['||main.com^', '||included.com^']);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('resolves a relative include in a subdirectory and nested includes in it', async () => {
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, '||main.com^\n!#include sub/inclusion.txt', { 'Content-Type': 'text/plain' })
+                .get(`${parentDirectory}/sub/inclusion.txt`)
+                .reply(200, '||included.com^\n!#include nested.txt', { 'Content-Type': 'text/plain' })
+                .get(`${parentDirectory}/sub/nested.txt`)
+                .reply(200, '||nested.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.download(filterUrl);
+
+            expect(filter).toEqual(['||main.com^', '||included.com^', '||nested.com^']);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('ignores a relative include that escapes the parent directory', async () => {
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, '||main.com^\n!#include ../other/secret.txt\n||after.com^', {
+                    'Content-Type': 'text/plain',
+                });
+            const secretScope = nock(host)
+                .get('/fixtures/05_includes/other/secret.txt')
+                .reply(200, '||secret.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.download(filterUrl);
+
+            expect(filter).toEqual(['||main.com^', '||after.com^']);
+            expect(scope.isDone()).toBe(true);
+            expect(secretScope.isDone()).toBe(false);
+        });
+
+        it('resolves a root-absolute include inside the parent directory', async () => {
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, '||main.com^\n!#include /inclusion.txt', {
+                    'Content-Type': 'text/plain',
+                })
+                .get(`${parentDirectory}/inclusion.txt`)
+                .reply(200, '||included.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.download(filterUrl);
+
+            expect(filter).toEqual(['||main.com^', '||included.com^']);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('ignores a root-absolute include that escapes the parent directory', async () => {
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, '||main.com^\n!#include /../secret.txt\n||after.com^', {
+                    'Content-Type': 'text/plain',
+                });
+            const secretScope = nock(host)
+                .get('/fixtures/05_includes/secret.txt')
+                .reply(200, '||secret.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.download(filterUrl);
+
+            expect(filter).toEqual(['||main.com^', '||after.com^']);
+            expect(scope.isDone()).toBe(true);
+            expect(secretScope.isDone()).toBe(false);
+        });
+
+        it('ignores percent-encoded parent-directory includes', async () => {
+            const includePaths = [
+                '%2e%2e/secret-1.txt',
+                '.%2e/secret-2.txt',
+                '%2e./secret-3.txt',
+                '%2e%2e/secret-4.txt',
+            ];
+            const filterContent = [
+                '||main.com^',
+                ...includePaths.map((includePath) => `!#include ${includePath}`),
+                '||after.com^',
+            ].join('\n');
+
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, filterContent, { 'Content-Type': 'text/plain' });
+            const secretScopes = includePaths.map((includePath) => nock(host)
+                .get(`/fixtures/05_includes/${includePath.split('/')[1]}`)
+                .reply(200, '||secret.com^', { 'Content-Type': 'text/plain' }));
+
+            const filter = await FiltersDownloader.download(filterUrl);
+
+            expect(filter).toEqual(['||main.com^', '||after.com^']);
+            expect(scope.isDone()).toBe(true);
+            expect(secretScopes.every((secretScope) => !secretScope.isDone())).toBe(true);
+        });
+
+        it('does not resolve an absolute URL from a different origin', async () => {
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, '||main.com^\n!#include https://example.org/inclusions.txt', {
+                    'Content-Type': 'text/plain',
+                });
+
+            await expect(FiltersDownloader.download(filterUrl)).rejects.toThrow(Error);
+            expect(scope.isDone()).toBe(true);
+        });
+    });
+
     describe('downloadWithRaw', () => {
         describe('applies patches', () => {
             beforeAll(async () => {
@@ -517,6 +643,74 @@ describe('FiltersDownloader', () => {
             expectedRules.forEach((rule) => {
                 expect(list).toContain(rule);
             });
+        });
+
+        it('downloads and resolves includes from a subdirectory of a local source', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': `example.com
+!#include sub/include.txt`,
+                    sub: {
+                        'include.txt': `sub.include.com
+!#include nested.txt`,
+                        'nested.txt': 'nested.include.com',
+                    },
+                },
+            });
+
+            // compile the final list
+            const list = await FiltersDownloader.download('test/dir/rules.txt');
+
+            expect(list).toEqual(['example.com', 'sub.include.com', 'nested.include.com']);
+        });
+
+        it('resolves a root-absolute local include inside the filter directory', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': `example.com
+!#include /include.txt`,
+                    'include.txt': 'include.com',
+                },
+            });
+
+            // compile the final list
+            const list = await FiltersDownloader.download('test/dir/rules.txt');
+
+            expect(list).toEqual(['example.com', 'include.com']);
+        });
+
+        it('ignores a local include that escapes the filter directory', async () => {
+            // mock file system
+            mockFs({
+                'test/dir': {
+                    'rules.txt': `example.com
+!#include ../other/secret.txt
+last.com`,
+                },
+                'test/other': {
+                    'secret.txt': 'secret.com',
+                },
+            });
+
+            // compile the final list
+            const list = await FiltersDownloader.download('test/dir/rules.txt');
+
+            expect(list).toEqual(['example.com', 'last.com']);
+        });
+
+        it('resolves a relative include when the filter origin is null', async () => {
+            // mock file system
+            mockFs({
+                'inclusion.txt': 'included.com',
+            });
+
+            const rules = ['example.com', '!#include inclusion.txt'];
+            // Legacy JavaScript callers pass `null` to mean an unknown origin.
+            const list = await FiltersDownloader.resolveIncludes(rules, null as unknown as string);
+
+            expect(list).toEqual(['example.com', 'included.com']);
         });
 
         it('does not resolve include from different origin', async () => {

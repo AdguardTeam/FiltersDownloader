@@ -118,6 +118,12 @@ After completing any code change, verify correctness by following these steps:
    verb: under `### Fixed`, write `- The Node.js build ...`, not
    `- Fixed the Node.js build ...`.
 
+7. **Keep the KnowledgeBase in sync.** The `!#include` section of
+   `docs/general/ad-filtering/create-own-filters.md` in
+   `AdguardTeam/KnowledgeBase` describes the behavior of this library. If a
+   change affects filter directives or their resolution, update the matching
+   KnowledgeBase article in the same change.
+
 ## Code Guidelines
 
 ### Architecture

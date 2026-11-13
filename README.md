@@ -125,11 +125,17 @@ the full list of recognized constants.
 
 ```adblock
 !
-! Valid (same origin, absolute path):
+! Valid (same origin, absolute URL):
 !#include https://example.org/path/includedfile.txt
 !
-! Valid (relative path):
+! Valid (relative to the directory of the file that contains the directive):
+!#include includedfile.txt
+!#include subdirectory/includedfile.txt
+!
+! Valid (root-absolute path inside that directory):
 !#include /includedfile.txt
+!
+! Ignored (outside the directory of the file that contains the directive):
 !#include ../path2/includedfile.txt
 !
 ! Invalid (different origin — rejected):
@@ -137,8 +143,22 @@ the full list of recognized constants.
 ```
 
 `!#include` fetches the referenced file and splices its rules into the output at
-that position. Included files may themselves contain directives. Only files from
-the same origin as the parent filter are permitted.
+that position. Included files may themselves contain directives. A relative path
+resolves against the directory of the file that contains the directive.
+
+A path that starts with `/` is root-absolute. The library ignores the leading
+slash, so the path resolves inside the directory of the file that contains the
+directive. This is the same for remote and local sources and matches the
+behavior of uBO and previous versions.
+
+A relative or root-absolute include must stay inside that directory. The
+library ignores an include that points outside this directory, including a path
+that escapes it with `..`, a percent-encoded dot segment, or an encoded path
+separator. The library does not fetch the file and the rest of the filter still
+compiles.
+
+An absolute URL from the same origin is allowed from any directory. An absolute
+URL from a different origin is rejected.
 
 ### Checksums
 

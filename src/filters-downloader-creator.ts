@@ -18,7 +18,8 @@
 import { DiffUpdater, UnacceptableResponseError } from '@adguard/diff-builder/diff-updater';
 import { isValidChecksum } from './checksum';
 import { throwError, getContext } from './helpers/logger';
-import { parseUrlCredentials, stripUrlCredentials } from './common/url';
+import { ABSOLUTE_URL_REGEXP, parseUrlCredentials, stripUrlCredentials } from './common/url';
+import { resolveIncludePath } from './common/include-path';
 
 /**
  * The utility tool resolves preprocessor directives in filter content.
@@ -227,7 +228,6 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
     const INCLUDE_DIRECTIVE = '!#include';
 
-    const REGEXP_ABSOLUTE_URL = /^([a-z]+:\/\/|\/\/)/i;
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
 
     /**
@@ -561,7 +561,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      */
     const validateUrl = (url: string, filterUrlOrigin?: string): void => {
         if (filterUrlOrigin) {
-            if (REGEXP_ABSOLUTE_URL.test(url)) {
+            if (ABSOLUTE_URL_REGEXP.test(url)) {
                 // Include url is absolute
                 const urlOrigin = getUrlOrigin(url);
                 const filterOrigin = getUrlOrigin(filterUrlOrigin);
@@ -593,8 +593,22 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
         }
-        const url = line.substring(INCLUDE_DIRECTIVE.length).trim();
-        validateUrl(url, filterOrigin);
+        let url = line.substring(INCLUDE_DIRECTIVE.length).trim();
+
+        if (ABSOLUTE_URL_REGEXP.test(url)) {
+            // Absolute URLs keep the existing validation and download flow.
+            validateUrl(url, filterOrigin);
+        } else if (typeof filterOrigin === 'string' && url !== '') {
+            const resolvedIncludePath = resolveIncludePath(url, filterOrigin);
+
+            if (resolvedIncludePath === null) {
+                // uBO ignores an include that points outside the directory of
+                // the file that contains the directive, and so do we.
+                return Promise.resolve([]);
+            }
+
+            url = resolvedIncludePath;
+        }
 
         let filter: string[] = [];
         try {
@@ -629,11 +643,19 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     /**
      * Resolves include directives.
      *
+     * When `filterOrigin` is not a string, the function does not know the
+     * directory of the containing file. It skips the containment check and
+     * leaves a relative include to the platform file loader, which resolves
+     * it: the Node.js build from the current working directory, the browser
+     * build against the page URL.
+     *
      * @param rules Array of rules.
-     * @param filterOrigin Filter file URL origin or null.
+     * @param filterOrigin Filter file URL origin, or `undefined` when the
+     * directory is unknown. A `null` value is treated the same way.
      * @param definedExpressions An object with the defined expressions for conditions resolution.
      * These properties might be used in pre-processor directives (`#if`, etc.).
-     * @returns A promise that returns {string} with rules when if resolved and {Error} if rejected.
+     *
+     * @returns A promise with rules when if resolved and Error if rejected.
      */
     const resolveIncludes = async (
         rules: string[],
@@ -686,7 +708,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     ): Promise<DownloadResult> => {
         const filterUrlOrigin = downloadOptions?.filterOrigin;
 
-        const filterUrl = !REGEXP_ABSOLUTE_URL.test(url) && REGEXP_ABSOLUTE_URL.test(filterUrlOrigin || '')
+        const filterUrl = !ABSOLUTE_URL_REGEXP.test(url) && ABSOLUTE_URL_REGEXP.test(filterUrlOrigin || '')
             // getting absolute url for external file with relative url
             ? `${filterUrlOrigin}/${url}`
             : url;
@@ -728,8 +750,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     /**
      * Compiles filter content.
      *
+     * When `filterOrigin` is not a string, relative includes are left to the
+     * platform file loader: the Node.js build resolves them from the current
+     * working directory, the browser build against the page URL. The
+     * containment check is not applied in that case.
+     *
      * @param rules Array of strings.
-     * @param filterOrigin Filter file URL origin or null.
+     * @param filterOrigin Filter file URL origin, or `undefined` when the
+     * directory is unknown. A `null` value is treated the same way.
      * @param definedProperties An object with the defined properties.
      * These properties might be used in pre-processor directives (`#if`, etc.).
      * @returns A promise that returns {string} with rules when if resolved and {Error} if rejected.
