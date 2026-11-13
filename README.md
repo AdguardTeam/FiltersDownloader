@@ -322,11 +322,16 @@ stripUrlCredentials('https://user:pa#ss@example.org/filter.txt');
 
 The function accepts a whole message and removes the userinfo from every URL
 in it. It also removes malformed credentials that the WHATWG URL parser does
-not detect, for example a password that contains `?` or `#`.
+not detect, for example a password that contains `?` or `#`, including when
+the host is a single label followed by a query, a fragment, or the end of the
+value.
 
 The function keeps a valid URL with a port and an at sign in the query or
-fragment unchanged. It also keeps rule syntax after `//` unchanged, for
-example `//scriptlet(...)` and `//*[@id="x"]`.
+fragment unchanged when the host has a dot, is `localhost`, or is an IPv6
+literal. A single-label host with an empty port and an at sign in the query is
+read as credentials, because a leak is worse than a wrong host in display
+text. The function also keeps rule syntax after `//` unchanged, for example
+`//scriptlet(...)` and `//*[@id="x"]`.
 
 The browser entry point exports the same function:
 
