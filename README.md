@@ -27,6 +27,7 @@ works in both Node.js and browser environments.
     - [`resolveConditions()`](#resolveconditionsrules-definedexpressions)
     - [`resolveIncludes()`](#resolveincludesrules-filterorigin-definedexpressions)
     - [`getFilterUrlOrigin()`](#getfilterurloriginurl)
+    - [`stripUrlCredentials()`](#stripurlcredentialsurl)
 - [Documentation](#documentation)
 - [Projects using FiltersDownloader](#projects-using-filtersdownloader)
 
@@ -158,7 +159,8 @@ full filter. Only the Node.js build supports such URLs.
 
 ## API Reference
 
-All methods are on the `FiltersDownloader` object.
+All methods are on the `FiltersDownloader` object. The package also exports
+the `stripUrlCredentials` helper for display text.
 
 ### `download(url, definedExpressions?, options?)`
 
@@ -299,6 +301,40 @@ Returns the base directory URL of `url` (everything up to and including the last
 FiltersDownloader.getFilterUrlOrigin('https://example.org/path/filter.txt');
 // → 'https://example.org/path'
 ```
+
+---
+
+### `stripUrlCredentials(url)`
+
+Removes the userinfo component from every URL in `url`, including the password.
+Use this function for log messages, error messages, and other display text. It
+does not change the URL that the library uses for a request.
+
+```ts
+import { stripUrlCredentials } from '@adguard/filters-downloader';
+
+stripUrlCredentials('https://user:password@example.org/filter.txt');
+// → 'https://example.org/filter.txt'
+
+stripUrlCredentials('https://user:pa#ss@example.org/filter.txt');
+// → 'https://example.org/filter.txt'
+```
+
+The function accepts a whole message and removes the userinfo from every URL
+in it. It also removes malformed credentials that the WHATWG URL parser does
+not detect, for example a password that contains `?` or `#`.
+
+The function keeps a valid URL with a port and an at sign in the query or
+fragment unchanged. It also keeps rule syntax after `//` unchanged, for
+example `//scriptlet(...)` and `//*[@id="x"]`.
+
+The browser entry point exports the same function:
+
+```ts
+import { stripUrlCredentials } from '@adguard/filters-downloader/browser';
+```
+
+> **Note:** Use the original URL for requests. The helper is for display only.
 
 ## Documentation
 

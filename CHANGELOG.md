@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `stripUrlCredentials` is exported from the package root and the browser
+  entry point. It removes the userinfo component from URLs in logs, error
+  messages, and other display text without changing the URL used for a
+  request.
+
 ### Changed
 
 ### Deprecated

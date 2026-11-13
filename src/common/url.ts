@@ -543,6 +543,14 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  * `/filters/https:/user:password@example.org/filter.txt`. An error line can
  * contain several URLs, so the function processes every one of them.
  *
+ * Use this function for log messages, error messages, and other display text.
+ * It does not change the URL that the library uses for a request. The package
+ * root and the browser entry point export this helper.
+ *
+ * The function also removes malformed credentials that the WHATWG URL parser
+ * does not detect, for example a password that contains `?` or `#`:
+ * `https://user:pa#ss@example.org/filter.txt`.
+ *
  * A protocol-relative candidate without a colon in the userinfo is usually
  * rule syntax, for example `//scriptlet(...)` or `xpath(//*[...])`, not a URL
  * with a password. It can be a username without a password, which has nothing
