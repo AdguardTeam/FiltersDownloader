@@ -74,6 +74,8 @@ interface XhrStubOptions {
     lastModified?: string | null;
     responseText?: string;
     status?: number;
+    contentByUrl?: Record<string, string>;
+    requestedUrls?: string[];
 }
 
 /**
@@ -129,6 +131,8 @@ const createFetchResponse = (
  * @param options.lastModified Value of the Last-Modified header.
  * @param options.responseText Value of the response text.
  * @param options.status Value of the response status.
+ * @param options.contentByUrl Response text by request URL.
+ * @param options.requestedUrls Array that receives the request URLs.
  *
  * @returns Mock XMLHttpRequest constructor.
  */
@@ -138,6 +142,8 @@ const createXhrConstructor = ({
     lastModified = null,
     responseText = FILTER_CONTENT,
     status = 200,
+    contentByUrl,
+    requestedUrls,
 }: XhrStubOptions): ReturnType<typeof vi.fn> => {
     /**
      * Creates a stub XMLHttpRequest instance.
@@ -145,16 +151,26 @@ const createXhrConstructor = ({
      * @returns XMLHttpRequest stub.
      */
     function MockXMLHttpRequest(): XhrStub {
+        let currentResponseText = contentByUrl ? '' : responseText;
+
         const xhr: XhrStub = {
             status,
             statusText: '',
             responseURL: responseUrl,
-            responseText,
+            get responseText(): string {
+                return currentResponseText;
+            },
             onload: null,
             onerror: null,
             onabort: null,
             ontimeout: null,
-            open: (): void => {},
+            open: (_method: string, url: string | URL): void => {
+                const requestUrl = String(url);
+                requestedUrls?.push(requestUrl);
+                if (contentByUrl) {
+                    currentResponseText = contentByUrl[requestUrl] ?? '';
+                }
+            },
             setRequestHeader: vi.fn(),
             overrideMimeType: vi.fn(),
             getResponseHeader: vi.fn((header: string): string | null => getStubHeader(header, {
@@ -610,6 +626,23 @@ describe('browser file download wrapper', () => {
                 {},
                 { allowEmptyResponse: true },
             )).resolves.toEqual(['']);
+        });
+
+        it('should resolve a relative include in a file URL filter', async () => {
+            const includedUrl = 'file:///filters/included.txt';
+            const requestedUrls: string[] = [];
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                contentByUrl: {
+                    [LOCAL_URL]: '||example.com^\n!#include included.txt',
+                    [includedUrl]: '||included.com^',
+                },
+                requestedUrls,
+            }));
+
+            await expect(FiltersDownloader.download(LOCAL_URL, {}))
+                .resolves.toEqual(['||example.com^', '||included.com^']);
+            expect(requestedUrls).toEqual([LOCAL_URL, includedUrl]);
         });
 
         it('should not read response headers for a local file URL', async () => {

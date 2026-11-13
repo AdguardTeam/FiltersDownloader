@@ -1,4 +1,9 @@
 /**
+ * Matches an absolute URL: a URL with a scheme, or a protocol-relative URL.
+ */
+export const ABSOLUTE_URL_REGEXP = /^([a-z]+:\/\/|\/\/)/i;
+
+/**
  * Credentials extracted from the userinfo component of a URL.
  */
 export interface UrlCredentials {

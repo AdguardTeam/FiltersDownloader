@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A relative `!#include` path that escapes the directory of the file containing
+  the directive is now ignored instead of being downloaded or failing the
+  filter update. The filter list still compiles, as in uBO
+  [FiltersDownloader#27].
+
 ### Security
 
 ## [3.0.1] - 2026-10-30
@@ -310,3 +315,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [FiltersDownloader#34]: https://github.com/AdguardTeam/FiltersDownloader/issues/34
 [FiltersDownloader#35]: https://github.com/AdguardTeam/FiltersDownloader/issues/35
+[FiltersDownloader#27]: https://github.com/AdguardTeam/FiltersDownloader/issues/27

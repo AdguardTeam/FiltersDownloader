@@ -151,6 +151,10 @@ After any code change, follow these steps in order:
 5. **Changelog:** if the change is user-facing, add an entry to
    [CHANGELOG.md](CHANGELOG.md). See the **Contribution Instructions** in
    [AGENTS.md](AGENTS.md) for the entry format.
+6. **KnowledgeBase:** if the change affects filter directives or how this
+   library resolves them, update the matching article in
+   `AdguardTeam/KnowledgeBase`. For `!#include`, the article is
+   `docs/general/ad-filtering/create-own-filters.md`.
 
 For the full code style rules (TypeScript strict mode, JSDoc requirements,
 import conventions, etc.) see the **Code Guidelines** section in
