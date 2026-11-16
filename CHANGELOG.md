@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `stripUrlCredentials` is exported from the package root and the browser
+  entry point. It removes the userinfo component from URLs in logs, error
+  messages, and other display text without changing the URL used for a
+  request.
+
 ### Changed
 
 ### Deprecated
@@ -21,6 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the directive is now ignored instead of being downloaded or failing the
   filter update. The filter list still compiles, as in uBO
   [FiltersDownloader#27].
+- Credentials from malformed source URLs no longer appear in error messages,
+  stacks, causes, or other error properties. The URL parser recognizes
+  `https:/`, `https:`, `https:\` and `https:///` forms, passwords with `?`,
+  `#`, or spaces, and a username with a space. A password that starts with `?`
+  or `#` is recognized too, including for a single-label host followed by a
+  path, a query, a fragment, or the end of the value. An at sign in a query or
+  fragment is no longer mistaken for credentials when the host has a dot. A
+  valid URL whose single-label host has an empty port and an at sign in the
+  query is read as credentials, because a leak is worse than a wrong host.
+  Credentials inside a local path are removed from the
+  error path as well as from the message. Nested plain objects and arrays in a
+  cause chain are redacted too. Rule syntax after `//` in an error context is
+  no longer shortened. A password that starts with digits and then contains
+  `?` or `#` still cannot be told from a port and a fragment, so the parser
+  leaves it as is.
 
 ### Security
 

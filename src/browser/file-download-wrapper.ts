@@ -20,6 +20,7 @@ import {
     PREFERRED_CONTENT_TYPE,
 } from '../common/content-type';
 import { type FileDownloadHeaders, type FileDownloadResult } from '../common/types';
+import { redactErrorCredentials, stripUrlCredentials } from '../common/url';
 
 /**
  * Set of network protocols. A URL with one of these protocols is a network URL.
@@ -67,7 +68,9 @@ class NetworkError extends Error {
      * @param cause Original error.
      */
     constructor(url: string, cause: unknown) {
-        super(`Network error while downloading '${url}'`, { cause });
+        super(`Network error while downloading '${stripUrlCredentials(url)}'`, {
+            cause: redactErrorCredentials(cause, undefined, url),
+        });
         this.name = 'NetworkError';
     }
 }
@@ -146,7 +149,7 @@ const executeRequestAsyncFetch = async (url: string): Promise<FileDownloadResult
     }
 
     if (response.status !== 200 && response.status !== 0) {
-        throw new Error(`Response status for url ${url} is invalid: ${response.status}`);
+        throw new Error(`Response status for url ${stripUrlCredentials(url)} is invalid: ${response.status}`);
     }
 
     const headers = getResponseHeaders(
@@ -177,7 +180,9 @@ const executeRequestAsyncXhr = (url: string): Promise<FileDownloadResult> => new
     const onRequestLoad = (response: XMLHttpRequest): void => {
         try {
             if (response.status !== 200 && response.status !== 0) {
-                reject(new Error(`Response status for url ${url} is invalid: ${response.status}`));
+                reject(new Error(
+                    `Response status for url ${stripUrlCredentials(url)} is invalid: ${response.status}`,
+                ));
                 return;
             }
 
@@ -258,8 +263,8 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
             : `${firstMessage}. Retry error: ${retryMessage}`;
 
         throw new Error(
-            `Failed to request url '${url}' after retry: ${errorMessage}`,
-            { cause: firstError },
+            `Failed to request url '${stripUrlCredentials(url)}' after retry: ${errorMessage}`,
+            { cause: redactErrorCredentials(firstError, undefined, url) },
         );
     }
 };
@@ -272,14 +277,20 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
  * @throws Throws an error if neither XMLHttpRequest nor fetch is available or
  * if getting local files inside a service worker is not supported.
  */
-const getLocalFile = (url: string): Promise<FileDownloadResult> => {
-    if (typeof XMLHttpRequest !== 'undefined') {
-        return executeRequestAsyncXhr(url);
+const getLocalFile = async (url: string): Promise<FileDownloadResult> => {
+    try {
+        if (typeof XMLHttpRequest !== 'undefined') {
+            return await executeRequestAsyncXhr(url);
+        }
+        if (typeof fetch !== 'undefined') {
+            return await executeRequestAsyncFetch(url);
+        }
+        throw new Error(
+            'XMLHttpRequest or fetch are undefined, getting local files inside service worker is not working',
+        );
+    } catch (error) {
+        throw redactErrorCredentials(error, undefined, url);
     }
-    if (typeof fetch !== 'undefined') {
-        return executeRequestAsyncFetch(url);
-    }
-    throw new Error('XMLHttpRequest or fetch are undefined, getting local files inside service worker is not working');
 };
 
 /**

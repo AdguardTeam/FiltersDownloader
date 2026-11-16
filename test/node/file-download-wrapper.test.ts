@@ -7,10 +7,13 @@ import {
     describe,
     expect,
     it,
+    vi,
 } from 'vitest';
 import nock from 'nock';
 
-import { getExternalFile, getExternalFileHeaders } from '../../src/node/file-download-wrapper';
+import { getExternalFile, getExternalFileHeaders, getLocalFile } from '../../src/node/file-download-wrapper';
+import { getErrorChainText } from '../helpers/get-error-chain-text';
+import { MALFORMED_PASSWORD_CASES } from '../helpers/malformed-password-cases';
 
 const TEST_HOST = 'http://example.org';
 const TEST_PATH = '/filter.txt';
@@ -44,6 +47,36 @@ const CREDENTIALS_CASES = [
         url: `http://user%zz:password@example.org${TEST_PATH}`,
         authorization: basicAuth('user%zz:password'),
     },
+    {
+        name: 'a literal percent sign in the password',
+        url: `http://user:50% off@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:50% off'),
+    },
+    {
+        name: 'a literal percent sign in the username',
+        url: `http://p%ss^word:password@example.org${TEST_PATH}`,
+        authorization: basicAuth('p%ss^word:password'),
+    },
+    {
+        name: 'a question mark in the password',
+        url: `http://user:pa?ss@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:pa?ss'),
+    },
+    {
+        name: 'a hash in the password',
+        url: `http://user:pa#ss@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:pa#ss'),
+    },
+    {
+        name: 'a space in the password',
+        url: `http://user:pa ss@example.org${TEST_PATH}`,
+        authorization: basicAuth('user:pa ss'),
+    },
+    {
+        name: 'a space in the username',
+        url: `http://user name:password@example.org${TEST_PATH}`,
+        authorization: basicAuth('user name:password'),
+    },
 ];
 
 describe('Node file download wrapper', () => {
@@ -57,6 +90,8 @@ describe('Node file download wrapper', () => {
 
     afterEach(() => {
         nock.cleanAll();
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
     });
 
     describe('getExternalFile', () => {
@@ -106,6 +141,35 @@ describe('Node file download wrapper', () => {
             expect(scope.isDone()).toBe(true);
         });
 
+        it.each([
+            {
+                name: 'a hash at the start of the password',
+                url: 'http://admin:#Secret1@example.org/list.txt',
+                path: '/list.txt',
+                authorization: basicAuth('admin:#Secret1'),
+            },
+            {
+                name: 'a question mark at the start of the password',
+                url: 'http://admin:?Secret1@example.org/list.txt',
+                path: '/list.txt',
+                authorization: basicAuth('admin:?Secret1'),
+            },
+        ])('sends $name to the sanitized URL with Basic auth', async ({
+            url,
+            path,
+            authorization,
+        }) => {
+            const scope = nock(TEST_HOST)
+                .get(path)
+                .matchHeader('Authorization', authorization)
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile(url);
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(scope.isDone()).toBe(true);
+        });
+
         it('does not send credentials when a backslash ends the authority', async () => {
             let requestHeaders: Record<string, string> = {};
             const scope = nock(TEST_HOST)
@@ -131,6 +195,126 @@ describe('Node file download wrapper', () => {
             expect((error as Error).message)
                 .toBe("Failed to request url '//example.org/filter.txt'");
             expect((error as Error).message).not.toContain('password');
+        });
+
+        it.each([
+            {
+                name: 'one slash after the scheme',
+                url: 'https:/user:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'no slashes after the scheme',
+                url: 'https:user:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'backslashes after the scheme',
+                url: 'https:\\user:secret@example.org\\filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'three slashes after the scheme',
+                url: 'https:///user:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'a question mark in the password',
+                url: 'https://user:pa?ss@example.org/filter.txt',
+                leaked: 'pa?ss',
+            },
+            {
+                name: 'a hash in the password',
+                url: 'https://user:pa#ss@example.org/filter.txt',
+                leaked: 'pa#ss',
+            },
+            {
+                name: 'a space in the password',
+                url: 'https://user:pa ss@example.org/filter.txt',
+                leaked: 'pa ss',
+            },
+            {
+                name: 'a space in the username',
+                url: 'https://user name:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+        ])('does not leak credentials from any URL form with $name', async ({ url, leaked }) => {
+            const fetchMock = vi.fn().mockRejectedValue(
+                new TypeError(`Request cannot be constructed from a URL that includes credentials: ${url}`),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+
+            const error = await getExternalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain(leaked);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(new URL(fetchMock.mock.calls[0][0] as string).href)
+                .toBe('https://example.org/filter.txt');
+        });
+
+        it.each([
+            'http://example.org:?token=a@b',
+            'https://example.org:?email=user@example.com',
+            'http://example.org:#x@y.z/p',
+        ])('does not treat a valid url with an empty port as credentials: %s', async (url) => {
+            const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+            vi.stubGlobal('fetch', fetchMock);
+
+            const error = await getExternalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+
+            const [requestUrl, requestOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+            expect(requestUrl).toBe(url);
+            expect(requestOptions.headers).toEqual({ Pragma: 'no-cache' });
+        });
+
+        it('sends credentials to a single-label host with a hash at the start of the password', async () => {
+            const scope = nock('http://fileserver')
+                .get('/list.txt')
+                .matchHeader('Authorization', basicAuth('user:#pw'))
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile('http://user:#pw@fileserver/list.txt');
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('sends credentials to a single-label host with a query after a hash password', async () => {
+            const scope = nock('http://fileserver')
+                .get('/')
+                .query({ format: 'adblock' })
+                .matchHeader('Authorization', basicAuth('user:#Secret1'))
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile('http://user:#Secret1@fileserver?format=adblock');
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('downloads an https URL with credentials and sends Basic auth', async () => {
+            const scope = nock('https://example.org')
+                .get(TEST_PATH)
+                .matchHeader('Authorization', basicAuth('user:password'))
+                .reply(200, FILTER_CONTENT, { 'Content-Type': 'text/plain' });
+
+            const result = await getExternalFile('https://user:password@example.org/filter.txt');
+
+            expect(result.content).toBe(FILTER_CONTENT);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not leak credentials when a local path contains a URL', async () => {
+            const error = await getLocalFile('/tmp/https:/user:secret@example.org/filter.txt')
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('secret');
+            expect((error as Error & { path?: string }).path).not.toContain('secret');
         });
 
         it('does not send the Authorization header when the URL has no credentials', async () => {
@@ -219,6 +403,72 @@ describe('Node file download wrapper', () => {
             expect((error as Error).message).toBe(`Failed to request url '${TEST_URL}'`);
             expect((error as Error).cause).toBeInstanceOf(Error);
             expect(((error as Error).cause as Error).message).toBe('terminated');
+        });
+    });
+
+    describe('getLocalFile', () => {
+        it.each([
+            {
+                name: 'one slash after the scheme',
+                url: 'https:/user:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'no slashes after the scheme',
+                url: 'https:user:secret@example.org/filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'backslashes after the scheme',
+                url: 'https:\\user:secret@example.org\\filter.txt',
+                leaked: 'secret',
+            },
+            {
+                name: 'a question mark in the password',
+                url: 'https:/user:pa?ss@example.org/filter.txt',
+                leaked: 'pa?ss',
+            },
+            {
+                name: 'a hash in the password',
+                url: 'https:/user:pa#ss@example.org/filter.txt',
+                leaked: 'pa#ss',
+            },
+            {
+                name: 'a space in the password',
+                url: 'https:/user:pa ss@example.org/filter.txt',
+                leaked: 'pa ss',
+            },
+            {
+                name: 'a normalized double slash',
+                url: "https:/user:pa'ss-secret@example.org//list.txt",
+                leaked: "pa'ss-secret",
+            },
+            {
+                name: 'a single-label host with a hash at the start of the password',
+                url: 'https:/admin:#Secret1@localhost/filter.txt',
+                leaked: '#Secret1',
+            },
+            {
+                name: 'a single-label host with a question mark at the start of the password',
+                url: 'https:/admin:?Secret1@localhost/filter.txt',
+                leaked: '?Secret1',
+            },
+            ...MALFORMED_PASSWORD_CASES.map(({ name, password, leaked }) => ({
+                name,
+                url: `https:/user:${password}@example.org/filter.txt`,
+                leaked,
+            })),
+            ...MALFORMED_PASSWORD_CASES.map(({ name, password, leaked }) => ({
+                name: `a directory prefix and ${name}`,
+                url: `/filters/https:/user:${password}@example.org/filter.txt`,
+                leaked,
+            })),
+        ])('does not leak credentials from a local path error with $name', async ({ url, leaked }) => {
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain(leaked);
+            expect((error as Error & { path?: string }).path).not.toContain(leaked);
         });
     });
 

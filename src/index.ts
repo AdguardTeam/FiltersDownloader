@@ -1,3 +1,4 @@
+import { stripUrlCredentials } from './common/url';
 import {
     type IFiltersDownloader,
     DefinedExpressions,
@@ -18,6 +19,7 @@ const FiltersDownloader = FiltersDownloaderCreator({
 
 export {
     FiltersDownloader,
+    stripUrlCredentials,
     type DownloadResult,
     type IFiltersDownloader,
     DefinedExpressions,

@@ -46,6 +46,63 @@ describe('throwError', () => {
         expect(message).not.toContain('secret');
     });
 
+    it.each([
+        { name: 'a single quote', password: "pa'ss" },
+        { name: 'a double quote', password: 'pa"ss' },
+        { name: 'an angle bracket', password: 'pa<ss' },
+    ])('removes $name password from an include directive', ({ password }) => {
+        const rule = `!#include http://user:${password}@example.org/include.txt`;
+        const context = `\t!#include http://user:${password}@example.org/previous.txt`;
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            context,
+        ));
+
+        expect(message).toContain('!#include http://example.org/include.txt');
+        expect(message).toContain('!#include http://example.org/previous.txt');
+        expect(message).not.toContain(password);
+    });
+
+    it.each([
+        { name: 'a single quote', password: "pa'ss" },
+        { name: 'a double quote', password: 'pa"ss' },
+        { name: 'an angle bracket', password: 'pa<ss' },
+    ])('removes $name password from a context line and the original error', ({ password }) => {
+        const rule = '!#endif';
+        const context = `\t! Source: https://user:${password}@example.org/list.txt`;
+        const originalError = new Error(
+            `Failed to request url 'https://user:${password}@example.org/list.txt'`,
+        );
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            rule,
+            context,
+            undefined,
+            originalError,
+        ));
+
+        expect(message).toContain('\t! Source: https://example.org/list.txt');
+        expect(message).toContain("\tFailed to request url 'https://example.org/list.txt'");
+        expect(message).not.toContain(password);
+    });
+
+    it('removes credentials from every url in a context line', () => {
+        const context = '\t! a https://user:pa"ss1@example.org/x https://user:pa\'ss2@example.org/y';
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            context,
+        ));
+
+        expect(message).toContain('\t! a https://example.org/x https://example.org/y');
+        expect(message).not.toContain('ss1');
+        expect(message).not.toContain('ss2');
+    });
+
     it('keeps rules without credentials unchanged', () => {
         const message = getErrorMessage(() => throwError(
             'Found unexpected condition end:',
@@ -59,5 +116,27 @@ describe('throwError', () => {
             '\t||example.com^',
             '\t!#endif',
         ].join('\n')}\n`);
+    });
+
+    it.each([
+        {
+            name: 'a scriptlet rule',
+            rule: "estuary.dev#%#//scriptlet('set-local-storage-item', "
+                + "'@estuary/closeBlogPostPopup/blogPostPopup_2025/03/12', '1')",
+        },
+        {
+            name: 'an xpath rule',
+            rule: 'hulu.com##+js(xml-prune, xpath(//*[name()="Period"][starts-with(@id,"ad")]))',
+        },
+    ])('keeps rule syntax without credentials for $name', ({ rule }) => {
+        const context = `\t${rule}`;
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            context,
+        ));
+
+        expect(message).toContain(context);
     });
 });

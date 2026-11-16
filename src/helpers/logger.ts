@@ -6,6 +6,20 @@ import { redactUrlCredentials, stripUrlCredentials } from '../common/url';
 const LINES_BEFORE_DIRECTIVE = 3;
 
 /**
+ * Removes the userinfo component from every URL in a line.
+ *
+ * The generic redaction does not accept every character in the userinfo, for
+ * example quotes, so every embedded URL is sanitized as a known URL first.
+ * This covers the URL of an include directive, the URLs in context lines, and
+ * the URLs in an original error message.
+ *
+ * @param line Line to redact.
+ *
+ * @returns Line without the userinfo components.
+ */
+const redactLine = (line: string): string => redactUrlCredentials(stripUrlCredentials(line));
+
+/**
  * Merge an error messages by joining the array strings with a newline character.
  *
  * @param {string[]} messages - The array of message strings to format.
@@ -16,8 +30,9 @@ export const mergeErrorDetails = (messages: string[]): string => `${messages.joi
 /**
  * Creates and throws a detailed error message with context information.
  *
- * The function removes the userinfo component from every URL in the error rule
- * and in the context lines, so a password does not appear in the message.
+ * The function removes the userinfo component from every URL in the error rule,
+ * in the context lines, and in the original error message, so a password does
+ * not appear in the message.
  *
  * @param errorDescription The main error message.
  * @param errorRule The rule where the error occurred.
@@ -33,7 +48,7 @@ export const throwError = (
     filterUrl?: string,
     originalError?: unknown,
 ): void => {
-    const sanitizedRule = redactUrlCredentials(errorRule);
+    const sanitizedRule = redactLine(errorRule);
     const errorDetails = [`${errorDescription} '${sanitizedRule}'`];
 
     if (filterUrl) {
@@ -42,13 +57,15 @@ export const throwError = (
 
     if (contextLines) {
         errorDetails.push('Context:');
-        errorDetails.push(redactUrlCredentials(contextLines));
+        errorDetails.push(contextLines.split('\n').map(redactLine).join('\n'));
         errorDetails.push(`\t${sanitizedRule}`);
     }
 
     if (originalError) {
-        const originalErrorMessage = originalError instanceof Error ? originalError.message : String(originalError);
-        errorDetails.push(`\t${originalErrorMessage}`);
+        const originalErrorMessage = originalError instanceof Error
+            ? originalError.message
+            : String(originalError);
+        errorDetails.push(`\t${redactLine(originalErrorMessage)}`);
     }
 
     const formattedErrorMessage = mergeErrorDetails(errorDetails);
