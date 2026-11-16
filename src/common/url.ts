@@ -1,4 +1,9 @@
 /**
+ * Matches an absolute URL: a URL with a scheme, or a protocol-relative URL.
+ */
+export const ABSOLUTE_URL_REGEXP = /^([a-z]+:\/\/|\/\/)/i;
+
+/**
  * Credentials extracted from the userinfo component of a URL.
  */
 export interface UrlCredentials {
@@ -91,32 +96,31 @@ const MALFORMED_USERINFO_REGEXP = /^[^:?#\s]*:[?#]/;
  * Matches the text after the at sign of malformed userinfo that starts with a
  * host that looks like the rest of a URL: a name with a dot, a port or an IPv6
  * literal, or the special-use `localhost` name followed by the rest of the
- * URL. The path, query, and fragment that follow the host are not checked. A
- * bare single label such as `b` is ambiguous with a value in a query or a
- * fragment, so it is not treated as credentials. For example,
- * `http://example.org:?token=a@b` is a valid URL with an at sign in the query,
- * not a userinfo component.
+ * URL. The path, query, and fragment that follow the host are not checked.
  *
  * The function is applied to the text after the at sign up to the first
  * whitespace or quote, not to the parse candidate, which ends at the first `/`.
  * This keeps a single-label host with a path, for example
  * `http://admin:#Secret1@localhost/filter.txt`, from being missed.
  *
- * See {@link SINGLE_LABEL_HOST_WITH_PATH_REGEXP} for the other single-label
- * hosts, for example `http://user:#pw@fileserver/list.txt`.
+ * See {@link SINGLE_LABEL_HOST_REGEXP} for the other single-label hosts, for
+ * example `http://user:#pw@fileserver/list.txt` and
+ * `http://user:#pw@fileserver?format=adblock`.
  */
 const MALFORMED_USERINFO_TAIL_REGEXP = /^[^/\\?#:]*[.:]|^localhost(?=[/\\?#])/i;
 
 /**
  * Matches the text after the at sign of malformed userinfo when it starts with
- * a single-label host followed by a path, for example
- * `http://user:#pw@fileserver/list.txt`.
+ * a single-label host that is followed by a path, a query, a fragment, or the
+ * end of the value, for example `http://user:#pw@fileserver/list.txt` and
+ * `http://user:#pw@fileserver?format=adblock`.
  *
  * The host must not contain a dot: a host with a domain is covered by
- * {@link MALFORMED_USERINFO_TAIL_REGEXP}. See
- * {@link isMalformedUserinfoForm}.
+ * {@link MALFORMED_USERINFO_TAIL_REGEXP}. A label followed by whitespace and
+ * more text stays ambiguous with prose, because the text after the at sign is
+ * read up to the first whitespace. See {@link isMalformedUserinfoForm}.
  */
-const SINGLE_LABEL_HOST_WITH_PATH_REGEXP = /^[^/\\?#:.]+[/\\]/;
+const SINGLE_LABEL_HOST_REGEXP = /^[^/\\?#:.]+(?:[/\\?#]|$)/;
 
 /**
  * Checks that the part before the colon of a userinfo component contains a
@@ -142,9 +146,12 @@ const isDottedUserinfoHost = (userinfo: string): boolean => {
  * with an empty port, for example `http://example.org:?email=user@example.com`.
  *
  * The text after the at sign must look like the rest of a URL: a name with a
- * dot, a port or an IPv6 literal, or `localhost` or a single-label host
- * followed by a path. A bare single label such as `b` is ambiguous with a
- * value in a query or a fragment, so it is not treated as credentials.
+ * dot, a port or an IPv6 literal, `localhost`, or a single-label host followed
+ * by a path, a query, a fragment, or the end of the value. The last form is
+ * ambiguous with an at sign in the query or fragment of a valid URL whose host
+ * has no dot, for example `http://localhost:?token=a@b`. A credential leak is
+ * worse than a wrong host in a display message, so the ambiguous form is
+ * treated as credentials.
  *
  * @param userinfo Userinfo component of the match.
  * @param tail Text after the at sign up to the first whitespace or quote.
@@ -157,7 +164,7 @@ const isMalformedUserinfoForm = (userinfo: string, tail: string): boolean => {
     }
 
     return MALFORMED_USERINFO_TAIL_REGEXP.test(tail)
-        || SINGLE_LABEL_HOST_WITH_PATH_REGEXP.test(tail);
+        || SINGLE_LABEL_HOST_REGEXP.test(tail);
 };
 
 /**
@@ -180,8 +187,8 @@ const DIGIT_FIRST_USERINFO_REGEXP = /^[^:?#\s.]+:\d+[?#]/;
  * leaves the value unchanged, so the credentials are not sent as Basic auth.
  *
  * `localhost` and an IPv6 literal are hosts, not usernames, so their values
- * stay unchanged. A bare single-label host after the at sign remains
- * ambiguous with a value in a query or a fragment.
+ * stay unchanged. A single-label host after the at sign is redacted for the
+ * same reason, as in {@link SINGLE_LABEL_HOST_REGEXP}.
  *
  * @param userinfo Userinfo component of the match.
  * @param tail Text after the at sign up to the first whitespace or quote.
@@ -200,7 +207,7 @@ const isDigitFirstMalformedUserinfo = (userinfo: string, tail: string): boolean 
     }
 
     return MALFORMED_USERINFO_TAIL_REGEXP.test(tail)
-        || SINGLE_LABEL_HOST_WITH_PATH_REGEXP.test(tail);
+        || SINGLE_LABEL_HOST_REGEXP.test(tail);
 };
 
 /**
@@ -467,7 +474,7 @@ const parseUrlCredentialsAt = (
         // The candidate ends at the first `/`, so it can keep only the host,
         // for example `localhost` in `http://admin:#Secret1@localhost/f.txt`.
         // The tail is read from the text to recognize a single-label host with
-        // a path.
+        // a path, query, fragment, or at the end of the value.
         const tail = getUrlCandidate(text, offset + broadMatch[0].length);
         const isMalformedUserinfo = isMalformedUserinfoForm(userinfo, tail);
 
@@ -600,6 +607,14 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  * A URL can start at the beginning of the value or inside a path, for example
  * `/filters/https:/user:password@example.org/filter.txt`. An error line can
  * contain several URLs, so the function processes every one of them.
+ *
+ * Use this function for log messages, error messages, and other display text.
+ * It does not change the URL that the library uses for a request. The package
+ * root and the browser entry point export this helper.
+ *
+ * The function also removes malformed credentials that the WHATWG URL parser
+ * does not detect, for example a password that contains `?` or `#`:
+ * `https://user:pa#ss@example.org/filter.txt`.
  *
  * A protocol-relative candidate without a colon in the userinfo is usually
  * rule syntax, for example `//scriptlet(...)` or `xpath(//*[...])`, not a URL

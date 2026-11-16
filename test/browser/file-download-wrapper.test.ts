@@ -79,6 +79,8 @@ interface XhrStubOptions {
     statusText?: string;
     openError?: Error;
     emitError?: boolean;
+    contentByUrl?: Record<string, string>;
+    requestedUrls?: string[];
 }
 
 /**
@@ -137,6 +139,8 @@ const createFetchResponse = (
  * @param options.statusText Value of the response status text.
  * @param options.openError Error that the `open` method throws.
  * @param options.emitError Whether `send` emits an error instead of a load.
+ * @param options.contentByUrl Response text by request URL.
+ * @param options.requestedUrls Array that receives the request URLs.
  *
  * @returns Mock XMLHttpRequest constructor.
  */
@@ -149,6 +153,8 @@ const createXhrConstructor = ({
     statusText = '',
     openError,
     emitError = false,
+    contentByUrl,
+    requestedUrls,
 }: XhrStubOptions): ReturnType<typeof vi.fn> => {
     /**
      * Creates a stub XMLHttpRequest instance.
@@ -156,18 +162,27 @@ const createXhrConstructor = ({
      * @returns XMLHttpRequest stub.
      */
     function MockXMLHttpRequest(): XhrStub {
+        let currentResponseText = contentByUrl ? '' : responseText;
+
         const xhr: XhrStub = {
             status,
             statusText,
             responseURL: responseUrl,
-            responseText,
+            get responseText(): string {
+                return currentResponseText;
+            },
             onload: null,
             onerror: null,
             onabort: null,
             ontimeout: null,
-            open: (): void => {
+            open: (_method: string, url: string | URL): void => {
+                const requestUrl = String(url);
+                requestedUrls?.push(requestUrl);
                 if (openError) {
                     throw openError;
+                }
+                if (contentByUrl) {
+                    currentResponseText = contentByUrl[requestUrl] ?? '';
                 }
             },
             setRequestHeader: vi.fn(),
@@ -591,6 +606,28 @@ describe('browser file download wrapper', () => {
             expect(fetchMock).toHaveBeenCalledTimes(2);
         });
 
+        it('should not leak a malformed password of a single-label host with a query', async () => {
+            const url = 'http://user:#Secret1@fileserver?format=adblock';
+            const fetchMock = vi.fn()
+                .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+                .mockRejectedValueOnce(new TypeError('Failed to fetch again'));
+            vi.stubGlobal('fetch', fetchMock);
+
+            const promise = getExternalFile(url).catch((e: unknown) => e);
+            await vi.advanceTimersByTimeAsync(EXTERNAL_FILE_RETRY_DELAY_MS);
+
+            const error = await promise;
+
+            expect(error).toBeInstanceOf(Error);
+            // The retry message uses only `stripUrlCredentials()`, so this
+            // pins the single-label query rule without the generic error
+            // redaction that `getLocalFile()` also applies.
+            expect((error as Error).message)
+                .toContain("'http://fileserver?format=adblock'");
+            expect(getErrorChainText(error)).not.toContain('#Secret1');
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+
         it('should include a non-network retry error in the failure message', async () => {
             const firstError = new TypeError('Failed to fetch');
             const retryResponse = createFetchResponse(NETWORK_URL);
@@ -747,6 +784,23 @@ describe('browser file download wrapper', () => {
                 {},
                 { allowEmptyResponse: true },
             )).resolves.toEqual(['']);
+        });
+
+        it('should resolve a relative include in a file URL filter', async () => {
+            const includedUrl = 'file:///filters/included.txt';
+            const requestedUrls: string[] = [];
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                contentByUrl: {
+                    [LOCAL_URL]: '||example.com^\n!#include included.txt',
+                    [includedUrl]: '||included.com^',
+                },
+                requestedUrls,
+            }));
+
+            await expect(FiltersDownloader.download(LOCAL_URL, {}))
+                .resolves.toEqual(['||example.com^', '||included.com^']);
+            expect(requestedUrls).toEqual([LOCAL_URL, includedUrl]);
         });
 
         it('should not read response headers for a local file URL', async () => {

@@ -27,6 +27,7 @@ works in both Node.js and browser environments.
     - [`resolveConditions()`](#resolveconditionsrules-definedexpressions)
     - [`resolveIncludes()`](#resolveincludesrules-filterorigin-definedexpressions)
     - [`getFilterUrlOrigin()`](#getfilterurloriginurl)
+    - [`stripUrlCredentials()`](#stripurlcredentialsurl)
 - [Documentation](#documentation)
 - [Projects using FiltersDownloader](#projects-using-filtersdownloader)
 
@@ -124,11 +125,17 @@ the full list of recognized constants.
 
 ```adblock
 !
-! Valid (same origin, absolute path):
+! Valid (same origin, absolute URL):
 !#include https://example.org/path/includedfile.txt
 !
-! Valid (relative path):
+! Valid (relative to the directory of the file that contains the directive):
+!#include includedfile.txt
+!#include subdirectory/includedfile.txt
+!
+! Valid (root-absolute path inside that directory):
 !#include /includedfile.txt
+!
+! Ignored (outside the directory of the file that contains the directive):
 !#include ../path2/includedfile.txt
 !
 ! Invalid (different origin — rejected):
@@ -136,8 +143,22 @@ the full list of recognized constants.
 ```
 
 `!#include` fetches the referenced file and splices its rules into the output at
-that position. Included files may themselves contain directives. Only files from
-the same origin as the parent filter are permitted.
+that position. Included files may themselves contain directives. A relative path
+resolves against the directory of the file that contains the directive.
+
+A path that starts with `/` is root-absolute. The library ignores the leading
+slash, so the path resolves inside the directory of the file that contains the
+directive. This is the same for remote and local sources and matches the
+behavior of uBO and previous versions.
+
+A relative or root-absolute include must stay inside that directory. The
+library ignores an include that points outside this directory, including a path
+that escapes it with `..`, a percent-encoded dot segment, or an encoded path
+separator. The library does not fetch the file and the rest of the filter still
+compiles.
+
+An absolute URL from the same origin is allowed from any directory. An absolute
+URL from a different origin is rejected.
 
 ### Checksums
 
@@ -158,7 +179,8 @@ full filter. Only the Node.js build supports such URLs.
 
 ## API Reference
 
-All methods are on the `FiltersDownloader` object.
+All methods are on the `FiltersDownloader` object. The package also exports
+the `stripUrlCredentials` helper for display text.
 
 ### `download(url, definedExpressions?, options?)`
 
@@ -299,6 +321,45 @@ Returns the base directory URL of `url` (everything up to and including the last
 FiltersDownloader.getFilterUrlOrigin('https://example.org/path/filter.txt');
 // → 'https://example.org/path'
 ```
+
+---
+
+### `stripUrlCredentials(url)`
+
+Removes the userinfo component from every URL in `url`, including the password.
+Use this function for log messages, error messages, and other display text. It
+does not change the URL that the library uses for a request.
+
+```ts
+import { stripUrlCredentials } from '@adguard/filters-downloader';
+
+stripUrlCredentials('https://user:password@example.org/filter.txt');
+// → 'https://example.org/filter.txt'
+
+stripUrlCredentials('https://user:pa#ss@example.org/filter.txt');
+// → 'https://example.org/filter.txt'
+```
+
+The function accepts a whole message and removes the userinfo from every URL
+in it. It also removes malformed credentials that the WHATWG URL parser does
+not detect, for example a password that contains `?` or `#`, including when
+the host is a single label followed by a query, a fragment, or the end of the
+value.
+
+The function keeps a valid URL with a port and an at sign in the query or
+fragment unchanged when the host has a dot, is `localhost`, or is an IPv6
+literal. A single-label host with an empty port and an at sign in the query is
+read as credentials, because a leak is worse than a wrong host in display
+text. The function also keeps rule syntax after `//` unchanged, for example
+`//scriptlet(...)` and `//*[@id="x"]`.
+
+The browser entry point exports the same function:
+
+```ts
+import { stripUrlCredentials } from '@adguard/filters-downloader/browser';
+```
+
+> **Note:** Use the original URL for requests. The helper is for display only.
 
 ## Documentation
 
