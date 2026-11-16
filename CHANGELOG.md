@@ -9,16 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `stripUrlCredentials` is exported from the package root and the browser
-  entry point. It removes the userinfo component from URLs in logs, error
-  messages, and other display text without changing the URL used for a
-  request.
-
 ### Changed
 
 ### Deprecated
 
 ### Removed
+
+### Fixed
+
+### Security
+
+## [3.1.0] - 2026-11-16
+
+### Added
+
+- `stripUrlCredentials` is exported from the package root and the browser
+  entry point. It removes the userinfo component from URLs in logs, error
+  messages, and other display text without changing the URL used for a
+  request.
 
 ### Fixed
 
@@ -43,8 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leaves it as is. Error text and local-path errors no longer show such a
   password: the display redaction removes it, but the parser still does not
   send it as Basic auth.
-
-### Security
 
 ## [3.0.1] - 2026-10-30
 
@@ -328,7 +334,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [@adguard/diff-builder]: https://github.com/AdguardTeam/DiffBuilder/blob/master/CHANGELOG.md
 
-[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.1...v3.1.0
 [3.0.1]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0-beta.0...v3.0.0
 [3.0.0-beta.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v2.4.5...v3.0.0-beta.0
