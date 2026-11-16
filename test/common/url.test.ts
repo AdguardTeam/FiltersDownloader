@@ -490,6 +490,16 @@ describe('stripUrlCredentials', () => {
             url: 'https://admin:2024#Secret1@fileserver/list.txt',
             expected: 'https://fileserver/list.txt',
         },
+        {
+            name: 'a digit-first hash password and a single-label host with a query',
+            url: 'https://admin:2024#Secret1@fileserver?format=adblock',
+            expected: 'https://fileserver?format=adblock',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host at the end of the value',
+            url: 'https://admin:2024#Secret1@fileserver',
+            expected: 'https://fileserver',
+        },
     ])('removes $name from display text', ({ url, expected }) => {
         expect(stripUrlCredentials(url)).toBe(expected);
     });
