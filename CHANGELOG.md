@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `stripUrlCredentials` now removes a password that starts with digits and then
+  contains `?` or `#`, for example `admin:2024#Secret1`. Error messages and
+  local-path errors no longer show such a password. The URL parser still leaves
+  such a value unchanged, so the request target stays the same.
+
 ### Security
 
 ## [3.1.0] - 2026-11-16
@@ -48,9 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cause chain are redacted too. Rule syntax after `//` in an error context is
   no longer shortened. A password that starts with digits and then contains
   `?` or `#` still cannot be told from a port and a fragment, so the parser
-  leaves it as is. Error text and local-path errors no longer show such a
-  password: the display redaction removes it, but the parser still does not
-  send it as Basic auth.
+  leaves it as is.
 
 ## [3.0.1] - 2026-10-30
 
