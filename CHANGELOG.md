@@ -23,10 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   such a value unchanged, so the request target stays the same. The redaction
   keeps a path, query, or fragment that follows the host and otherwise ends at
   the last at sign in the URL token, so a password that itself contains an at
-  sign is removed too, while prose after the URL is not included. For example,
+  sign is removed too, while prose after the URL is not included. The one
+  exception is a first at sign followed by whitespace when a later at sign
+  follows: the redaction then ends at the last at sign in the text, because
+  the text between the at signs can be part of a password. For example,
   `https://admin:2024#Secret1@example.org?a@b` now shows
-  `https://example.org?a@b`, while
-  `https://fileserver:8080?x@example.org&y@z` shows `https://z`. A valid URL
+  `https://example.org?a@b`, `https://fileserver:8080?x@example.org&y@z`
+  shows `https://z`, and
+  `Read https://admin:2024#Secret1@ and user@example.com now` shows
+  `Read https://example.com now`. A valid URL
   whose host is `localhost`, or whose single-label host has a numeric port and
   an at sign in the query or fragment, for example
   `https://localhost:8080#contact@example.org` and

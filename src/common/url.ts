@@ -567,7 +567,10 @@ interface ParsedUrlAt {
  * with a port and an at sign in the query or fragment. The match keeps a path,
  * query, or fragment that follows the host and otherwise ends at the last at
  * sign in the URL token, so a password that contains an at sign is removed
- * too. Prose after the URL is not included.
+ * too. Prose after the URL is not included, except when the first at sign is
+ * followed by whitespace and a later at sign follows: then the match ends at
+ * the last at sign in the text, because the text between the at signs can be
+ * part of a password.
  *
  * @returns The URL data, or undefined if the URL has no userinfo.
  */
@@ -789,9 +792,14 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  * The redaction keeps a path, query, or fragment that follows the host and
  * otherwise ends at the last at sign in the URL token, so a password that
  * contains an at sign is removed too, while prose after the URL is not
- * included. For example, `https://admin:2024#Secret1@example.org?a@b` becomes
- * `https://example.org?a@b`, while
- * `https://fileserver:8080?x@example.org&y@z` becomes `https://z`.
+ * included. The one exception is a first at sign followed by whitespace when
+ * a later at sign follows: the redaction then ends at the last at sign in the
+ * text, because the text between the at signs can be part of a password. For
+ * example, `https://admin:2024#Secret1@example.org?a@b` becomes
+ * `https://example.org?a@b`, `https://fileserver:8080?x@example.org&y@z`
+ * becomes `https://z`, and
+ * `Read https://admin:2024#Secret1@ and user@example.com now` becomes
+ * `Read https://example.com now`.
  *
  * A dotted part before the colon is a host with a port and stays unchanged.
  * `localhost` is treated like any other part before the colon, even though it
