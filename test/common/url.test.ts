@@ -486,6 +486,16 @@ describe('stripUrlCredentials', () => {
             expected: '//example.org/list.txt',
         },
         {
+            name: 'a digit-first hash password and a single-label host with a numeric port',
+            url: 'https://fileserver:8080#x@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            name: 'a digit-first question mark password and a single-label host with a numeric port',
+            url: 'https://fileserver:8080?x@example.org',
+            expected: 'https://example.org',
+        },
+        {
             name: 'a digit-first hash password and a single-label host with a path',
             url: 'https://admin:2024#Secret1@fileserver/list.txt',
             expected: 'https://fileserver/list.txt',
@@ -509,6 +519,9 @@ describe('stripUrlCredentials', () => {
         'https://example.org:8080?x@y',
         'https://localhost:8080#contact@example.org',
         'https://[::1]:8080#contact@example.org',
+        // A dotted username cannot be told from a dotted host with a port, so
+        // this value stays unchanged.
+        'https://john.doe:2024#pw@example.org/f.txt',
     ])('keeps a valid url with a port and an at sign in the query or fragment: %s', (url) => {
         expect(stripUrlCredentials(url)).toBe(url);
     });

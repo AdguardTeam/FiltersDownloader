@@ -34,11 +34,6 @@ interface RequestResult {
      * Response of the request.
      */
     response: Response;
-
-    /**
-     * URL that was passed to `fetch`, without the userinfo component.
-     */
-    url: string;
 }
 
 /**
@@ -51,7 +46,7 @@ interface RequestResult {
  * @param url Url.
  * @param method HTTP method.
  *
- * @returns Promise with the response and the sanitized request URL.
+ * @returns Promise with the response.
  *
  * @throws Error with the original error as `cause` if the request fails.
  */
@@ -72,7 +67,7 @@ const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise
             headers,
         });
 
-        return { response, url: sanitizedUrl };
+        return { response };
     } catch (error) {
         throw new Error(`Failed to request url '${stripUrlCredentials(url)}'`, {
             cause: redactErrorCredentials(error, undefined, url),

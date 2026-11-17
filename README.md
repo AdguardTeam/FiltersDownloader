@@ -348,10 +348,12 @@ value.
 
 The function keeps a valid URL with a port and an at sign in the query or
 fragment unchanged when the host has a dot, is `localhost`, or is an IPv6
-literal. A single-label host with an empty port and an at sign in the query is
-read as credentials, because a leak is worse than a wrong host in display
-text. The function also keeps rule syntax after `//` unchanged, for example
-`//scriptlet(...)` and `//*[@id="x"]`.
+literal. A valid URL whose single-label host has an empty or numeric port and
+an at sign in the query or fragment, for example
+`https://fileserver:8080#x@example.org`, is read as credentials, because a
+leak is worse than a wrong host in display text. The function also keeps rule
+syntax after `//` unchanged, for example `//scriptlet(...)` and
+`//*[@id="x"]`.
 
 The browser entry point exports the same function:
 

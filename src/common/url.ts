@@ -627,6 +627,9 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  * query or fragment, so {@link parseUrlCredentials} leaves it unchanged. A
  * leak in text is worse than a wrong host, so the redaction removes it anyway.
  * A dotted part before the colon is a host with a port and stays unchanged.
+ * For the same reason, a valid URL whose single-label host has a numeric port
+ * and an at sign in the query or fragment, for example
+ * `https://fileserver:8080#x@example.org`, is read as credentials too.
  *
  * @param url Value that may contain URLs with a username and a password.
  *
