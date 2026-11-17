@@ -481,6 +481,19 @@ describe('stripUrlCredentials', () => {
             expected: 'https://example.org/list.txt',
         },
         {
+            // Digits that overflow the port range make the candidate
+            // unparsable, so the redaction reads the digit-first form without
+            // the parser.
+            name: 'a digit-first hash password with digits that overflow the port range',
+            url: 'https://admin:20241117#Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            name: 'a digit-first question mark password with digits that overflow the port range',
+            url: 'https://admin:20241117?Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
             name: 'a protocol-relative digit-first hash password',
             url: '//admin:2024#Secret1@example.org/list.txt',
             expected: '//example.org/list.txt',
