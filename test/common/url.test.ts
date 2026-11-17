@@ -593,6 +593,23 @@ describe('stripUrlCredentials', () => {
             .toBe('Failed: https://example.org and user@example.com');
     });
 
+    it('removes a digit-first password that contains a space and an at sign', () => {
+        // The first at sign is followed by a space, so the text after it is
+        // not a URL tail. The text between the at signs can be part of a
+        // password, so the redaction ends at the last at sign in the text.
+        expect(stripUrlCredentials('https://admin:2024#Se@ cret@example.org'))
+            .toBe('https://example.org');
+    });
+
+    it('swallows prose when the first at sign is followed by a space and a later at sign follows', () => {
+        // This is the exception to the "prose after the URL" rule: without
+        // it, a password such as `Se@ cret` would leave the part after the
+        // space in the text. The host of the result can be wrong, but no
+        // password part remains.
+        expect(stripUrlCredentials('Read https://admin:2024#Secret1@ and user@example.com now'))
+            .toBe('Read https://example.com now');
+    });
+
     it.each([
         'https://example.org:8080#contact@example.org',
         'https://example.org:8080?x@y',
