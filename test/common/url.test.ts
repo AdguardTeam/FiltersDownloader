@@ -584,6 +584,10 @@ describe('stripUrlCredentials', () => {
         'https://example.org:8080#contact@example.org',
         'https://example.org:8080?x@y',
         'https://[::1]:8080#contact@example.org',
+        // The tail check keeps an at sign that ends the value unchanged: the
+        // text after it does not look like a host and the rest of a URL.
+        'https://a:1#b@',
+        'https://fileserver:8080#x@',
         // A dotted username cannot be told from a dotted host with a port, so
         // this value stays unchanged.
         'https://john.doe:2024#pw@example.org/f.txt',
