@@ -352,10 +352,16 @@ whose host is `localhost`, or whose single-label host has an empty or numeric
 port and an at sign in the query or fragment, for example
 `https://localhost:8080#contact@example.org` and
 `https://fileserver:8080#x@example.org`, is read as credentials, because a
-leak is worse than a wrong host in display text. A password whose username
-contains a dot still cannot be told from a dotted host with a port, so such a
-value stays unchanged. The function also keeps rule syntax after `//`
-unchanged, for example `//scriptlet(...)` and `//*[@id="x"]`.
+leak is worse than a wrong host in display text. In the digit-first form the
+redaction keeps a path, query, or fragment that follows the host and otherwise
+ends at the last at sign in the URL token, so a password that itself contains
+an at sign is removed too, while prose after the URL is not included. For
+example, `https://admin:2024#Secret1@example.org?a@b` becomes
+`https://example.org?a@b`, while
+`https://fileserver:8080?x@example.org&y@z` becomes `https://z`. A password
+whose username contains a dot still cannot be told from a dotted host with a
+port, so such a value stays unchanged. The function also keeps rule syntax
+after `//` unchanged, for example `//scriptlet(...)` and `//*[@id="x"]`.
 
 The browser entry point exports the same function:
 

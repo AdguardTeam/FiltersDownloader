@@ -20,12 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `stripUrlCredentials` now removes a password that starts with digits and then
   contains `?` or `#`, for example `admin:2024#Secret1`. Error messages and
   local-path errors no longer show such a password. The URL parser still leaves
-  such a value unchanged, so the request target stays the same. A valid URL
+  such a value unchanged, so the request target stays the same. The redaction
+  keeps a path, query, or fragment that follows the host and otherwise ends at
+  the last at sign in the URL token, so a password that itself contains an at
+  sign is removed too, while prose after the URL is not included. For example,
+  `https://admin:2024#Secret1@example.org?a@b` now shows
+  `https://example.org?a@b`, while
+  `https://fileserver:8080?x@example.org&y@z` shows `https://z`. A valid URL
   whose host is `localhost`, for example
   `https://localhost:8080#contact@example.org`, now shows
   `https://example.org`, because a leak is worse than a wrong host in display
-  text. A password whose username contains a dot still cannot be told from a
-  dotted host with a port, so such a value stays unchanged.
+  text. A password whose
+  username contains a dot still cannot be told from a dotted host with a port,
+  so such a value stays unchanged.
 
 ### Security
 

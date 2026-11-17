@@ -496,6 +496,56 @@ describe('stripUrlCredentials', () => {
             expected: 'https://example.org',
         },
         {
+            name: 'a digit-first hash password and a single-label host with a path',
+            url: 'https://admin:2024#Secret1@fileserver/list.txt',
+            expected: 'https://fileserver/list.txt',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host with a query',
+            url: 'https://admin:2024#Secret1@fileserver?format=adblock',
+            expected: 'https://fileserver?format=adblock',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host at the end of the value',
+            url: 'https://admin:2024#Secret1@fileserver',
+            expected: 'https://fileserver',
+        },
+        {
+            name: 'a digit-first hash password and a second at sign in the query',
+            url: 'https://admin:2024#Secret1@example.org?a@b',
+            expected: 'https://example.org?a@b',
+        },
+        {
+            name: 'a digit-first hash password and an email query',
+            url: 'https://admin:2024#Secret1@example.org?email=user@example.com',
+            expected: 'https://example.org?email=user@example.com',
+        },
+        {
+            name: 'a digit-first password with an at sign and an email query',
+            url: 'https://admin:2024#Se@cret@example.org?email=user@example.com',
+            expected: 'https://example.org?email=user@example.com',
+        },
+        {
+            name: 'a digit-first password with an at sign and a query at sign',
+            url: 'https://admin:2024#Se@cret@example.org?a@b',
+            expected: 'https://example.org?a@b',
+        },
+        {
+            name: 'a digit-first hash password and a path at sign',
+            url: 'https://admin:2024#Secret1@example.org/a@b',
+            expected: 'https://example.org/a@b',
+        },
+        {
+            name: 'a digit-first password with an at sign and a path at sign',
+            url: 'https://admin:2024#Se@cret@example.org/a@b',
+            expected: 'https://example.org/a@b',
+        },
+        {
+            name: 'a single-label host with a numeric port and a second at sign in the query',
+            url: 'https://fileserver:8080?x@example.org&y@z',
+            expected: 'https://z',
+        },
+        {
             name: 'a localhost digit-first hash password',
             url: 'https://localhost:2024#Secret1@example.org/f.txt',
             expected: 'https://example.org/f.txt',
@@ -512,23 +562,22 @@ describe('stripUrlCredentials', () => {
             url: 'https://localhost:8080#contact@example.org',
             expected: 'https://example.org',
         },
-        {
-            name: 'a digit-first hash password and a single-label host with a path',
-            url: 'https://admin:2024#Secret1@fileserver/list.txt',
-            expected: 'https://fileserver/list.txt',
-        },
-        {
-            name: 'a digit-first hash password and a single-label host with a query',
-            url: 'https://admin:2024#Secret1@fileserver?format=adblock',
-            expected: 'https://fileserver?format=adblock',
-        },
-        {
-            name: 'a digit-first hash password and a single-label host at the end of the value',
-            url: 'https://admin:2024#Secret1@fileserver',
-            expected: 'https://fileserver',
-        },
     ])('removes $name from display text', ({ url, expected }) => {
         expect(stripUrlCredentials(url)).toBe(expected);
+    });
+
+    it('removes a digit-first password that contains an at sign', () => {
+        // The redaction ends at the last at sign in the URL token, so a
+        // password that itself contains an at sign is removed too.
+        expect(stripUrlCredentials('https://admin:2024#Se@cret@example.org/f.txt'))
+            .toBe('https://example.org/f.txt');
+    });
+
+    it('keeps prose after a digit-first url', () => {
+        // The greedy broad match used to end at the last at sign before `/`,
+        // which swallowed the prose up to the email address.
+        expect(stripUrlCredentials('Failed: https://admin:2024#Secret1@example.org and user@example.com'))
+            .toBe('Failed: https://example.org and user@example.com');
     });
 
     it.each([
