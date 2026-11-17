@@ -496,6 +496,23 @@ describe('stripUrlCredentials', () => {
             expected: 'https://example.org',
         },
         {
+            name: 'a localhost digit-first hash password',
+            url: 'https://localhost:2024#Secret1@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            name: 'a localhost digit-first question mark password',
+            url: 'https://localhost:2024?Secret1@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            // `localhost` is treated as a username even though it can be a
+            // host, because a leak is worse than a wrong host in display text.
+            name: 'a valid localhost url with a port and an at sign in the fragment',
+            url: 'https://localhost:8080#contact@example.org',
+            expected: 'https://example.org',
+        },
+        {
             name: 'a digit-first hash password and a single-label host with a path',
             url: 'https://admin:2024#Secret1@fileserver/list.txt',
             expected: 'https://fileserver/list.txt',
@@ -517,11 +534,13 @@ describe('stripUrlCredentials', () => {
     it.each([
         'https://example.org:8080#contact@example.org',
         'https://example.org:8080?x@y',
-        'https://localhost:8080#contact@example.org',
         'https://[::1]:8080#contact@example.org',
         // A dotted username cannot be told from a dotted host with a port, so
         // this value stays unchanged.
         'https://john.doe:2024#pw@example.org/f.txt',
+        // An IPv6 literal has a colon inside the brackets, so the username
+        // part of the digit-first pattern ends there and cannot match.
+        'https://[::1]:2024#Secret1@example.org/f.txt',
     ])('keeps a valid url with a port and an at sign in the query or fragment: %s', (url) => {
         expect(stripUrlCredentials(url)).toBe(url);
     });

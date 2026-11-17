@@ -186,9 +186,14 @@ const DIGIT_FIRST_USERINFO_REGEXP = /^[^:?#\s.]+:\d+[?#]/;
  * the form because a leak in text is worse than a wrong host. The parser still
  * leaves the value unchanged, so the credentials are not sent as Basic auth.
  *
- * `localhost` and an IPv6 literal are hosts, not usernames, so their values
- * stay unchanged. A single-label host after the at sign is redacted for the
- * same reason, as in {@link SINGLE_LABEL_HOST_REGEXP}.
+ * `localhost` is treated like any other part before the colon, even though it
+ * can be a host: `https://localhost:2024#Secret1@example.org/f.txt` is
+ * redacted, and so is the valid `https://localhost:8080#contact@example.org`.
+ * A leak is worse than a wrong host in display text. A single-label host after
+ * the at sign is redacted for the same reason, as in
+ * {@link SINGLE_LABEL_HOST_REGEXP}. An IPv6 literal cannot match
+ * {@link DIGIT_FIRST_USERINFO_REGEXP}: it has a colon inside the brackets, so
+ * the username part ends at that colon.
  *
  * @param userinfo Userinfo component of the match.
  * @param tail Text after the at sign up to the first whitespace or quote.
@@ -197,12 +202,6 @@ const DIGIT_FIRST_USERINFO_REGEXP = /^[^:?#\s.]+:\d+[?#]/;
  */
 const isDigitFirstMalformedUserinfo = (userinfo: string, tail: string): boolean => {
     if (!DIGIT_FIRST_USERINFO_REGEXP.test(userinfo)) {
-        return false;
-    }
-
-    const username = userinfo.slice(0, userinfo.indexOf(':'));
-
-    if (username.toLowerCase() === 'localhost' || username.startsWith('[')) {
         return false;
     }
 

@@ -347,13 +347,15 @@ the host is a single label followed by a query, a fragment, or the end of the
 value.
 
 The function keeps a valid URL with a port and an at sign in the query or
-fragment unchanged when the host has a dot, is `localhost`, or is an IPv6
-literal. A valid URL whose single-label host has an empty or numeric port and
-an at sign in the query or fragment, for example
+fragment unchanged when the host has a dot or is an IPv6 literal. A valid URL
+whose host is `localhost`, or whose single-label host has an empty or numeric
+port and an at sign in the query or fragment, for example
+`https://localhost:8080#contact@example.org` and
 `https://fileserver:8080#x@example.org`, is read as credentials, because a
-leak is worse than a wrong host in display text. The function also keeps rule
-syntax after `//` unchanged, for example `//scriptlet(...)` and
-`//*[@id="x"]`.
+leak is worse than a wrong host in display text. A password whose username
+contains a dot still cannot be told from a dotted host with a port, so such a
+value stays unchanged. The function also keeps rule syntax after `//`
+unchanged, for example `//scriptlet(...)` and `//*[@id="x"]`.
 
 The browser entry point exports the same function:
 
