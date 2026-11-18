@@ -479,9 +479,9 @@ interface DigitFirstSeparator {
 /**
  * Finds the separator of a leak-safe digit-first userinfo.
  *
- * The separator is the last at sign before the first `/`, `\`, `?`, or `#` in
- * the URL token when the token has one. Without such a delimiter, a later at
- * sign can belong to the password, so the separator is the last at sign in the
+ * The separator is the last at sign before the first `/`, `\`, `?`, or `#`
+ * that follows the first at sign. Without such a delimiter, a later at sign
+ * can belong to the password, so the separator is the last at sign in the URL
  * token. This keeps a path, query, or fragment and still removes a password
  * that contains an at sign.
  *
@@ -648,9 +648,11 @@ const parseUrlCredentialsAt = (
 
                 match = broadMatch;
             } else {
-                // The match runs to the last at sign in the URL token, so a
-                // password that contains an at sign is removed too. Prose
-                // after the token is not included.
+                // The match ends at the separator that
+                // `getDigitFirstSeparator()` picks, so a password that
+                // contains an at sign is removed too. A query or fragment
+                // after the first at sign is kept, and prose after the token
+                // is not included.
                 match = digitFirstMatch;
                 leakSafeEnd = digitFirstSeparator.end;
                 leakSafeUserinfo = digitFirstSeparator.userinfo;
