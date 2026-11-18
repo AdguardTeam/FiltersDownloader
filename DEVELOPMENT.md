@@ -179,6 +179,9 @@ To cut a release: populate `## [Unreleased]` in `CHANGELOG.md`, dispatch
 `prepare-release.yml` with the target tag (e.g. `v2.5.0`), review/merge the resulting
 release-bump PR, and `publish-release.yml` publishes automatically.
 
+A manual run of `prepare-release.yml` shows the requested tag in the Actions run
+list, e.g. `Prepare release v3.0.0-beta.0`.
+
 ## Common Tasks
 
 ### Adding a new test
