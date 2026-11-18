@@ -645,9 +645,7 @@ const parseUrlCredentialsAt = (
                 // after it is not a URL tail. A password can contain `@` and a
                 // space, so fall back to the broad match when it is the
                 // digit-first form; a leak is worse than prose after the URL.
-                const broadTail = getUrlCandidate(text, offset + broadMatch[0].length);
-
-                if (!isDigitFirstMalformedUserinfo(broadMatch[2], broadTail)) {
+                if (!isDigitFirstMalformedUserinfo(broadMatch[2], tail)) {
                     return undefined;
                 }
 
