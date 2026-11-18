@@ -521,12 +521,10 @@ const getDigitFirstSeparator = (
             separatorEnd = firstEnd + atSignIndex + 1;
         }
 
-        if (separatorEnd !== firstEnd) {
-            const userinfo = text.slice(offset + match[1].length, separatorEnd - 1);
+        const userinfo = text.slice(offset + match[1].length, separatorEnd - 1);
 
-            if (isDigitFirstMalformedUserinfo(userinfo, getUrlCandidate(text, separatorEnd))) {
-                return { end: separatorEnd, userinfo };
-            }
+        if (isDigitFirstMalformedUserinfo(userinfo, getUrlCandidate(text, separatorEnd))) {
+            return { end: separatorEnd, userinfo };
         }
     }
 
