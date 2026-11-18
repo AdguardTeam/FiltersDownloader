@@ -476,6 +476,18 @@ describe('stripUrlCredentials', () => {
             expected: 'https://example.org/list.txt',
         },
         {
+            // The username is empty, so the scheme prefix must not give back
+            // one of its slashes to satisfy the username part of the pattern.
+            name: 'a digit-first hash password without a username',
+            url: 'https://:2024#Secret1@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            name: 'a digit-first hash password without a username and with one slash',
+            url: 'https:/:2024#Secret1@example.org/f.txt',
+            expected: 'https:/example.org/f.txt',
+        },
+        {
             name: 'a digit-first question mark password',
             url: 'https://admin:2024?Secret1@example.org/list.txt',
             expected: 'https://example.org/list.txt',

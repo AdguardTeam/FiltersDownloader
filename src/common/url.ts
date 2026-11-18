@@ -174,8 +174,13 @@ const isMalformedUserinfoForm = (userinfo: string, tail: string): boolean => {
  * The part before the colon is a username, so it has no dot. A dotted host
  * with a port and an at sign in the query or fragment, for example
  * `example.org:8080#contact@example.org`, must stay unchanged.
+ *
+ * A username cannot contain a slash either, so the class excludes `/` and
+ * `\`. Without the exclusion, the scheme prefix of
+ * {@link DIGIT_FIRST_URL_REGEXP} gives back one of its slashes when the
+ * username is empty, and the redaction prints a URL with one slash too few.
  */
-const DIGIT_FIRST_USERINFO_PATTERN = String.raw`[^:?#\s.]+:\d+[?#]`;
+const DIGIT_FIRST_USERINFO_PATTERN = String.raw`[^:?#\s./\\]+:\d+[?#]`;
 
 /**
  * Matches malformed userinfo where a password starts with digits and then
