@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated [@adguard/diff-builder] to 1.1.9.
+
 ### Deprecated
 
 ### Removed

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@adguard/diff-builder':
-        specifier: 1.1.4
-        version: 1.1.4
+        specifier: 1.1.9
+        version: 1.1.9
       crypto-js:
         specifier: 4.2.0
         version: 4.2.0
@@ -120,8 +120,8 @@ importers:
 
 packages:
 
-  '@adguard/diff-builder@1.1.4':
-    resolution: {integrity: sha512-QccjhVenfU4rNA4NR8yxKi1BneZe7/Nc54CSA1FzURA4VrcpkqDhi/tfmqOkbzYwrcv1eRbRJBdYuYr+j90Qaw==}
+  '@adguard/diff-builder@1.1.9':
+    resolution: {integrity: sha512-thbK6ZoTZo4iICOBS3O+GQWuMjN8kr4RFpU0MfUR0oqzxh0d4ibWjpxz7CdFZd+FTz7wEce76AVDlqh1X5JoiA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2920,7 +2920,7 @@ packages:
 
 snapshots:
 
-  '@adguard/diff-builder@1.1.4':
+  '@adguard/diff-builder@1.1.9':
     dependencies:
       commander: 11.1.0
       crypto-js: 4.2.0

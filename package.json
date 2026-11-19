@@ -57,7 +57,7 @@
     },
     "homepage": "https://github.com/AdguardTeam/FiltersDownloader#readme",
     "dependencies": {
-        "@adguard/diff-builder": "1.1.4",
+        "@adguard/diff-builder": "1.1.9",
         "crypto-js": "4.2.0"
     },
     "devDependencies": {
