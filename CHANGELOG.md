@@ -11,11 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated [@adguard/diff-builder] to 1.1.9.
-
 ### Deprecated
 
 ### Removed
+
+### Fixed
+
+### Security
+
+## [3.1.1] - 2026-11-23
+
+### Changed
+
+- Updated [@adguard/diff-builder] to 1.1.9.
 
 ### Fixed
 
@@ -50,8 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `https://myhost:8080/path?email=user@example.com`. A password whose username
   contains a dot still cannot be told from a dotted host with a port, so such
   a value stays unchanged.
-
-### Security
 
 ## [3.1.0] - 2026-11-16
 
@@ -366,7 +372,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [@adguard/diff-builder]: https://github.com/AdguardTeam/DiffBuilder/blob/master/CHANGELOG.md
 
-[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.1.1...HEAD
+[3.1.1]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.1...v3.1.0
 [3.0.1]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/AdguardTeam/FiltersDownloader/compare/v3.0.0-beta.0...v3.0.0
