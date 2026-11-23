@@ -139,6 +139,19 @@ describe('throwError', () => {
     });
 
     it.each([
+        '!#include dir/file@2x.txt',
+        '!#include C:\\filters\\file@2x.txt',
+    ])('keeps a local include path without credentials unchanged: %s', (rule) => {
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            `\t${rule}`,
+        ));
+
+        expect(message).toContain(rule);
+    });
+
+    it.each([
         {
             name: 'a scriptlet rule',
             rule: "estuary.dev#%#//scriptlet('set-local-storage-item', "

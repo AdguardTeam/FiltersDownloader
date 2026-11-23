@@ -14,6 +14,7 @@ import mockFs from 'mock-fs';
 import { FiltersDownloader } from '../src';
 import { server } from './server';
 import { mergeErrorDetails } from '../src/helpers/logger';
+import { getErrorChainText } from './helpers/get-error-chain-text';
 
 const FilterCompilerConditionsConstants = {
     adguard: true,
@@ -86,6 +87,79 @@ describe('FiltersDownloader', () => {
                 undefined,
                 FilterCompilerConditionsConstants,
             )).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+
+        it('removes credentials from a scheme-less include target', async () => {
+            const filterDirectory = path.resolve(__dirname, './resources');
+            const includeTarget = 'Adm1n:S3cretPwd@example.org/missing.txt';
+            const redactedTarget = 'example.org/missing.txt';
+            const rules = [
+                'always_included_rule',
+                '||example.com',
+                '||example.org',
+                `!#include ${includeTarget}`,
+            ];
+            const errorDetails = [
+                `Failed to resolve the include directive '!#include ${redactedTarget}'`,
+                `URL: '${filterDirectory}'`,
+                'Context:',
+                '\talways_included_rule',
+                '\t||example.com',
+                '\t||example.org',
+                `\t!#include ${redactedTarget}`,
+                `\tENOENT: no such file or directory, open '${path.resolve(filterDirectory, redactedTarget)}'`,
+            ];
+
+            const error = await FiltersDownloader.resolveIncludes(
+                rules,
+                filterDirectory,
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toBe(mergeErrorDetails(errorDetails));
+
+            const errorChainText = getErrorChainText(error);
+            expect(errorChainText).not.toContain('Adm1n');
+            expect(errorChainText).not.toContain('S3cretPwd');
+        });
+
+        it('keeps a local include path with an at sign unchanged', async () => {
+            const filterDirectory = path.resolve(__dirname, './resources');
+            const includeTarget = 'dir/file@2x.txt';
+            const rules = [
+                'always_included_rule',
+                '||example.com',
+                '||example.org',
+                `!#include ${includeTarget}`,
+            ];
+            const errorDetails = [
+                `Failed to resolve the include directive '!#include ${includeTarget}'`,
+                `URL: '${filterDirectory}'`,
+                'Context:',
+                '\talways_included_rule',
+                '\t||example.com',
+                '\t||example.org',
+                `\t!#include ${includeTarget}`,
+                `\tENOENT: no such file or directory, open '${path.resolve(filterDirectory, includeTarget)}'`,
+            ];
+
+            await expect(FiltersDownloader.resolveIncludes(
+                rules,
+                filterDirectory,
+                FilterCompilerConditionsConstants,
+            )).rejects.toThrowError(new Error(mergeErrorDetails(errorDetails)));
+        });
+
+        it('keeps a windows include path unchanged', async () => {
+            const includeTarget = 'C:\\filters\\file@2x.txt';
+            const rules = [`!#include ${includeTarget}`];
+
+            const error = await FiltersDownloader.resolveIncludes(rules).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message)
+                .toContain(`!#include ${includeTarget}`);
         });
 
         it('failed to resolve the include directive without file path', async () => {
@@ -187,6 +261,40 @@ describe('FiltersDownloader', () => {
             );
 
             expect(filter).toEqual(['||included.com^', '||example.org^']);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('downloads an absolute include with credentials and sends Basic auth', async () => {
+            const authorization = `Basic ${Buffer.from('user:password').toString('base64')}`;
+            const scope = nock('http://localhost:3000');
+
+            scope
+                .get('/fixtures/credentials/included.txt')
+                .matchHeader('Authorization', authorization)
+                .reply(200, '||included.com^', { 'Content-Type': 'text/plain' });
+
+            const filter = await FiltersDownloader.resolveIncludes([
+                '!#include http://user:password@localhost:3000/fixtures/credentials/included.txt',
+            ]);
+
+            expect(filter).toEqual(['||included.com^']);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('redacts credentials in an absolute include error message', async () => {
+            const includeTarget = 'http://user:password@localhost:3000/fixtures/credentials/missing.txt';
+            const scope = nock('http://localhost:3000')
+                .get('/fixtures/credentials/missing.txt')
+                .reply(404);
+
+            const error = await FiltersDownloader.resolveIncludes([`!#include ${includeTarget}`])
+                .catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toContain(
+                '!#include http://localhost:3000/fixtures/credentials/missing.txt',
+            );
+            expect(getErrorChainText(error)).not.toContain('user:password');
             expect(scope.isDone()).toBe(true);
         });
     });

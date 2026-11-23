@@ -4,6 +4,7 @@ import {
     parseUrlCredentials,
     redactErrorCredentials,
     redactUrlCredentials,
+    stripSchemeLessUrlCredentials,
     stripUrlCredentials,
 } from '../../src/common/url';
 
@@ -402,6 +403,57 @@ describe('parseUrlCredentials', () => {
         'https://admin:2024?Secret1@example.org/list.txt',
     ])('leaves a password that starts with digits and contains ? or # unchanged: %s', (url) => {
         expect(parseUrlCredentials(url)).toEqual({ url });
+    });
+});
+
+describe('stripSchemeLessUrlCredentials', () => {
+    it.each([
+        {
+            name: 'a username and a password',
+            url: 'adg-user:pass@example.org/missing.txt',
+            expected: 'example.org/missing.txt',
+        },
+        {
+            name: 'a password with a colon',
+            url: 'user:pa:ss@example.org/missing.txt',
+            expected: 'example.org/missing.txt',
+        },
+        {
+            name: 'a password with an at sign',
+            url: 'user:pa@ss@example.org/missing.txt',
+            expected: 'example.org/missing.txt',
+        },
+        {
+            name: 'a password and a query with an at sign',
+            url: 'user:pass@example.org/missing.txt?x=a@b',
+            expected: 'example.org/missing.txt?x=a@b',
+        },
+        {
+            name: 'a single-label host',
+            url: 'user:pass@localhost/missing.txt',
+            expected: 'localhost/missing.txt',
+        },
+        {
+            name: 'credentials without a host',
+            url: 'user:pass@',
+            expected: '',
+        },
+    ])('removes $name from a scheme-less url', ({ url, expected }) => {
+        expect(stripSchemeLessUrlCredentials(url)).toBe(expected);
+    });
+
+    it.each([
+        'example.org/missing.txt',
+        'user@example.org/missing.txt',
+        'user:@example.org/missing.txt',
+        'dir/file@2x.txt',
+        'C:\\filters\\file@2x.txt',
+        'C:/filters/file@2x.txt',
+        'C:file@2x.txt',
+        'https://user:pass@example.org/filter.txt',
+        '//user:pass@example.org/filter.txt',
+    ])('keeps %s unchanged', (url) => {
+        expect(stripSchemeLessUrlCredentials(url)).toBe(url);
     });
 });
 

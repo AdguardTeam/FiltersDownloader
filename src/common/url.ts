@@ -772,6 +772,60 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 };
 
 /**
+ * Matches a Windows drive prefix, for example `C:` or `C:\\`.
+ */
+const WINDOWS_DRIVE_PREFIX_REGEXP = /^[a-zA-Z]:/;
+
+/**
+ * Matches a character that ends the authority of a scheme-less URL.
+ */
+const SCHEME_LESS_AUTHORITY_END_REGEXP = /[/\\?#]/;
+
+/**
+ * Removes the userinfo component from the start of a scheme-less URL.
+ *
+ * A scheme-less URL can have a userinfo component without a scheme, for
+ * example `user:password@example.org/filter.txt`. The generic
+ * {@link stripUrlCredentials} treats such a value as a local path, because it
+ * needs a scheme or a protocol-relative prefix to find a URL. This function
+ * uses the known position of the value and removes a userinfo component that
+ * has a colon between the username and the password.
+ *
+ * The function does not change a value without such a userinfo component, a
+ * value with only a username, or a Windows path. The target stays a local
+ * path, so the caller can use the result in an error message.
+ *
+ * @param url Scheme-less URL that may start with a userinfo component.
+ *
+ * @returns URL without the userinfo component.
+ */
+export const stripSchemeLessUrlCredentials = (url: string): string => {
+    if (WINDOWS_DRIVE_PREFIX_REGEXP.test(url)) {
+        return url;
+    }
+
+    const authorityEndIndex = url.search(SCHEME_LESS_AUTHORITY_END_REGEXP);
+    const authority = authorityEndIndex === -1 ? url : url.slice(0, authorityEndIndex);
+    const atSignIndex = authority.lastIndexOf('@');
+
+    if (atSignIndex === -1) {
+        return url;
+    }
+
+    const userinfo = authority.slice(0, atSignIndex);
+    const separatorIndex = userinfo.indexOf(':');
+
+    // A userinfo component has a non-empty username, a colon, and a
+    // non-empty password. A username without a password has nothing to
+    // remove, and an at sign in a path or a filename can contain a colon.
+    if (separatorIndex <= 0 || separatorIndex === userinfo.length - 1) {
+        return url;
+    }
+
+    return url.slice(atSignIndex + 1);
+};
+
+/**
  * Matches the start of a URL inside a path or other text. The scheme needs at
  * least two characters, so a Windows drive letter is not a scheme.
  */

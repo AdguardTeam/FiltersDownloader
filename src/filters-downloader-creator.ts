@@ -18,7 +18,12 @@
 import { DiffUpdater, UnacceptableResponseError } from '@adguard/diff-builder/diff-updater';
 import { isValidChecksum } from './checksum';
 import { throwError, getContext } from './helpers/logger';
-import { ABSOLUTE_URL_REGEXP, parseUrlCredentials, stripUrlCredentials } from './common/url';
+import {
+    ABSOLUTE_URL_REGEXP,
+    parseUrlCredentials,
+    stripSchemeLessUrlCredentials,
+    stripUrlCredentials,
+} from './common/url';
 import { resolveIncludePath } from './common/include-path';
 
 /**
@@ -227,6 +232,37 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     const CONDITION_BRACKET_CLOSE_CHAR = ')';
 
     const INCLUDE_DIRECTIVE = '!#include';
+
+    /**
+     * Matches an include directive line and separates its target.
+     */
+    const INCLUDE_DIRECTIVE_LINE_REGEXP = /^(\s*!#include\s+)(\S+)(.*)$/;
+
+    /**
+     * Removes the userinfo component from a scheme-less include target in a
+     * directive line.
+     *
+     * The generic line redaction in the logger needs a scheme or a
+     * protocol-relative prefix to find a URL. An include target is a known
+     * value, so the function uses its position and removes a userinfo
+     * component that has a colon between the username and the password.
+     *
+     * @param line Line that may contain an include directive.
+     *
+     * @returns Line with the redacted target.
+     */
+    const redactIncludeDirectiveLine = (line: string): string => {
+        const match = INCLUDE_DIRECTIVE_LINE_REGEXP.exec(line);
+
+        if (match === null) {
+            return line;
+        }
+
+        const [, directive, target, rest] = match;
+        const redactedTarget = stripSchemeLessUrlCredentials(target);
+
+        return redactedTarget === target ? line : `${directive}${redactedTarget}${rest}`;
+    };
 
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
 
@@ -594,20 +630,26 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             return Promise.resolve(line);
         }
         let url = line.substring(INCLUDE_DIRECTIVE.length).trim();
+        const includeTarget = url;
+        let redactedIncludeTarget = includeTarget;
 
         if (ABSOLUTE_URL_REGEXP.test(url)) {
             // Absolute URLs keep the existing validation and download flow.
             validateUrl(url, filterOrigin);
-        } else if (typeof filterOrigin === 'string' && url !== '') {
-            const resolvedIncludePath = resolveIncludePath(url, filterOrigin);
+        } else {
+            redactedIncludeTarget = stripSchemeLessUrlCredentials(includeTarget);
 
-            if (resolvedIncludePath === null) {
-                // uBO ignores an include that points outside the directory of
-                // the file that contains the directive, and so do we.
-                return Promise.resolve([]);
+            if (typeof filterOrigin === 'string' && url !== '') {
+                const resolvedIncludePath = resolveIncludePath(url, filterOrigin);
+
+                if (resolvedIncludePath === null) {
+                    // uBO ignores an include that points outside the directory of
+                    // the file that contains the directive, and so do we.
+                    return Promise.resolve([]);
+                }
+
+                url = resolvedIncludePath;
             }
-
-            url = resolvedIncludePath;
         }
 
         let filter: string[] = [];
@@ -620,12 +662,23 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             });
             filter = downloadResult.filter;
         } catch (error: unknown) {
+            const redactedContext = context === undefined
+                ? undefined
+                : context.split('\n').map(redactIncludeDirectiveLine).join('\n');
+            let redactedError = error;
+
+            if (redactedIncludeTarget !== includeTarget && includeTarget !== '') {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+
+                redactedError = errorMessage.split(includeTarget).join(redactedIncludeTarget);
+            }
+
             throwError(
                 'Failed to resolve the include directive',
-                line,
-                context,
+                redactIncludeDirectiveLine(line),
+                redactedContext,
                 filterOrigin,
-                error,
+                redactedError,
             );
         }
 
