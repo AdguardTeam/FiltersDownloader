@@ -668,9 +668,15 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             let redactedError = error;
 
             if (redactedIncludeTarget !== includeTarget && includeTarget !== '') {
+                const userinfo = includeTarget.slice(
+                    0,
+                    includeTarget.length - redactedIncludeTarget.length,
+                );
                 const errorMessage = error instanceof Error ? error.message : String(error);
 
-                redactedError = errorMessage.split(includeTarget).join(redactedIncludeTarget);
+                // Remove only the userinfo, so a path with other separators
+                // loses the credentials too.
+                redactedError = errorMessage.split(userinfo).join('');
             }
 
             throwError(
