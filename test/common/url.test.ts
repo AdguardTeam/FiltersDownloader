@@ -396,6 +396,13 @@ describe('parseUrlCredentials', () => {
         expect(parseUrlCredentials(url)).toEqual({ url });
         expect(stripUrlCredentials(url)).toBe(url);
     });
+
+    it.each([
+        'https://admin:2024#Secret1@example.org/list.txt',
+        'https://admin:2024?Secret1@example.org/list.txt',
+    ])('leaves a password that starts with digits and contains ? or # unchanged: %s', (url) => {
+        expect(parseUrlCredentials(url)).toEqual({ url });
+    });
 });
 
 describe('stripUrlCredentials', () => {
@@ -460,6 +467,240 @@ describe('stripUrlCredentials', () => {
         const unit = 'https://u:p@a/';
 
         expect(stripUrlCredentials(unit.repeat(4000))).toBe('https://a/'.repeat(4000));
+    });
+
+    it.each([
+        {
+            name: 'a digit-first hash password',
+            url: 'https://admin:2024#Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            // The username is empty, so the scheme prefix must not give back
+            // one of its slashes to satisfy the username part of the pattern.
+            name: 'a digit-first hash password without a username',
+            url: 'https://:2024#Secret1@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            name: 'a digit-first hash password without a username and with one slash',
+            url: 'https:/:2024#Secret1@example.org/f.txt',
+            expected: 'https:/example.org/f.txt',
+        },
+        {
+            name: 'a digit-first question mark password',
+            url: 'https://admin:2024?Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            // Digits that overflow the port range make the candidate
+            // unparsable, so the redaction reads the digit-first form without
+            // the parser.
+            name: 'a digit-first hash password with digits that overflow the port range',
+            url: 'https://admin:20241117#Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            name: 'a digit-first question mark password with digits that overflow the port range',
+            url: 'https://admin:20241117?Secret1@example.org/list.txt',
+            expected: 'https://example.org/list.txt',
+        },
+        {
+            name: 'a protocol-relative digit-first hash password',
+            url: '//admin:2024#Secret1@example.org/list.txt',
+            expected: '//example.org/list.txt',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host with a numeric port',
+            url: 'https://fileserver:8080#x@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            name: 'a digit-first question mark password and a single-label host with a numeric port',
+            url: 'https://fileserver:8080?x@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host with a path',
+            url: 'https://admin:2024#Secret1@fileserver/list.txt',
+            expected: 'https://fileserver/list.txt',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host with a query',
+            url: 'https://admin:2024#Secret1@fileserver?format=adblock',
+            expected: 'https://fileserver?format=adblock',
+        },
+        {
+            name: 'a digit-first hash password and a single-label host at the end of the value',
+            url: 'https://admin:2024#Secret1@fileserver',
+            expected: 'https://fileserver',
+        },
+        {
+            name: 'a digit-first hash password and a second at sign in the query',
+            url: 'https://admin:2024#Secret1@example.org?a@b',
+            expected: 'https://example.org?a@b',
+        },
+        {
+            name: 'a digit-first hash password and an email query',
+            url: 'https://admin:2024#Secret1@example.org?email=user@example.com',
+            expected: 'https://example.org?email=user@example.com',
+        },
+        {
+            name: 'a digit-first password with an at sign and an email query',
+            url: 'https://admin:2024#Se@cret@example.org?email=user@example.com',
+            expected: 'https://example.org?email=user@example.com',
+        },
+        {
+            name: 'a digit-first password with an at sign and a query at sign',
+            url: 'https://admin:2024#Se@cret@example.org?a@b',
+            expected: 'https://example.org?a@b',
+        },
+        {
+            name: 'a digit-first hash password and a path at sign',
+            url: 'https://admin:2024#Secret1@example.org/a@b',
+            expected: 'https://example.org/a@b',
+        },
+        {
+            name: 'a digit-first password with an at sign and a path at sign',
+            url: 'https://admin:2024#Se@cret@example.org/a@b',
+            expected: 'https://example.org/a@b',
+        },
+        {
+            name: 'a single-label host with a numeric port and a second at sign in the query',
+            url: 'https://fileserver:8080?x@example.org&y@z',
+            expected: 'https://z',
+        },
+        {
+            name: 'a localhost digit-first hash password',
+            url: 'https://localhost:2024#Secret1@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            name: 'a localhost digit-first question mark password',
+            url: 'https://localhost:2024?Secret1@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            // `localhost` is treated as a username even though it can be a
+            // host, because a leak is worse than a wrong host in display text.
+            name: 'a valid localhost url with a port and an at sign in the fragment',
+            url: 'https://localhost:8080#contact@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            // A password can contain `/` after `?` or `#`, so the candidate
+            // does not stop at a path separator.
+            name: 'a digit-first hash password with a slash',
+            url: 'https://admin:2024#Se/cret@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            name: 'a digit-first question mark password with a slash',
+            url: 'https://admin:2024?Se/cret@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            name: 'a digit-first hash password with a backslash',
+            url: 'https://admin:2024#Se\\cret@example.org/f.txt',
+            expected: 'https://example.org/f.txt',
+        },
+        {
+            // The username is empty and the password contains a slash, so
+            // neither the broad match nor a username-first digit-first match
+            // can find the at sign. The optional username covers the form.
+            name: 'a digit-first hash password with a slash and no username',
+            url: 'https://:2024#Se/cret@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            name: 'a digit-first question mark password with a slash and no username',
+            url: 'https://:2024?Se/cret@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            name: 'a digit-first hash password with a backslash and no username',
+            url: 'https://:2024#Se\\cret@example.org',
+            expected: 'https://example.org',
+        },
+        {
+            // A later at sign can belong to the password, so the redaction
+            // ends at it even though no host remains after it. Falling back to
+            // the first at sign would keep `example.org,admin` in the text.
+            name: 'a digit-first hash password and an at sign at the end of the value',
+            url: 'https://admin:2024#Secret1@example.org,admin@',
+            expected: 'https://',
+        },
+        {
+            // The text between the at signs is part of the password, so the
+            // whole token is removed rather than leaving `cret@` behind.
+            name: 'a digit-first password that ends with an at sign',
+            url: 'https://admin:2024#Se@cret@',
+            expected: 'https://',
+        },
+    ])('removes $name from display text', ({ url, expected }) => {
+        expect(stripUrlCredentials(url)).toBe(expected);
+    });
+
+    it('removes a digit-first password that contains an at sign', () => {
+        // The redaction ends at the last at sign in the URL token, so a
+        // password that itself contains an at sign is removed too.
+        expect(stripUrlCredentials('https://admin:2024#Se@cret@example.org/f.txt'))
+            .toBe('https://example.org/f.txt');
+    });
+
+    it('keeps prose after a digit-first url', () => {
+        // The greedy broad match used to end at the last at sign before `/`,
+        // which swallowed the prose up to the email address.
+        expect(stripUrlCredentials('Failed: https://admin:2024#Secret1@example.org and user@example.com'))
+            .toBe('Failed: https://example.org and user@example.com');
+    });
+
+    it('removes a digit-first password that contains a space and an at sign', () => {
+        // The first at sign is followed by a space, so the text after it is
+        // not a URL tail. The text between the at signs can be part of a
+        // password, so the redaction ends at the last at sign in the text.
+        expect(stripUrlCredentials('https://admin:2024#Se@ cret@example.org'))
+            .toBe('https://example.org');
+    });
+
+    it('swallows prose when the first at sign is followed by a space and a later at sign follows', () => {
+        // The text between the URL and the at sign that becomes the separator
+        // can be part of a password, so it is removed. Here a later at sign
+        // follows the space, so the redaction ends at that at sign. The host
+        // of the result can be wrong, but no password part remains.
+        expect(stripUrlCredentials('Read https://admin:2024#Secret1@ and user@example.com now'))
+            .toBe('Read https://example.com now');
+    });
+
+    it('removes prose up to an at sign that ends a quoted statement', () => {
+        // The at sign in the email address becomes the separator, so the
+        // closing quote and the words between the URL and the at sign are
+        // removed with the password candidate.
+        expect(stripUrlCredentials("Failed to request 'https://a:1#b' for admin@example.org"))
+            .toBe("Failed to request 'https://example.org");
+    });
+
+    it.each([
+        'https://example.org:8080#contact@example.org',
+        'https://example.org:8080?x@y',
+        'https://[::1]:8080#contact@example.org',
+        // The tail check keeps an at sign that ends the value unchanged: the
+        // text after it does not look like a host and the rest of a URL.
+        'https://a:1#b@',
+        'https://fileserver:8080#x@',
+        // A dotted username cannot be told from a dotted host with a port, so
+        // this value stays unchanged.
+        'https://john.doe:2024#pw@example.org/f.txt',
+        // An IPv6 literal has a colon inside the brackets, so the username
+        // part of the digit-first pattern ends there and cannot match.
+        'https://[::1]:2024#Secret1@example.org/f.txt',
+        // A path after the port tells a digit-first password from a valid URL,
+        // because the port and the query or fragment no longer follow the URL
+        // prefix directly.
+        'https://myhost:8080/path?email=user@example.com',
+        'https://myhost:8080/path#contact@example.org',
+    ])('keeps a valid url with a port and an at sign in the query or fragment: %s', (url) => {
+        expect(stripUrlCredentials(url)).toBe(url);
     });
 });
 

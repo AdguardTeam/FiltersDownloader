@@ -23,7 +23,6 @@ import { type FileDownloadHeaders, type FileDownloadResult } from '../common/typ
 import {
     parseUrlCredentials,
     redactErrorCredentials,
-    redactUrlCredentials,
     stripUrlCredentials,
 } from '../common/url';
 
@@ -35,11 +34,6 @@ interface RequestResult {
      * Response of the request.
      */
     response: Response;
-
-    /**
-     * URL that was passed to `fetch`, without the userinfo component.
-     */
-    url: string;
 }
 
 /**
@@ -52,7 +46,7 @@ interface RequestResult {
  * @param url Url.
  * @param method HTTP method.
  *
- * @returns Promise with the response and the sanitized request URL.
+ * @returns Promise with the response.
  *
  * @throws Error with the original error as `cause` if the request fails.
  */
@@ -73,9 +67,9 @@ const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise
             headers,
         });
 
-        return { response, url: sanitizedUrl };
+        return { response };
     } catch (error) {
-        throw new Error(`Failed to request url '${redactUrlCredentials(sanitizedUrl)}'`, {
+        throw new Error(`Failed to request url '${stripUrlCredentials(url)}'`, {
             cause: redactErrorCredentials(error, undefined, url),
         });
     }
@@ -89,10 +83,10 @@ const executeRequestAsync = async (url: string, method: 'GET' | 'HEAD'): Promise
  * and error if rejected.
  */
 const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
-    const { response, url: sanitizedUrl } = await executeRequestAsync(url, 'GET');
+    const { response } = await executeRequestAsync(url, 'GET');
 
     if (response.status !== 200) {
-        throw new Error(`Response status for url ${redactUrlCredentials(sanitizedUrl)} is invalid: ${response.status}`);
+        throw new Error(`Response status for url ${stripUrlCredentials(url)} is invalid: ${response.status}`);
     }
 
     if (!isContentTypeSupported(response.headers.get('Content-Type'))) {
@@ -103,8 +97,8 @@ const getExternalFile = async (url: string): Promise<FileDownloadResult> => {
     try {
         content = await response.text();
     } catch (error) {
-        throw new Error(`Failed to request url '${redactUrlCredentials(sanitizedUrl)}'`, {
-            cause: redactErrorCredentials(error),
+        throw new Error(`Failed to request url '${stripUrlCredentials(url)}'`, {
+            cause: redactErrorCredentials(error, undefined, url),
         });
     }
 

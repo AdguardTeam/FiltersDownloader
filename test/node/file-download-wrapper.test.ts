@@ -254,6 +254,24 @@ describe('Node file download wrapper', () => {
         });
 
         it.each([
+            'https://admin:2024#Secret1@example.org/filter.txt',
+            'https://admin:2024?Secret1@example.org/filter.txt',
+        ])('does not leak a password that starts with digits and contains ? or #: %s', async (url) => {
+            const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+            vi.stubGlobal('fetch', fetchMock);
+
+            const error = await getExternalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('Secret1');
+            expect(getErrorChainText(error)).toContain('https://example.org/filter.txt');
+            // The parser leaves this value unchanged, so the request target is
+            // the original URL. Only the display text is redacted.
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(fetchMock.mock.calls[0][0]).toBe(url);
+        });
+
+        it.each([
             'http://example.org:?token=a@b',
             'https://example.org:?email=user@example.com',
             'http://example.org:#x@y.z/p',
@@ -469,6 +487,17 @@ describe('Node file download wrapper', () => {
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain(leaked);
             expect((error as Error & { path?: string }).path).not.toContain(leaked);
+        });
+
+        it.each([
+            'https:/admin:2024#Secret1@example.org/filter.txt',
+            'https:/admin:2024?Secret1@example.org/filter.txt',
+        ])('does not leak a digit-first password from a local path error: %s', async (url) => {
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('Secret1');
+            expect((error as Error & { path?: string }).path).not.toContain('Secret1');
         });
     });
 

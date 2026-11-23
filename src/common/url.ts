@@ -85,8 +85,10 @@ const AMBIGUOUS_USERINFO_REGEXP = /[?#\s]/;
  * looks like the rest of a URL. See {@link isMalformedUserinfoForm}.
  *
  * A password that starts with digits and then contains `?` or `#`, for
- * example `admin:2024#Secret1`, is not recognized: it has the same form as a
- * host with a port and a fragment.
+ * example `admin:2024#Secret1`, is not recognized by the parser: it has the
+ * same form as a host with a port and a fragment. The redaction of error text
+ * recognizes it, because a leak in text is worse than a wrong host. See
+ * {@link isDigitFirstMalformedUserinfo}.
  */
 const MALFORMED_USERINFO_REGEXP = /^[^:?#\s]*:[?#]/;
 
@@ -166,6 +168,88 @@ const isMalformedUserinfoForm = (userinfo: string, tail: string): boolean => {
 };
 
 /**
+ * Matches the userinfo part of a malformed URL where a password starts with
+ * digits and then contains `?` or `#`, for example `admin:2024#Secret1`.
+ *
+ * The part before the colon is a username, so it has no dot. A dotted host
+ * with a port and an at sign in the query or fragment, for example
+ * `example.org:8080#contact@example.org`, must stay unchanged.
+ *
+ * A username cannot contain a slash either, so the class excludes `/` and
+ * `\`. Without the exclusion, the scheme prefix of
+ * {@link DIGIT_FIRST_URL_REGEXP} gives back one of its slashes when the
+ * username is empty, and the redaction prints a URL with one slash too few.
+ *
+ * The username is optional: a URL can have a password without a username, for
+ * example `https://:2024#Se/cret@example.org`. An empty username keeps the
+ * pattern from matching a valid URL with a port and an at sign in the query or
+ * fragment only when the part before the colon is empty too, which such a URL
+ * cannot have.
+ */
+const DIGIT_FIRST_USERINFO_PATTERN = String.raw`(?:[^:?#\s./\\]+)?:\d+[?#]`;
+
+/**
+ * Matches malformed userinfo where a password starts with digits and then
+ * contains `?` or `#`, for example `admin:2024#Secret1@example.org`.
+ */
+const DIGIT_FIRST_USERINFO_REGEXP = new RegExp(`^${DIGIT_FIRST_USERINFO_PATTERN}`);
+
+/**
+ * Matches a URL prefix and the first at sign of malformed userinfo where a
+ * password starts with digits and then contains `?` or `#`, for example
+ * `https://admin:2024#Secret1@example.org`.
+ *
+ * The first at sign after `?` or `#` is the first candidate separator. The
+ * leak-safe redaction uses the last at sign before a path, query, or fragment
+ * delimiter, or the last at sign in the URL token when there is no delimiter,
+ * so a password that contains an at sign is removed too. See
+ * {@link getDigitFirstSeparator}.
+ *
+ * A password can contain `/` and `\` after `?` or `#`, for example
+ * `admin:2024#Se/cret`, so the candidate does not stop at them. The username
+ * before the colon still has no dot, so a dotted host cannot match: only a
+ * single-label host with a numeric port and an at sign in the query or
+ * fragment becomes a wrong redaction, as it already does for the other
+ * single-label forms.
+ */
+const DIGIT_FIRST_URL_REGEXP = new RegExp(
+    String.raw`^((?:[a-z][a-z0-9+.-]+:[/\\]*)|(?:[/\\]{2,}))(${DIGIT_FIRST_USERINFO_PATTERN}[^@]*)@`,
+    'i',
+);
+
+/**
+ * Checks that a malformed userinfo match contains a password that starts with
+ * digits and then contains `?` or `#`.
+ *
+ * The WHATWG parser accepts this string as a host, a port, and a query or a
+ * fragment, so the parser cannot detect the credentials. The redaction accepts
+ * the form because a leak in text is worse than a wrong host. The parser still
+ * leaves the value unchanged, so the credentials are not sent as Basic auth.
+ *
+ * `localhost` is treated like any other part before the colon, even though it
+ * can be a host: `https://localhost:2024#Secret1@example.org/f.txt` is
+ * redacted, and so is the valid `https://localhost:8080#contact@example.org`.
+ * A leak is worse than a wrong host in display text. A single-label host after
+ * the at sign is redacted for the same reason, as in
+ * {@link SINGLE_LABEL_HOST_REGEXP}. An IPv6 literal cannot match
+ * {@link DIGIT_FIRST_USERINFO_REGEXP}: it has a colon inside the brackets, so
+ * the username part ends at that colon.
+ *
+ * @param userinfo Userinfo component of the match.
+ * @param tail Text after the at sign up to the first whitespace or quote.
+ *
+ * @returns `true` if the match contains malformed userinfo.
+ */
+const isDigitFirstMalformedUserinfo = (userinfo: string, tail: string): boolean => {
+    if (!DIGIT_FIRST_USERINFO_REGEXP.test(userinfo)) {
+        return false;
+    }
+
+    return MALFORMED_USERINFO_TAIL_REGEXP.test(tail)
+        || SINGLE_LABEL_HOST_REGEXP.test(tail);
+};
+
+/**
  * Sticky variants of the userinfo regexps.
  *
  * The `lastIndex` property points to the URL start, so the function does not
@@ -177,6 +261,10 @@ const VALID_USERINFO_STICKY_REGEXP = new RegExp(
 );
 const USERINFO_STICKY_REGEXP = new RegExp(
     USERINFO_REGEXP.source.replace(/^\^/, ''),
+    'iy',
+);
+const DIGIT_FIRST_STICKY_REGEXP = new RegExp(
+    DIGIT_FIRST_URL_REGEXP.source.replace(/^\^/, ''),
     'iy',
 );
 
@@ -370,6 +458,82 @@ const getUrlCandidate = (text: string, offset: number): string => {
 };
 
 /**
+ * Separator of a leak-safe digit-first userinfo.
+ */
+interface DigitFirstSeparator {
+    /**
+     * Offset in the text after the at sign.
+     */
+    end: number;
+
+    /**
+     * Userinfo component before the at sign.
+     */
+    userinfo: string;
+}
+
+/**
+ * Finds the separator of a leak-safe digit-first userinfo.
+ *
+ * The separator is the last at sign before the first `/`, `\`, `?`, or `#`
+ * that follows the first at sign. Without such a delimiter, a later at sign
+ * can belong to the password, so the separator is the last at sign in the URL
+ * token. This keeps a path, query, or fragment and still removes a password
+ * that contains an at sign. When the text after the last at sign is empty, the
+ * extended separator would leave no host, but a password part can follow the
+ * first at sign, so the extended separator is still preferred: a leak is worse
+ * than a missing host in display text.
+ *
+ * @param text Text that contains the URL.
+ * @param offset Offset of the URL in the text.
+ * @param match Match of {@link DIGIT_FIRST_STICKY_REGEXP}.
+ *
+ * @returns Separator data, or undefined if the match is not digit-first
+ * userinfo.
+ */
+const getDigitFirstSeparator = (
+    text: string,
+    offset: number,
+    match: RegExpExecArray,
+): DigitFirstSeparator | undefined => {
+    const firstEnd = offset + match[0].length;
+    const firstUserinfo = match[2];
+    const firstTail = getUrlCandidate(text, firstEnd);
+
+    if (!isDigitFirstMalformedUserinfo(firstUserinfo, firstTail)) {
+        return undefined;
+    }
+
+    const lastAtSignIndex = firstTail.lastIndexOf('@');
+
+    if (lastAtSignIndex !== -1) {
+        const lastEnd = firstEnd + lastAtSignIndex + 1;
+        const delimiterIndex = firstTail.search(/[/\\?#]/);
+        let separatorEnd = lastEnd;
+
+        if (delimiterIndex !== -1) {
+            const atSignIndex = firstTail.slice(0, delimiterIndex).lastIndexOf('@');
+
+            if (atSignIndex === -1) {
+                return { end: firstEnd, userinfo: firstUserinfo };
+            }
+
+            separatorEnd = firstEnd + atSignIndex + 1;
+        }
+
+        // A later at sign in the token can belong to the password, so the
+        // extended separator is used even when the text after it is empty and
+        // the host is therefore lost. Falling back to the first at sign would
+        // leave the part of the password between the at signs in the text.
+        const userinfo = text.slice(offset + match[1].length, separatorEnd - 1);
+
+        return { end: separatorEnd, userinfo };
+    }
+
+    return { end: firstEnd, userinfo: firstUserinfo };
+};
+
+/**
  * A URL with userinfo found at an offset in a text.
  */
 interface ParsedUrlAt {
@@ -397,55 +561,125 @@ interface ParsedUrlAt {
  *
  * @param text Text that may contain a URL.
  * @param offset Offset of the URL in the text.
+ * @param leakSafe Whether to accept malformed userinfo whose password starts
+ * with digits and then contains `?` or `#`. The redaction of error text uses
+ * this mode. The parser leaves the value unchanged, because it is a valid URL
+ * with a port and an at sign in the query or fragment. The match keeps a path,
+ * query, or fragment that follows the host and otherwise ends at the last at
+ * sign in the URL token, so a password that contains an at sign is removed
+ * too. Text after the URL stays unless an at sign follows it: the text between
+ * the URL and that at sign can belong to a password, so the match removes it
+ * together with the at sign. For example, the match removes `' for admin` in
+ * `Failed to request 'https://a:1#b' for admin@example.org` and ends after the
+ * `example.org` that follows.
  *
  * @returns The URL data, or undefined if the URL has no userinfo.
  */
-const parseUrlCredentialsAt = (text: string, offset: number): ParsedUrlAt | undefined => {
+const parseUrlCredentialsAt = (
+    text: string,
+    offset: number,
+    leakSafe = false,
+): ParsedUrlAt | undefined => {
     const validMatch = execUserinfo(VALID_USERINFO_STICKY_REGEXP, text, offset);
     const validCandidate = validMatch === null ? undefined : getCandidate(text, offset, validMatch);
     const validParsedUrl = validCandidate === undefined ? undefined : tryParseUrl(validCandidate);
 
     let match = validMatch;
     let parsedUrl = validParsedUrl;
+    let leakSafeEnd: number | undefined;
+    let leakSafeUserinfo: string | undefined;
 
     if (match === null || parsedUrl === undefined) {
         const broadMatch = execUserinfo(USERINFO_STICKY_REGEXP, text, offset);
 
+        const digitFirstMatch = leakSafe
+            ? execUserinfo(DIGIT_FIRST_STICKY_REGEXP, text, offset)
+            : null;
+        const digitFirstSeparator = digitFirstMatch === null
+            ? undefined
+            : getDigitFirstSeparator(text, offset, digitFirstMatch);
+
         if (broadMatch === null) {
-            return undefined;
-        }
-
-        const candidate = getCandidate(text, offset, broadMatch);
-        const candidateParsedUrl = tryParseUrl(candidate);
-        const userinfo = broadMatch[2];
-        // The candidate ends at the first `/`, so it can keep only the host,
-        // for example `localhost` in `http://admin:#Secret1@localhost/f.txt`.
-        // The tail is read from the text to recognize a single-label host with
-        // a path, query, fragment, or at the end of the value.
-        const tail = getUrlCandidate(text, offset + broadMatch[0].length);
-        const isMalformedUserinfo = isMalformedUserinfoForm(userinfo, tail);
-
-        if (candidateParsedUrl === undefined) {
-            // A malformed URL cannot be parsed, so the whole candidate is a
-            // malformed userinfo component if the heuristics accept it.
-            if (!isMalformedUserinfo && !isCredentialsMatch(broadMatch[1], userinfo)) {
+            // The broad match ends at `/` and `\`, so a password that
+            // contains one of them after `?` or `#` leaves no broad match.
+            // Only the digit-first form can still identify the userinfo.
+            if (digitFirstMatch === null || digitFirstSeparator === undefined) {
                 return undefined;
             }
-        } else if (validMatch === null && !isMalformedUserinfo) {
-            // The WHATWG parser accepts the candidate and finds no
-            // credentials. The at sign is in the query, the fragment, or the
-            // following text. Accept only the malformed form where a colon
-            // comes directly before `?` or `#` and the text after the at sign
-            // looks like the rest of a URL.
-            return undefined;
-        }
 
-        match = broadMatch;
-        parsedUrl = candidateParsedUrl;
+            match = digitFirstMatch;
+            leakSafeEnd = digitFirstSeparator.end;
+            leakSafeUserinfo = digitFirstSeparator.userinfo;
+        } else {
+            const candidate = getCandidate(text, offset, broadMatch);
+            const candidateParsedUrl = tryParseUrl(candidate);
+            const userinfo = broadMatch[2];
+            // The candidate ends at the first `/`, so it can keep only the
+            // host, for example `localhost` in
+            // `http://admin:#Secret1@localhost/f.txt`. The tail is read from
+            // the text to recognize a single-label host with a path, query,
+            // fragment, or at the end of the value.
+            const tail = getUrlCandidate(text, offset + broadMatch[0].length);
+            const isMalformedUserinfo = isMalformedUserinfoForm(userinfo, tail);
+
+            if (candidateParsedUrl === undefined) {
+                // A malformed URL cannot be parsed, so the whole candidate is
+                // a malformed userinfo component if the heuristics accept it.
+                if (!isMalformedUserinfo && !isCredentialsMatch(broadMatch[1], userinfo)) {
+                    return undefined;
+                }
+
+                if (digitFirstMatch !== null && digitFirstSeparator !== undefined) {
+                    match = digitFirstMatch;
+                    leakSafeEnd = digitFirstSeparator.end;
+                    leakSafeUserinfo = digitFirstSeparator.userinfo;
+                } else {
+                    match = broadMatch;
+                }
+            } else if (validMatch === null && !isMalformedUserinfo) {
+                // The WHATWG parser accepts the candidate and finds no
+                // credentials. The at sign is in the query, the fragment, or
+                // the following text. Accept only the malformed form where a
+                // colon comes directly before `?` or `#`, or the leak-safe
+                // form where a password starts with digits and then contains
+                // `?` or `#`. The text after the at sign must look like the
+                // rest of a URL.
+                if (digitFirstMatch === null || digitFirstSeparator === undefined) {
+                    if (!leakSafe) {
+                        return undefined;
+                    }
+
+                    // The first at sign is followed by whitespace, so the
+                    // text after it is not a URL tail. A password can contain
+                    // `@` and a space, so fall back to the broad match when it
+                    // is the digit-first form; a leak is worse than prose
+                    // after the URL.
+                    if (!isDigitFirstMalformedUserinfo(broadMatch[2], tail)) {
+                        return undefined;
+                    }
+
+                    match = broadMatch;
+                } else {
+                    // The match ends at the separator that
+                    // `getDigitFirstSeparator()` picks, so a password that
+                    // contains an at sign is removed too. A query or fragment
+                    // after the first at sign is kept, and text after the
+                    // token is removed only up to the separator.
+                    match = digitFirstMatch;
+                    leakSafeEnd = digitFirstSeparator.end;
+                    leakSafeUserinfo = digitFirstSeparator.userinfo;
+                }
+            } else {
+                match = broadMatch;
+            }
+
+            parsedUrl = candidateParsedUrl;
+        }
     }
 
-    const [, prefix, userinfo] = match;
-    const end = offset + match[0].length;
+    const [, prefix, matchUserinfo] = match;
+    const userinfo = leakSafeUserinfo ?? matchUserinfo;
+    const end = leakSafeEnd ?? offset + match[0].length;
 
     const separatorIndex = userinfo.indexOf(':');
     const rawUsername = separatorIndex === -1
@@ -563,6 +797,38 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  * with a password. It can be a username without a password, which has nothing
  * to redact, so the function leaves such a candidate unchanged.
  *
+ * A password that starts with digits and then contains `?` or `#`, for
+ * example `admin:2024#Secret1@example.org`, is recognized for redaction. The
+ * WHATWG parser accepts this value as a URL with a port and an at sign in the
+ * query or fragment, so {@link parseUrlCredentials} leaves it unchanged. A
+ * leak in text is worse than a wrong host, so the redaction removes it anyway.
+ * The redaction keeps a path, query, or fragment that follows the host and
+ * otherwise ends at the last at sign in the URL token, so a password that
+ * contains an at sign is removed too. Text after the URL stays unless an at
+ * sign follows it: the text between the URL and that at sign can belong to a
+ * password, so the redaction removes it together with the at sign. For
+ * example, `https://admin:2024#Secret1@example.org?a@b` becomes
+ * `https://example.org?a@b`, `https://fileserver:8080?x@example.org&y@z`
+ * becomes `https://z`, and
+ * `Read https://admin:2024#Secret1@ and user@example.com now` becomes
+ * `Read https://example.com now`. When a statement continues after a quoted
+ * URL, the removed text can include the closing quote:
+ * `Failed to request 'https://a:1#b' for admin@example.org` becomes
+ * `Failed to request 'https://example.org`.
+ *
+ * A dotted part before the colon is a host with a port and stays unchanged.
+ * `localhost` is treated like any other part before the colon, even though it
+ * can be a host: both `https://localhost:2024#Secret1@example.org/f.txt` and
+ * the valid `https://localhost:8080#contact@example.org` are redacted, because
+ * a leak is worse than a wrong host in display text. A valid URL whose
+ * single-label host has a numeric port and an at sign in the query or
+ * fragment with no path after the port, for example
+ * `https://fileserver:8080#x@example.org`, is read as credentials too. A path
+ * after the port keeps the value unchanged, for example
+ * `https://myhost:8080/path?email=user@example.com`: the digit-first form
+ * needs the colon, the digits, and the query or fragment to follow the URL
+ * prefix directly.
+ *
  * @param url Value that may contain URLs with a username and a password.
  *
  * @returns Value without the userinfo components.
@@ -582,7 +848,7 @@ export const stripUrlCredentials = (url: string): string => {
             continue;
         }
 
-        const parsedUrl = parseUrlCredentialsAt(url, index);
+        const parsedUrl = parseUrlCredentialsAt(url, index, true);
 
         if (parsedUrl === undefined) {
             continue;

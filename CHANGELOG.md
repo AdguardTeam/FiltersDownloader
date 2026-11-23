@@ -19,6 +19,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `stripUrlCredentials` now removes a password that starts with digits and then
+  contains `?` or `#`, for example `admin:2024#Secret1` or
+  `admin:2024#Se/cret`, including a password without a username, for example
+  `https://:2024#Se/cret@example.org`. Error messages and
+  local-path errors no longer show such a password. The URL parser still leaves
+  such a value unchanged, so the request target stays the same. The redaction
+  keeps a path, query, or fragment that follows the host and otherwise ends at
+  the last at sign in the URL token, so a password that itself contains an at
+  sign is removed too. A token with a later at sign and no path, query, or
+  fragment delimiter is removed up to the last at sign even when no host
+  remains, for example `https://admin:2024#Se@cret@` now shows `https://`. Text
+  after the URL stays unless an at sign follows it:
+  the text between the URL and that at sign can belong to a password, so the
+  redaction removes it together with the at sign. For example,
+  `https://admin:2024#Secret1@example.org?a@b` now shows
+  `https://example.org?a@b`, `https://fileserver:8080?x@example.org&y@z`
+  shows `https://z`, and
+  `Read https://admin:2024#Secret1@ and user@example.com now` shows
+  `Read https://example.com now`. When a statement continues after a quoted
+  URL, the removed text can include the closing quote:
+  `Failed to request 'https://a:1#b' for admin@example.org` shows
+  `Failed to request 'https://example.org`. A valid URL
+  whose host is `localhost`, or whose single-label host has a numeric port and
+  an at sign in the query or fragment with no path after the port, for example
+  `https://localhost:8080#contact@example.org` and
+  `https://fileserver:8080#x@example.org`, now shows `https://example.org`,
+  because a leak is worse than a wrong host in display text. A path after the
+  port keeps the value unchanged, for example
+  `https://myhost:8080/path?email=user@example.com`. A password whose username
+  contains a dot still cannot be told from a dotted host with a port, so such
+  a value stays unchanged.
+
 ### Security
 
 ## [3.1.0] - 2026-11-16

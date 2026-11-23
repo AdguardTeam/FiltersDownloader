@@ -347,11 +347,33 @@ the host is a single label followed by a query, a fragment, or the end of the
 value.
 
 The function keeps a valid URL with a port and an at sign in the query or
-fragment unchanged when the host has a dot, is `localhost`, or is an IPv6
-literal. A single-label host with an empty port and an at sign in the query is
-read as credentials, because a leak is worse than a wrong host in display
-text. The function also keeps rule syntax after `//` unchanged, for example
-`//scriptlet(...)` and `//*[@id="x"]`.
+fragment unchanged when the host has a dot or is an IPv6 literal. A valid URL
+whose host is `localhost`, or whose single-label host has an empty or numeric
+port and an at sign in the query or fragment with no path after the port, for
+example `https://localhost:8080#contact@example.org` and
+`https://fileserver:8080#x@example.org`, is read as credentials, because a
+leak is worse than a wrong host in display text. A path after the port keeps
+the value unchanged: the digit-first form needs the port and the query or
+fragment to follow the URL prefix directly, so
+`https://myhost:8080/path?email=user@example.com` stays as is. In the digit-first form the
+redaction keeps a path, query, or fragment that follows the host and otherwise
+ends at the last at sign in the URL token, so a password that itself contains
+an at sign is removed too. When no host remains after the last at sign, the
+value loses its host as well: `https://admin:2024#Se@cret@` becomes
+`https://`. Text after the URL stays unless an at sign follows
+it: the text between the URL and that at sign can belong to a password, so the
+redaction removes it together with the at sign. For example,
+`https://admin:2024#Secret1@example.org?a@b` becomes
+`https://example.org?a@b`, `https://fileserver:8080?x@example.org&y@z`
+becomes `https://z`, and
+`Read https://admin:2024#Secret1@ and user@example.com now` becomes
+`Read https://example.com now`. When a statement continues after a quoted URL,
+the removed text can include the closing quote:
+`Failed to request 'https://a:1#b' for admin@example.org` becomes
+`Failed to request 'https://example.org`. A password
+whose username contains a dot still cannot be told from a dotted host with a
+port, so such a value stays unchanged. The function also keeps rule syntax
+after `//` unchanged, for example `//scriptlet(...)` and `//*[@id="x"]`.
 
 The browser entry point exports the same function:
 
