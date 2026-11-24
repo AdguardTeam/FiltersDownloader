@@ -28,9 +28,28 @@ const FilterCompilerConditionsConstants = {
 
 describe('FiltersDownloader', () => {
     describe('resolveConditions with logical operators', () => {
-        it('keeps the rule when both operands of an unspaced `&&` are true', () => {
+        it.each([
+            // Unspaced operators.
+            { condition: 'adguard&&adguard_ext_chromium', expected: ['||example.com^'] },
+            { condition: 'adguard&&adguard_ext_firefox', expected: [] },
+            { condition: 'adguard||unknown_platform', expected: ['||example.com^'] },
+            { condition: 'adguard_ext_firefox||unknown_platform', expected: [] },
+            // Spaced operators.
+            { condition: 'adguard && adguard_ext_chromium', expected: ['||example.com^'] },
+            { condition: 'adguard && adguard_ext_firefox', expected: [] },
+            { condition: 'adguard || unknown_platform', expected: ['||example.com^'] },
+            { condition: 'adguard_ext_firefox || unknown_platform', expected: [] },
+            // Mixed unspaced operators. `||` has a lower precedence than `&&`.
+            { condition: 'adguard&&adguard_ext_chromium||unknown_platform', expected: ['||example.com^'] },
+            { condition: 'adguard_ext_firefox&&adguard||adguard_ext_chromium', expected: ['||example.com^'] },
+            { condition: 'adguard||adguard_ext_firefox&&unknown_platform', expected: ['||example.com^'] },
+            { condition: 'adguard_ext_firefox||adguard_ext_opera&&unknown_platform', expected: [] },
+            // Unspaced operators with the `!` operand.
+            { condition: '!adguard_ext_firefox&&adguard', expected: ['||example.com^'] },
+            { condition: '!adguard||adguard_ext_chromium', expected: ['||example.com^'] },
+        ])('resolves `!#if $condition` to the expected result', ({ condition, expected }) => {
             const rules = [
-                '!#if adguard&&adguard_ext_chromium',
+                `!#if ${condition}`,
                 '||example.com^',
                 '!#endif',
             ];
@@ -38,90 +57,7 @@ describe('FiltersDownloader', () => {
             expect(FiltersDownloader.resolveConditions(
                 rules,
                 FilterCompilerConditionsConstants,
-            )).toEqual(['||example.com^']);
-        });
-
-        it('drops the rule when one operand of an unspaced `&&` is false', () => {
-            const rules = [
-                '!#if adguard&&adguard_ext_firefox',
-                '||example.com^',
-                '!#endif',
-            ];
-
-            expect(FiltersDownloader.resolveConditions(
-                rules,
-                FilterCompilerConditionsConstants,
-            )).toEqual([]);
-        });
-
-        it('keeps the rule when the left operand of an unspaced `||` is true', () => {
-            const rules = [
-                '!#if adguard||unknown_platform',
-                '||example.com^',
-                '!#endif',
-            ];
-
-            expect(FiltersDownloader.resolveConditions(
-                rules,
-                FilterCompilerConditionsConstants,
-            )).toEqual(['||example.com^']);
-        });
-
-        it('drops the rule when both operands of an unspaced `||` are false', () => {
-            const rules = [
-                '!#if adguard_ext_firefox||unknown_platform',
-                '||example.com^',
-                '!#endif',
-            ];
-
-            expect(FiltersDownloader.resolveConditions(
-                rules,
-                FilterCompilerConditionsConstants,
-            )).toEqual([]);
-        });
-
-        it('resolves a spaced `&&` in the same way as an unspaced `&&`', () => {
-            const trueRules = [
-                '!#if adguard && adguard_ext_chromium',
-                '||example.com^',
-                '!#endif',
-            ];
-            const falseRules = [
-                '!#if adguard && adguard_ext_firefox',
-                '||example.com^',
-                '!#endif',
-            ];
-
-            expect(FiltersDownloader.resolveConditions(
-                trueRules,
-                FilterCompilerConditionsConstants,
-            )).toEqual(['||example.com^']);
-            expect(FiltersDownloader.resolveConditions(
-                falseRules,
-                FilterCompilerConditionsConstants,
-            )).toEqual([]);
-        });
-
-        it('resolves a spaced `||` in the same way as an unspaced `||`', () => {
-            const trueRules = [
-                '!#if adguard || unknown_platform',
-                '||example.com^',
-                '!#endif',
-            ];
-            const falseRules = [
-                '!#if adguard_ext_firefox || unknown_platform',
-                '||example.com^',
-                '!#endif',
-            ];
-
-            expect(FiltersDownloader.resolveConditions(
-                trueRules,
-                FilterCompilerConditionsConstants,
-            )).toEqual(['||example.com^']);
-            expect(FiltersDownloader.resolveConditions(
-                falseRules,
-                FilterCompilerConditionsConstants,
-            )).toEqual([]);
+            )).toEqual(expected);
         });
 
         it('resolves an unspaced `&&` inside brackets', () => {
