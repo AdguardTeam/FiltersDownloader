@@ -37,7 +37,7 @@ Install the following tools before you start:
 
 | Tool                           | Version              | Notes                                      |
 | ------------------------------ | -------------------- | ------------------------------------------ |
-| [Node.js](https://nodejs.org/) | 22.21+ (22.x) or 24+ | CI runs tests on Node.js 22.22             |
+| [Node.js](https://nodejs.org/) | 22.21+ (22.x) or 24+ | CI runs tests on Node.js 22.23.5           |
 | [pnpm](https://pnpm.io/)       | ≥ 10.33.4, < 11      | Install with `npm install -g pnpm@10.33.4` |
 | [Git](https://git-scm.com/)    | any recent           | —                                          |
 
