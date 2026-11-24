@@ -389,8 +389,11 @@ const resolveLocalIncludePath = (includePath: string, filterOrigin: string): str
  * a target outside the directory, including any path that escapes it with
  * `..`. The caller must ignore such an include.
  *
- * A `file:` filter origin is a local source. An include path that is an
- * absolute URL is not handled here and keeps the existing flow.
+ * A `file:` filter origin is a local source, so the result is a relative path.
+ * A URL origin returns an absolute URL. A URL origin also accepts an absolute
+ * target and keeps it only when it stays on the same origin inside the
+ * directory. The library handles an absolute `!#include` target before it
+ * calls this function in its own flow.
  *
  * @param includePath Path from the include directive.
  * @param filterOrigin Directory of the file that contains the directive.

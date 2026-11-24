@@ -14,6 +14,7 @@ import mockFs from 'mock-fs';
 import { FiltersDownloader } from '../src';
 import { server } from './server';
 import { mergeErrorDetails } from '../src/helpers/logger';
+import { getErrorChainText } from './helpers/get-error-chain-text';
 
 const FilterCompilerConditionsConstants = {
     adguard: true,
@@ -162,6 +163,60 @@ describe('FiltersDownloader', () => {
             ).catch((e: Error) => e);
 
             expect((error as Error).message).toBe("Invalid url: 'http://exa mple.org/filter.txt'");
+        });
+
+        it('does not include credentials from a scheme-less include in an error message', async () => {
+            const includePath = path.resolve(__dirname, './resources/adg-user:pass@example.org/missing.txt');
+            const redactedPath = path.join(
+                path.dirname(path.dirname(includePath)),
+                'example.org',
+                'missing.txt',
+            );
+
+            const error = await FiltersDownloader.resolveIncludes(
+                [`!#include ${includePath}`],
+                undefined,
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).not.toContain('adg-user:pass');
+            expect((error as Error).message).toContain(redactedPath);
+        });
+
+        it('does not include credentials from a scheme-less include without a space', async () => {
+            const includePath = path.resolve(__dirname, './resources/adg-user:pass@example.org/missing.txt');
+
+            const error = await FiltersDownloader.resolveIncludes(
+                [`!#include${includePath}`],
+                undefined,
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('adg-user:pass');
+        });
+
+        it('does not include credentials from an include line in the context of a later error', async () => {
+            let error: unknown;
+
+            try {
+                await FiltersDownloader.compile(
+                    [
+                        '!#include Adm1n:S3cretPwd@example.org/other.txt',
+                        '!#endif',
+                    ],
+                    undefined,
+                    FilterCompilerConditionsConstants,
+                );
+            } catch (e: unknown) {
+                error = e;
+            }
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toContain('Context:');
+            expect((error as Error).message).toContain('!#include example.org/other.txt');
+            expect(getErrorChainText(error)).not.toContain('S3cretPwd');
         });
     });
 
@@ -312,6 +367,84 @@ describe('FiltersDownloader', () => {
                 });
 
             await expect(FiltersDownloader.download(filterUrl)).rejects.toThrow(Error);
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not show credentials from a resolved include url in an error message', async () => {
+            const includeTarget = 'sub/user:pass@example.org/missing.txt';
+            const scope = nock(host)
+                .get(`${parentDirectory}/${includeTarget}`)
+                .reply(404);
+
+            const error = await FiltersDownloader.resolveIncludes(
+                [`!#include ${includeTarget}`],
+                `${host}${parentDirectory}`,
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toContain('sub/example.org/missing.txt');
+            expect(getErrorChainText(error)).not.toContain('user:pass');
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not show credentials from a credentialed origin and a ./ target', async () => {
+            const origin = `http://origin-user:origin-pass@localhost:3000${parentDirectory}`;
+            const scope = nock(host)
+                .get(`${parentDirectory}/adg:secret@example.net/missing.txt`)
+                .reply(404);
+
+            const error = await FiltersDownloader.resolveIncludes(
+                ['!#include ./adg:secret@example.net/missing.txt'],
+                origin,
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('origin-pass');
+            expect(getErrorChainText(error)).not.toContain('adg:secret');
+            expect(getErrorChainText(error)).toContain('example.net/missing.txt');
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not show credentials from a resolved include origin in a nested error', async () => {
+            const includeTarget = 'sub/user:pass@example.org/child.txt';
+            const scope = nock(host)
+                .get(`${parentDirectory}/filter.txt`)
+                .reply(200, `||main.com^\n!#include ${includeTarget}`, {
+                    'Content-Type': 'text/plain',
+                })
+                .get(`${parentDirectory}/${includeTarget}`)
+                .reply(200, '!#endif', { 'Content-Type': 'text/plain' });
+
+            const error = await FiltersDownloader
+                .download(filterUrl, FilterCompilerConditionsConstants)
+                .catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            const message = getErrorChainText(error);
+            expect(message).not.toContain('user:pass');
+            expect(message).toContain(
+                `URL: '${host}${parentDirectory}/sub/example.org'`,
+            );
+            expect(scope.isDone()).toBe(true);
+        });
+
+        it('does not show credentials from an absolute include url with a userinfo in the path', async () => {
+            const includeUrl = `${host}${parentDirectory}/sub/user:pass@example.org/missing.txt`;
+            const scope = nock(host)
+                .get(`${parentDirectory}/sub/user:pass@example.org/missing.txt`)
+                .reply(404);
+
+            const error = await FiltersDownloader.resolveIncludes(
+                [`!#include ${includeUrl}`],
+                undefined,
+                FilterCompilerConditionsConstants,
+            ).catch((e: Error) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toContain('sub/example.org/missing.txt');
+            expect(getErrorChainText(error)).not.toContain('user:pass');
             expect(scope.isDone()).toBe(true);
         });
     });

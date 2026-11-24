@@ -470,6 +470,51 @@ describe('browser file download wrapper', () => {
             expect(getErrorChainText(error)).not.toContain('Secret1');
             expect(getErrorChainText(error)).toContain('https://example.org/filter.txt');
         });
+
+        it('should not leak credentials from a scheme-less url', async () => {
+            const url = 'adg-user:pass@example.org/filter.txt';
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(`Cannot fetch ${url}`, 'SecurityError'),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('adg-user:pass');
+            expect(getErrorChainText(error)).toContain('example.org/filter.txt');
+        });
+
+        it('should not leak credentials from a scheme-less url in the fetch status error', async () => {
+            const url = 'adg-user:pass@example.org/filter.txt';
+            const response = createFetchResponse(url);
+            response.status = 500;
+            const fetchMock = vi.fn().mockResolvedValue(response);
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('adg-user:pass');
+            expect(getErrorChainText(error)).toContain('example.org/filter.txt');
+        });
+
+        it('should not leak a scheme-less password that starts with a space', async () => {
+            const url = 'adg-user: pa ss@example.org/filter.txt';
+            const fetchMock = vi.fn().mockRejectedValue(
+                new DOMException(`Cannot fetch ${url}`, 'SecurityError'),
+            );
+            vi.stubGlobal('fetch', fetchMock);
+            vi.stubGlobal('XMLHttpRequest', undefined);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('pa ss');
+            expect(getErrorChainText(error)).toContain('example.org/filter.txt');
+        });
     });
 
     describe('HEAD path', () => {
@@ -863,6 +908,21 @@ describe('browser file download wrapper', () => {
 
             expect(error).toBeInstanceOf(Error);
             expect(getErrorChainText(error)).not.toContain('secret');
+        });
+
+        it('should not include credentials from a scheme-less url in the status error', async () => {
+            const url = 'adg-user:pass@example.org/filter.txt';
+            const xhrConstructor = createXhrConstructor({
+                responseUrl: url,
+                status: 500,
+            });
+            vi.stubGlobal('XMLHttpRequest', xhrConstructor);
+
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain('adg-user:pass');
+            expect(getErrorChainText(error)).toContain('example.org/filter.txt');
         });
 
         it('should not include credentials in the request error', async () => {

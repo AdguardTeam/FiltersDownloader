@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `redactErrorCredentials` and `resolveIncludePath` are exported from the
+  package root and the browser entry point. The `KnownUrlReplacement` type is
+  exported too. `redactErrorCredentials` accepts an optional `knownUrl`
+  argument, a URL whose userinfo can contain any character or a list of
+  `[value, sanitizedValue]` replacements.
+- `stripUrlCredentials` accepts an optional `isSchemaless` argument. When it
+  is `true`, the function also removes userinfo from a value without a scheme,
+  for example `sub/user:pass@example.org/filter.txt`. The default is `false`,
+  so existing calls keep the same behavior.
+
 ### Changed
 
 ### Deprecated
@@ -16,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- `!#include` and local file error messages no longer show the userinfo
+  component of a value without a scheme, for example
+  `!#include user:pass@example.org/include.txt`, an `!#include` with no space
+  before the target, or a local path that contains such a value. The redaction
+  covers the directive line, the context lines, the filter URL, and the
+  original error. A comment line is redacted too, because a comment is not a
+  filtering rule. The browser build redacts a scheme-less url in the same way.
+- An error message for an `!#include` that is resolved against a URL origin no
+  longer shows the userinfo that the target put into the path of the resolved
+  URL, for example
+  `!#include sub/user:pass@example.org/missing.txt`. The message, the stack, and
+  a nested error's `URL:` line contain the redacted resolved URL.
 
 ### Security
 

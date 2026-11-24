@@ -46,6 +46,92 @@ describe('throwError', () => {
         expect(message).not.toContain('secret');
     });
 
+    it('removes credentials from a scheme-less include directive and error', () => {
+        const rule = '!#include adg-user:pass@example.org/include.txt';
+        const context = '\t!#include adg-user:secret@example.org/previous.txt';
+        const originalError = new Error(
+            "ENOENT: no such file or directory, open '/filters/adg-user:pass@example.org/include.txt'",
+        );
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            context,
+            '/filters',
+            originalError,
+        ));
+
+        expect(message).toContain("'!#include example.org/include.txt'");
+        expect(message).toContain('\t!#include example.org/previous.txt');
+        expect(message).toContain(
+            "\tENOENT: no such file or directory, open '/filters/example.org/include.txt'",
+        );
+        expect(message).not.toContain('adg-user:pass');
+        expect(message).not.toContain('adg-user:secret');
+    });
+
+    it('removes credentials from a scheme-less include directive without a space', () => {
+        const rule = '!#includeAdm1n:S3cretPwd@example.org/include.txt';
+        const context = '\t!#includeAdm1n:S3cretPwd@example.org/previous.txt';
+        const originalError = new Error(
+            "ENOENT: no such file or directory, open '/filters/Adm1n:S3cretPwd@example.org/include.txt'",
+        );
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            context,
+            '/filters',
+            originalError,
+        ));
+
+        expect(message).toContain("'!#includeexample.org/include.txt'");
+        expect(message).toContain('\t!#includeexample.org/previous.txt');
+        expect(message).toContain(
+            "\tENOENT: no such file or directory, open '/filters/example.org/include.txt'",
+        );
+        expect(message).not.toContain('Adm1n');
+        expect(message).not.toContain('S3cretPwd');
+    });
+
+    it('removes credentials from a scheme-less include directive whose password starts with a space', () => {
+        const includeTarget = 'adg-user: pa ss@example.org/include.txt';
+        const rule = `!#include ${includeTarget}`;
+        const context = '\t!#include adg-user: pa ss@example.org/previous.txt';
+        const originalError = new Error(
+            `ENOENT: no such file or directory, open '/filters/${includeTarget}'`,
+        );
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            context,
+            '/filters',
+            originalError,
+            includeTarget,
+        ));
+
+        expect(message).toContain("'!#include example.org/include.txt'");
+        expect(message).toContain('\t!#include example.org/previous.txt');
+        expect(message).toContain(
+            "\tENOENT: no such file or directory, open '/filters/example.org/include.txt'",
+        );
+        expect(message).not.toContain('adg-user');
+        expect(message).not.toContain('pa ss');
+    });
+
+    it('removes credentials from a scheme-less filter origin', () => {
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            undefined,
+            'adg-user:pass@example.org/filters',
+        ));
+
+        expect(message).toContain("URL: 'example.org/filters'");
+        expect(message).not.toContain('adg-user:pass');
+    });
+
     it.each([
         { name: 'a single quote', password: "pa'ss" },
         { name: 'a double quote', password: 'pa"ss' },
@@ -158,5 +244,86 @@ describe('throwError', () => {
         ));
 
         expect(message).toContain(context);
+    });
+
+    it('removes a scheme-less value from a comment line', () => {
+        const context = '\t! Contact: mailto:user@example.org';
+
+        const message = getErrorMessage(() => throwError(
+            'Found unexpected condition end:',
+            '!#endif',
+            context,
+        ));
+
+        expect(message).toContain('\t! Contact: example.org');
+        expect(message).not.toContain('user@example.org');
+    });
+
+    it('keeps a rule with a colon and an at sign unchanged', () => {
+        const rule = '||example.com^$replace=/foo:bar@baz/';
+        const context = '\t||a:b@c/d';
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            context,
+        ));
+
+        expect(message).toContain(`'${rule}'`);
+        expect(message).toContain(context);
+    });
+
+    it('keeps a regex substitute value in a context line unchanged', () => {
+        const context = '\t||example.com^$replace=/foo:bar@baz/';
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            '!#include missing.txt',
+            context,
+        ));
+
+        expect(message).toContain(context);
+    });
+
+    it('keeps a regex substitute value in a nested error message unchanged', () => {
+        const nestedRule = '\t||example.com^$replace=/foo:bar@baz/';
+        const nestedMessage = [
+            "Failed to resolve the include directive '!#include missing.txt'",
+            'Context:',
+            nestedRule,
+            "\tENOENT: no such file or directory, open '/filters/missing.txt'",
+        ].join('\n');
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            '!#include outer.txt',
+            undefined,
+            '/filters',
+            new Error(nestedMessage),
+        ));
+
+        expect(message).toContain(nestedRule);
+    });
+
+    it('removes credentials from a resolved include url in the original error', () => {
+        const rule = '!#include sub/user:pass@example.org/missing.txt';
+        const resolvedUrl = 'https://origin.example/dir/sub/user:pass@example.org/missing.txt';
+        const sanitizedUrl = 'https://origin.example/dir/sub/example.org/missing.txt';
+        const originalError = new Error(`Response status for url ${resolvedUrl} is invalid: 404`);
+
+        const message = getErrorMessage(() => throwError(
+            'Failed to resolve the include directive',
+            rule,
+            undefined,
+            'https://origin.example/dir',
+            originalError,
+            [
+                [resolvedUrl, sanitizedUrl],
+                ['sub/user:pass@example.org/missing.txt', 'sub/example.org/missing.txt'],
+            ],
+        ));
+
+        expect(message).toContain(sanitizedUrl);
+        expect(message).not.toContain('user:pass');
     });
 });

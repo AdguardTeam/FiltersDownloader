@@ -27,7 +27,9 @@ works in both Node.js and browser environments.
     - [`resolveConditions()`](#resolveconditionsrules-definedexpressions)
     - [`resolveIncludes()`](#resolveincludesrules-filterorigin-definedexpressions)
     - [`getFilterUrlOrigin()`](#getfilterurloriginurl)
-    - [`stripUrlCredentials()`](#stripurlcredentialsurl)
+    - [`stripUrlCredentials()`](#stripurlcredentialsvalue-isschemaless)
+    - [`redactErrorCredentials()`](#redacterrorcredentialserror-knownurl)
+    - [`resolveIncludePath()`](#resolveincludepathincludepath-filterorigin)
 - [Documentation](#documentation)
 - [Projects using FiltersDownloader](#projects-using-filtersdownloader)
 
@@ -177,10 +179,15 @@ the entire filter again, reducing bandwidth usage.
 For a source URL that contains credentials, the library always downloads the
 full filter. Only the Node.js build supports such URLs.
 
+Error messages redact the userinfo component of a URL. The redaction also
+applies to a value without a scheme, for example an `!#include` target such as
+`user:pass@example.org/include.txt` or a local path that contains such a value,
+so the credentials do not appear in an `!#include` or local file error.
+
 ## API Reference
 
 All methods are on the `FiltersDownloader` object. The package also exports
-the `stripUrlCredentials` helper for display text.
+helpers for display text, error redaction, and `!#include` path resolution.
 
 ### `download(url, definedExpressions?, options?)`
 
@@ -314,8 +321,9 @@ const expanded = await FiltersDownloader.resolveIncludes(
 
 ### `getFilterUrlOrigin(url)`
 
-Returns the base directory URL of `url` (everything up to and including the last
-`/`). Used internally to resolve relative `!#include` paths.
+Returns the base directory URL of `url` (everything before the last `/`, so the
+result has no trailing slash). Used internally to resolve relative `!#include`
+paths.
 
 ```ts
 FiltersDownloader.getFilterUrlOrigin('https://example.org/path/filter.txt');
@@ -324,11 +332,11 @@ FiltersDownloader.getFilterUrlOrigin('https://example.org/path/filter.txt');
 
 ---
 
-### `stripUrlCredentials(url)`
+### `stripUrlCredentials(value, isSchemaless?)`
 
-Removes the userinfo component from every URL in `url`, including the password.
-Use this function for log messages, error messages, and other display text. It
-does not change the URL that the library uses for a request.
+Removes the userinfo component from every URL in `value`, including the
+password. Use this function for log messages, error messages, and other display
+text. It does not change the URL that the library uses for a request.
 
 ```ts
 import { stripUrlCredentials } from '@adguard/filters-downloader';
@@ -339,6 +347,30 @@ stripUrlCredentials('https://user:password@example.org/filter.txt');
 stripUrlCredentials('https://user:pa#ss@example.org/filter.txt');
 // → 'https://example.org/filter.txt'
 ```
+
+By default, the function removes userinfo only from a URL that has a scheme or
+starts with `//`. Set `isSchemaless` to `true` to remove userinfo from a value
+without a scheme too, for example an external `!#include` target or a path with
+a userinfo component:
+
+```ts
+stripUrlCredentials('user:pass@example.org/filter.txt', true);
+// → 'example.org/filter.txt'
+
+stripUrlCredentials('sub/user:pass@example.org/filter.txt', true);
+// → 'sub/example.org/filter.txt'
+```
+
+A value without a password separator, for example
+`filters/user@example.txt`, stays unchanged. So does an absolute Windows drive
+path, for example `C:\filters\user@example.txt`. A drive-relative path such as
+`C:file@2x.txt` cannot be told apart from a one-letter username, so it is
+redacted. The default is `false`, so existing calls keep the same behavior.
+
+A rule is not a download source. In the scheme-less mode a token that contains
+a `name:value@` segment is still treated as a credential, so a `$replace`
+regex is shortened, for example `||example.com^$replace=/foo:bar@baz/` becomes
+`||example.com^$replace=/baz/`. Use the default mode for arbitrary text.
 
 The function accepts a whole message and removes the userinfo from every URL
 in it. It also removes malformed credentials that the WHATWG URL parser does
@@ -382,6 +414,73 @@ import { stripUrlCredentials } from '@adguard/filters-downloader/browser';
 ```
 
 > **Note:** Use the original URL for requests. The helper is for display only.
+
+---
+
+### `redactErrorCredentials(error, knownUrl?)`
+
+Removes the userinfo components from the message and the stack of an error,
+from its own enumerable properties, and from the whole chain of its causes and
+nested errors. Strings, plain objects, and arrays in the chain are redacted too.
+The function changes the value in place, or returns a copy when the value cannot
+be changed.
+
+```ts
+import { redactErrorCredentials } from '@adguard/filters-downloader';
+
+const error = new Error('Failed: https://user:secret@example.org/filter.txt');
+redactErrorCredentials(error);
+error.message;
+// → 'Failed: https://example.org/filter.txt'
+```
+
+`knownUrl` accepts a URL whose userinfo can contain any character, or a list of
+`[value, sanitizedValue]` replacements for a local path that contains the URL.
+
+```ts
+const knownUrl = 'https://user:pa"ss@example.org/filter.txt';
+
+const error = new Error(`Failed: ${knownUrl}`);
+redactErrorCredentials(error, knownUrl);
+error.message;
+// → 'Failed: https://example.org/filter.txt'
+```
+
+Without `knownUrl`, only a URL with a scheme or a `//` prefix is redacted. A
+scheme-less value, for example
+`new Error('Cannot open adg-user:pass@example.org/list.txt')`, keeps the
+password, so pass such a value as `knownUrl`.
+
+---
+
+### `resolveIncludePath(includePath, filterOrigin)`
+
+Resolves an `!#include` path against the directory of the file that contains
+the directive. The result depends on the origin:
+
+- a local path or a `file:` origin returns the relative path to download;
+- a URL origin returns an absolute URL to download;
+- `null` means the target leaves that directory.
+
+For a URL origin the helper also accepts an absolute URL target and keeps it
+only when it stays on the same origin inside the directory. The library
+handles an absolute `!#include` target before calling this helper in its own
+flow, so a consumer that reuses the helper must handle both a path and a URL.
+
+```ts
+import { resolveIncludePath } from '@adguard/filters-downloader';
+
+resolveIncludePath('inclusion.txt', '/tmp/dir');
+// → 'inclusion.txt'
+
+resolveIncludePath('sub/inclusion.txt', 'https://example.org/lists/main');
+// → 'https://example.org/lists/main/sub/inclusion.txt'
+
+resolveIncludePath('../secret.txt', '/tmp/dir');
+// → null
+```
+
+The browser entry point exports both functions too.
 
 ## Documentation
 

@@ -499,6 +499,35 @@ describe('Node file download wrapper', () => {
             expect(getErrorChainText(error)).not.toContain('Secret1');
             expect((error as Error & { path?: string }).path).not.toContain('Secret1');
         });
+
+        it.each([
+            {
+                name: 'a scheme-less userinfo',
+                url: 'adg-user:pass@example.org/list.txt',
+                leaked: 'adg-user:pass',
+            },
+            {
+                name: 'a scheme-less userinfo whose password starts with a space',
+                url: 'adg-user: pa ss@example.org/list.txt',
+                leaked: 'adg-user: pa ss',
+            },
+            {
+                name: 'a relative path with a userinfo',
+                url: 'filters/adg-user:pass@example.org/list.txt',
+                leaked: 'adg-user:pass',
+            },
+            {
+                name: 'a digit-first password with a slash',
+                url: 'admin:2024#Se/cret@example.org/list.txt',
+                leaked: '2024#Se/cret',
+            },
+        ])('does not leak credentials from a scheme-less path with $name', async ({ url, leaked }) => {
+            const error = await getLocalFile(url).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(Error);
+            expect(getErrorChainText(error)).not.toContain(leaked);
+            expect((error as Error & { path?: string }).path).not.toContain(leaked);
+        });
     });
 
     describe('getExternalFileHeaders', () => {

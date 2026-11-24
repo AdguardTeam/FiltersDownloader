@@ -4,6 +4,7 @@ import {
     parseUrlCredentials,
     redactErrorCredentials,
     redactUrlCredentials,
+    stripKnownUrlCredentials,
     stripUrlCredentials,
 } from '../../src/common/url';
 
@@ -704,6 +705,210 @@ describe('stripUrlCredentials', () => {
     });
 });
 
+describe('stripUrlCredentials with isSchemaless', () => {
+    it('keeps a scheme-less value unchanged by default', () => {
+        const value = 'sub/user:pass@example.org/filter.txt';
+
+        expect(stripUrlCredentials(value)).toBe(value);
+    });
+
+    it.each([
+        {
+            name: 'a scheme-less userinfo',
+            value: 'user:pass@example.org/filter.txt',
+            expected: 'example.org/filter.txt',
+        },
+        {
+            name: 'a whole scheme-less userinfo',
+            value: 'user:pass@',
+            expected: '',
+        },
+        {
+            name: 'a digit-first password',
+            value: 'admin:2024#Secret1@example.org/filter.txt',
+            expected: 'example.org/filter.txt',
+        },
+        {
+            name: 'a digit-first password with a slash',
+            value: 'admin:2024#Se/cret@example.org/filter.txt',
+            expected: 'example.org/filter.txt',
+        },
+        {
+            name: 'a digit-first password without a username',
+            value: ':2024#Se/cret@example.org',
+            expected: 'example.org',
+        },
+        {
+            name: 'a relative path prefix',
+            value: './user:pass@example.org/filter.txt',
+            expected: './example.org/filter.txt',
+        },
+        {
+            name: 'an absolute path prefix',
+            value: '/user:pass@example.org/filter.txt',
+            expected: '/example.org/filter.txt',
+        },
+        {
+            name: 'a path prefix',
+            value: 'sub/user:pass@example.org/f.txt',
+            expected: 'sub/example.org/f.txt',
+        },
+        {
+            name: 'a path prefix and a digit-first password with a slash',
+            value: 'sub/admin:2024#Se/cret@example.org/f.txt',
+            expected: 'sub/example.org/f.txt',
+        },
+        {
+            name: 'a windows path prefix and a digit-first password with a slash',
+            value: 'C:\\filters\\admin:2024#Se/cret@example.org\\f.txt',
+            expected: 'C:\\filters\\example.org\\f.txt',
+        },
+        {
+            name: 'a one-letter username',
+            value: 'u:pass@example.org/missing.txt',
+            expected: 'example.org/missing.txt',
+        },
+        {
+            name: 'a one-letter username after a drive-like prefix',
+            value: 'C:user:pass@example.org/f.txt',
+            expected: 'example.org/f.txt',
+        },
+        {
+            name: 'a drive-relative path with an at sign',
+            value: 'C:file@2x.txt',
+            expected: '2x.txt',
+        },
+        {
+            name: 'a leading backslash and a userinfo',
+            value: '\\user:pass@example.org/f.txt',
+            expected: '\\example.org/f.txt',
+        },
+        {
+            name: 'a quoted scheme-less userinfo',
+            value: 'Failed to resolve the include directive \'!#include "user:pass@example.org/x.txt"\'',
+            expected: 'Failed to resolve the include directive \'!#include "example.org/x.txt"\'',
+        },
+        {
+            name: 'a scheme-less password with a space',
+            value: '! Redirect: adg-user:pa ss@example.org/next.txt',
+            expected: '! Redirect: example.org/next.txt',
+        },
+        {
+            name: 'a scheme-less password with two spaces',
+            value: '! Redirect: adg-user:pa  ss@example.org/next.txt',
+            expected: '! Redirect: example.org/next.txt',
+        },
+        {
+            name: 'a scheme-less password that contains a passphrase',
+            value: '! Redirect: adg-user:pa ss ww@example.org/next.txt',
+            expected: '! Redirect: example.org/next.txt',
+        },
+        {
+            name: 'a scheme-less password with a space after a path prefix',
+            value: '! Redirect: sub/adg-user:pa ss@example.org/next.txt',
+            expected: '! Redirect: sub/example.org/next.txt',
+        },
+        {
+            name: 'a scheme-less password with two spaces after a path prefix',
+            value: '! Redirect: sub/adg-user:pa  ss@example.org/next.txt',
+            expected: '! Redirect: sub/example.org/next.txt',
+        },
+        {
+            name: 'a digit-first password in a quoted local path',
+            value: "ENOENT: no such file or directory, open '/filters/admin:2024#Se/cret@example.org/x.txt'",
+            expected: "ENOENT: no such file or directory, open '/filters/example.org/x.txt'",
+        },
+        {
+            // A rule is not a download source. The scheme-less mode cannot
+            // tell its syntax from userinfo, so the library does not pass a
+            // rule line to it. The row pins the documented trade-off.
+            name: 'a rule token with a colon and an at sign',
+            value: '||example.com^$replace=/foo:bar@baz/',
+            expected: '||example.com^$replace=/baz/',
+        },
+        {
+            name: 'a rule token with a colon and an at sign and no regex',
+            value: '||a:b@c/d',
+            expected: 'c/d',
+        },
+    ])('removes $name when isSchemaless is true', ({ value, expected }) => {
+        expect(stripUrlCredentials(value, true)).toBe(expected);
+    });
+
+    it('removes a scheme-less password from a multi-line local path error', () => {
+        const text = [
+            "Failed to resolve the include directive '!#include adg-user:pass@example.org/missing.txt'",
+            "URL: '/filters'",
+            "\tENOENT: no such file or directory, open '/filters/adg-user:pass@example.org/missing.txt'",
+        ].join('\n');
+
+        expect(stripUrlCredentials(text, true)).toBe([
+            "Failed to resolve the include directive '!#include example.org/missing.txt'",
+            "URL: '/filters'",
+            "\tENOENT: no such file or directory, open '/filters/example.org/missing.txt'",
+        ].join('\n'));
+    });
+
+    it.each([
+        {
+            name: 'a local path with an at sign',
+            value: 'filters/user@example.txt',
+        },
+        {
+            name: 'a windows path with an at sign',
+            value: 'C:\\filters\\user@example.txt',
+        },
+        {
+            name: 'a windows path with a forward slash and an at sign',
+            value: 'C:/filters/user@example.txt',
+        },
+        {
+            name: 'a colon in prose before an email address',
+            value: 'Error: something happened at user@example.org',
+        },
+        {
+            // The text pass cannot tell a password that starts with a space
+            // from an ordinary sentence, so only a known download source uses
+            // the leading-space pass. See the stripKnownUrlCredentials tests.
+            name: 'a colon in prose before an email address with a path',
+            value: 'Error: contact admin@example.org/list.txt',
+        },
+        {
+            // A password with a raw separator has no property that tells it
+            // apart from a path segment, so only the `#` or `?` form of a
+            // malformed password is redacted.
+            name: 'a scheme-less password with a raw slash',
+            value: 'sub/user:pa/ss@example.org/x.txt',
+        },
+        {
+            name: 'a scheme-less password with a raw backslash',
+            value: 'user:pa\\ss@example.org/x.txt',
+        },
+        {
+            name: 'a url with a scheme and a colon in the path',
+            value: 'https://example.org/2024:12@v/f.txt',
+        },
+        {
+            name: 'a url with a scheme and a colon in the query',
+            value: 'https://example.org/filter.txt?email=user:pass@example.com',
+        },
+        {
+            name: 'a valid url with a path after a single-label host and a port',
+            value: 'https://myhost:8080/path?email=user@example.com',
+        },
+        {
+            name: 'a rule without credentials',
+            value: '||example.org^',
+        },
+        {
+            name: 'a scriptlet rule with an at sign',
+            value: 'example.org#%#//scriptlet(set-local-storage-item, @foo/bar)',
+        },
+    ])('keeps $name unchanged when isSchemaless is true', ({ value }) => {
+        expect(stripUrlCredentials(value, true)).toBe(value);
+    });
+});
+
 const REDACT_CASES = [
     {
         name: 'an include directive',
@@ -921,6 +1126,80 @@ const REDACT_CASES = [
     },
 ];
 
+describe('stripKnownUrlCredentials', () => {
+    it.each([
+        {
+            name: 'a url with credentials in the authority',
+            value: 'https://user:pass@example.org/dir/filter.txt',
+            expected: 'https://example.org/dir/filter.txt',
+        },
+        {
+            name: 'a url with a userinfo in the path',
+            value: 'https://origin.example/dir/sub/user:pass@example.org/missing.txt',
+            expected: 'https://origin.example/dir/sub/example.org/missing.txt',
+        },
+        {
+            name: 'a url with a userinfo in the authority and in the path',
+            value: 'http://user:pass@origin.example/dir/adg:secret@example.net/missing.txt',
+            expected: 'http://origin.example/dir/example.net/missing.txt',
+        },
+        {
+            name: 'a scheme-less password that starts with a space',
+            value: 'adg-user: pa ss@example.org/list.txt',
+            expected: 'example.org/list.txt',
+        },
+        {
+            name: 'a scheme-less password that starts with a space after a path prefix',
+            value: 'sub/adg-user: pa ss@example.org/list.txt',
+            expected: 'sub/example.org/list.txt',
+        },
+        {
+            name: 'a windows path with a password that starts with a space',
+            value: 'C:\\filters\\adg-user: pa ss@example.org\\list.txt',
+            expected: 'C:\\filters\\example.org\\list.txt',
+        },
+        {
+            name: 'a protocol-relative url with a userinfo in the path',
+            value: '//origin.example/dir/sub/user:pass@example.org/missing.txt',
+            expected: '//origin.example/dir/sub/example.org/missing.txt',
+        },
+        {
+            name: 'a scheme-less path',
+            value: 'sub/user:pass@example.org/missing.txt',
+            expected: 'sub/example.org/missing.txt',
+        },
+        {
+            name: 'an absolute windows path',
+            value: 'C:\\filters\\user:pass@example.org\\missing.txt',
+            expected: 'C:\\filters\\example.org\\missing.txt',
+        },
+        {
+            name: 'a url with a one-letter username',
+            value: 'u:pass@example.org/missing.txt',
+            expected: 'example.org/missing.txt',
+        },
+    ])('redacts $name', ({ value, expected }) => {
+        expect(stripKnownUrlCredentials(value)).toBe(expected);
+    });
+
+    it.each([
+        {
+            name: 'a url without a userinfo',
+            value: 'https://example.org/dir/filter.txt',
+        },
+        {
+            name: 'a url with an at sign but no password separator',
+            value: 'https://example.org/dir/user@file.txt',
+        },
+        {
+            name: 'a url with a password-looking value in the query',
+            value: 'https://example.org/?q=user:pass@',
+        },
+    ])('keeps $name unchanged', ({ value }) => {
+        expect(stripKnownUrlCredentials(value)).toBe(value);
+    });
+});
+
 describe('redactUrlCredentials', () => {
     it.each(REDACT_CASES)('redacts $name', ({ text, expected }) => {
         expect(redactUrlCredentials(text)).toBe(expected);
@@ -1017,16 +1296,56 @@ describe('redactErrorCredentials', () => {
         const url = 'https://user name:secret@example.org/filter.txt';
         const error = new Error(`Failed to fetch ${url}`);
 
-        redactErrorCredentials(error, undefined, url);
+        redactErrorCredentials(error, url);
 
         expect(error.message).toBe('Failed to fetch https://example.org/filter.txt');
+    });
+
+    it('redacts a scheme-less known url', () => {
+        const url = 'sub/user:pass@example.org/missing.txt';
+        const error = new Error(`Cannot open ${url}`);
+
+        redactErrorCredentials(error, url);
+
+        expect(error.message).toBe('Cannot open sub/example.org/missing.txt');
+    });
+
+    it('redacts a known url with a userinfo in the path', () => {
+        const url = 'https://origin.example/dir/sub/user:pass@example.org/missing.txt';
+        const error = new Error(`Response status for url ${url} is invalid: 404`);
+
+        redactErrorCredentials(error, url);
+
+        expect(error.message).toBe(
+            'Response status for url https://origin.example/dir/sub/example.org/missing.txt is invalid: 404',
+        );
+    });
+
+    it('redacts a known url with a userinfo in the authority and in the path', () => {
+        const url = 'http://user:pass@origin.example/dir/adg:secret@example.net/missing.txt';
+        const error = new Error(`Response status for url ${url} is invalid: 404`);
+
+        redactErrorCredentials(error, url);
+
+        expect(error.message).toBe(
+            'Response status for url http://origin.example/dir/example.net/missing.txt is invalid: 404',
+        );
+    });
+
+    it('redacts a known url whose password starts with a space', () => {
+        const url = 'adg-user: pa ss@example.org/list.txt';
+        const error = new Error(`Cannot open ${url}`);
+
+        redactErrorCredentials(error, url);
+
+        expect(error.message).toBe('Cannot open example.org/list.txt');
     });
 
     it('redacts a known url inside a path', () => {
         const url = '/filters/https:/user:pa"ss-secret@example.org/filter.txt';
         const error = Object.assign(new Error(`Cannot open ${url}`), { path: url });
 
-        redactErrorCredentials(error, undefined, url);
+        redactErrorCredentials(error, url);
 
         expect(error.message).toBe('Cannot open /filters/https:/example.org/filter.txt');
         expect(error.path).toBe('/filters/https:/example.org/filter.txt');
@@ -1041,7 +1360,7 @@ describe('redactErrorCredentials', () => {
             path: resolvedUrl,
         });
 
-        redactErrorCredentials(error, undefined, [
+        redactErrorCredentials(error, [
             [resolvedUrl, resolvedSanitizedUrl],
             [url, sanitizedUrl],
         ]);
@@ -1059,7 +1378,7 @@ describe('redactErrorCredentials', () => {
             path: resolvedUrl,
         });
 
-        redactErrorCredentials(error, undefined, [
+        redactErrorCredentials(error, [
             [resolvedUrl, resolvedSanitizedUrl],
             [url, sanitizedUrl],
         ]);

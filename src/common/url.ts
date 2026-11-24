@@ -778,15 +778,13 @@ export const parseUrlCredentials = (url: string): ParsedUrl => {
 const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2,})/gi;
 
 /**
- * Removes the userinfo component from every URL in a value.
+ * Removes the userinfo component from every URL that has a scheme or a
+ * protocol-relative prefix in a value.
  *
- * A URL can start at the beginning of the value or inside a path, for example
+ * This is the scheme-aware part of {@link stripUrlCredentials}. A URL can
+ * start at the beginning of the value or inside a path, for example
  * `/filters/https:/user:password@example.org/filter.txt`. An error line can
  * contain several URLs, so the function processes every one of them.
- *
- * Use this function for log messages, error messages, and other display text.
- * It does not change the URL that the library uses for a request. The package
- * root and the browser entry point export this helper.
  *
  * The function also removes malformed credentials that the WHATWG URL parser
  * does not detect, for example a password that contains `?` or `#`:
@@ -833,7 +831,7 @@ const EMBEDDED_URL_REGEXP = /(?<![a-z0-9+.-])(?:[a-z][a-z0-9+.-]+:[/\\]*|[/\\]{2
  *
  * @returns Value without the userinfo components.
  */
-export const stripUrlCredentials = (url: string): string => {
+const stripUrlCredentialsWithScheme = (url: string): string => {
     if (!url.includes('@')) {
         return url;
     }
@@ -869,6 +867,367 @@ export const stripUrlCredentials = (url: string): string => {
     }
 
     return result + url.slice(lastIndex);
+};
+
+/**
+ * Scheme used to parse a scheme-less value as a URL.
+ */
+const STRIP_CREDENTIALS_PLACEHOLDER = 'http://';
+
+/**
+ * Matches a value that starts with a scheme and a slash or a backslash, for
+ * example `https://`, `https:/`, or `https:\`.
+ *
+ * A scheme-less value has no slash after the colon. A real URL can contain a
+ * `name:value@` segment in a path or a query, so the scheme-less pass must not
+ * rewrite it.
+ */
+const SCHEME_WITH_SLASHES_REGEXP = /^[a-z][a-z0-9+.-]+:[\\/]/i;
+
+/**
+ * Checks that a value can start with a userinfo component.
+ *
+ * A userinfo component has a colon between the username and the password. A
+ * scheme-less value can be a local path whose file name contains an at sign,
+ * for example `filters/user@example.txt`. The URL parser removes that at sign
+ * as a username when a scheme is present, so the scheme-less pass must not try
+ * such a value.
+ *
+ * @param value Value that is parsed with a placeholder scheme.
+ *
+ * @returns `true` if a colon precedes an at sign.
+ */
+const startsWithUserinfo = (value: string): boolean => {
+    const colonIndex = value.indexOf(':');
+    const atSignIndex = value.indexOf('@');
+
+    return colonIndex !== -1 && atSignIndex !== -1 && colonIndex < atSignIndex;
+};
+
+/**
+ * Matches an absolute Windows drive prefix, for example `C:\` or `C:/`.
+ *
+ * A drive-relative path such as `C:file@2x.txt` has no separator, so it
+ * cannot be told apart from a one-letter username, for example
+ * `u:pass@example.org`. The prefix is not treated as a drive then, because a
+ * password in a message is worse than a shortened path.
+ */
+const WINDOWS_DRIVE_PREFIX_REGEXP = /^[a-zA-Z]:[\\/]/;
+
+/**
+ * Returns the offsets at which a userinfo component can start in a value
+ * without a scheme.
+ *
+ * The value can start with the userinfo, as in
+ * `user:pass@example.org/filter.txt`, or a path can precede it, as in
+ * `sub/user:pass@example.org/filter.txt`. The offsets are the start and every
+ * position after a slash or a backslash, and the URL parser decides whether a
+ * suffix has userinfo.
+ *
+ * A password that contains a raw slash or backslash, for example
+ * `user:pa/ss@example.org/x.txt`, has no property that tells it apart from a
+ * path segment, so it stays unchanged. The scheme-aware pass still handles the
+ * malformed form whose `#` or `?` precedes the separator, for example
+ * `admin:2024#Se/cret@example.org/filter.txt`, because the parser reads the
+ * rest of the value as a fragment or a query.
+ *
+ * An absolute Windows drive can look like a userinfo component, as in
+ * `C:\user@file.txt`. A scheme needs at least two characters, and the same
+ * rule applies to a one-letter scheme here, so the prefix is not a candidate
+ * for userinfo. The callers still check the rest of the value, so a userinfo
+ * after the drive prefix is removed. A drive-relative path has no separator
+ * and cannot be told apart from a one-letter username, so it is redacted.
+ *
+ * @param value Value without a scheme.
+ *
+ * @returns Offsets from the start to the end of the value.
+ */
+const getUserinfoStartOffsets = (value: string): number[] => {
+    const drivePrefix = WINDOWS_DRIVE_PREFIX_REGEXP.exec(value)?.[0] ?? '';
+    const offsets = [drivePrefix.length];
+
+    for (let index = 0; index < value.length; index += 1) {
+        if (value[index] === '/' || value[index] === '\\') {
+            offsets.push(index + 1);
+        }
+    }
+
+    return offsets;
+};
+
+/**
+ * Removes the userinfo component from a scheme-less value at the given offset.
+ *
+ * @param value Value without a scheme.
+ * @param offset Offset at which a userinfo component can start.
+ *
+ * @returns Value without the userinfo component, or `undefined` if the offset
+ * has no userinfo.
+ */
+const stripUserinfoAt = (value: string, offset: number): string | undefined => {
+    const candidate = value.slice(offset);
+
+    if (!startsWithUserinfo(candidate)) {
+        return undefined;
+    }
+
+    const valueWithPlaceholder = `${STRIP_CREDENTIALS_PLACEHOLDER}${candidate}`;
+    const strippedValue = stripUrlCredentialsWithScheme(valueWithPlaceholder);
+
+    if (strippedValue === valueWithPlaceholder) {
+        return undefined;
+    }
+
+    return `${value.slice(0, offset)}${strippedValue.slice(STRIP_CREDENTIALS_PLACEHOLDER.length)}`;
+};
+
+/**
+ * Removes the userinfo component from a value without a scheme.
+ *
+ * @param value Value without a scheme.
+ *
+ * @returns Value without the userinfo component.
+ */
+const stripSchemalessValueCredentials = (value: string): string => {
+    if (!value.includes('@')) {
+        return value;
+    }
+
+    const strippedValue = stripUrlCredentialsWithScheme(value);
+
+    if (strippedValue !== value) {
+        return strippedValue;
+    }
+
+    if (SCHEME_WITH_SLASHES_REGEXP.test(value)) {
+        return strippedValue;
+    }
+
+    const offsets = getUserinfoStartOffsets(value);
+
+    for (let index = 0; index < offsets.length; index += 1) {
+        const result = stripUserinfoAt(value, offsets[index]);
+
+        if (result !== undefined) {
+            return result;
+        }
+    }
+
+    return strippedValue;
+};
+
+/**
+ * Removes credentials from a whitespace-separated token of a text.
+ *
+ * A directive can quote a URL, and the quotes belong to the directive rather
+ * than to the URL, so they stay when the userinfo is removed.
+ *
+ * @param token Token of a text.
+ *
+ * @returns Token without credentials.
+ */
+const stripTokenCredentials = (token: string): string => {
+    const openingQuote = /^["']/.exec(token)?.[0] ?? '';
+    const closingQuote = openingQuote !== '' && token.length > 1 && token.endsWith(openingQuote)
+        ? openingQuote
+        : '';
+    const value = token.slice(openingQuote.length, token.length - closingQuote.length);
+
+    return `${openingQuote}${stripSchemalessValueCredentials(value)}${closingQuote}`;
+};
+
+/**
+ * Matches a host after a scheme-less userinfo candidate, so a colon in prose,
+ * for example `Error: something happened at user@example.org`, is not treated
+ * as userinfo. A dotted host, `localhost`, a single-label host with a path,
+ * query, or fragment, and a port or IPv6 literal are accepted.
+ */
+const HOST_LOOKAHEAD_SOURCE = String.raw`(?=[^\s/\\?#:]*[.:]|localhost(?:[/\\?#]|$)|[^\s/\\?#:.]+(?:[/\\?#]|$))`;
+
+/**
+ * Matches a scheme-less userinfo component whose password contains
+ * whitespace, for example `user:pa ss@example.org/filter.txt`.
+ *
+ * The token-wise pass cannot see this form, because the colon and the at sign
+ * are in different whitespace-separated tokens. This pass runs on the text
+ * before the split.
+ *
+ * The match is conservative: the colon must be followed by a non-space
+ * character, and the text after the at sign must look like a host, so a colon
+ * in prose, for example `Error: something happened at user@example.org`, is
+ * not treated as userinfo.
+ *
+ * A path prefix, for example `sub/`, `./`, or `/`, is captured and kept. A
+ * value that starts with a scheme and two slashes does not match: the prefix
+ * group can consume only the first slash, and the username cannot start with
+ * the second one. This keeps a real URL's `name:value@` path or query intact.
+ */
+const SCHEMALESS_USERINFO_WITH_SPACE_REGEXP = new RegExp(
+    String.raw`(?<![^\s"'(<])((?:/)?(?:[^/\\\s@]+/)*)([^\s/\\@:]+):(?=\S)[^\s/\\]*(?:\s+[^\s/\\]*)+@`
+    + HOST_LOOKAHEAD_SOURCE,
+    'gi',
+);
+
+/**
+ * Matches a scheme-less userinfo component whose password starts with
+ * whitespace, for example `user: pa ss@example.org/filter.txt`.
+ *
+ * A colon followed by a space is also a common sentence shape, for example
+ * `Error: contact admin@example.org`, so this pass runs only on a value that
+ * the caller knows is a download source, never on arbitrary text.
+ *
+ * A path separator before the username is accepted, so a Windows path with
+ * such a target, for example `C:\filters\user: pa ss@example.org\x.txt`, is
+ * covered too.
+ */
+const SCHEMALESS_USERINFO_WITH_LEADING_SPACE_REGEXP = new RegExp(
+    String.raw`(?<![^\s"'(</\\])((?:[/\\]?)(?:[^/\\\s@]+[/\\])*)([^\s/\\@:]+):\s+[^\s/\\]*(?:\s+[^\s/\\]*)*@`
+    + HOST_LOOKAHEAD_SOURCE,
+    'gi',
+);
+
+/**
+ * Removes a scheme-less userinfo component whose password contains whitespace.
+ *
+ * @param text Text that may contain a scheme-less URL with credentials.
+ *
+ * @returns Text without the scheme-less userinfo components.
+ */
+const stripSchemalessUserinfo = (text: string): string => text.replace(
+    SCHEMALESS_USERINFO_WITH_SPACE_REGEXP,
+    '$1',
+);
+
+/**
+ * Removes the userinfo component from every scheme-less value in a text.
+ *
+ * The scheme-aware pass runs first. The remaining text is split into tokens,
+ * and each token is parsed with a placeholder scheme, so a path prefix stays
+ * as it is. The whitespace, including line breaks, is kept.
+ *
+ * @param value Text that may contain scheme-less values with credentials.
+ *
+ * @returns Text without the userinfo components.
+ */
+const stripSchemalessTextCredentials = (value: string): string => stripSchemalessUserinfo(
+    stripUrlCredentialsWithScheme(value),
+)
+    .split(/(\s+)/)
+    .map((part) => (part.trim() === '' ? part : stripTokenCredentials(part)))
+    .join('');
+
+/**
+ * Removes the userinfo component from every URL in a value.
+ *
+ * Use this function for log messages, error messages, and other display text.
+ * It does not change the URL that the library uses for a request.
+ *
+ * By default, the function removes userinfo only from a URL that has a scheme
+ * or starts with `//`. Set `isSchemaless` to `true` to remove userinfo from a
+ * value without a scheme too. For example,
+ * `stripUrlCredentials('user:pass@example.org/filter.txt', true)` returns
+ * `example.org/filter.txt`, and
+ * `stripUrlCredentials('sub/user:pass@example.org/filter.txt', true)` returns
+ * `sub/example.org/filter.txt`.
+ *
+ * A value without a password separator, for example
+ * `filters/user@example.txt`, stays unchanged. The default `false` keeps the
+ * behavior of earlier versions.
+ *
+ * A rule is not a download source. In the scheme-less mode a token that
+ * contains a `name:value@` segment is still treated as a credential, so a
+ * `$replace` regex is shortened, for example
+ * `||example.com^$replace=/foo:bar@baz/` becomes
+ * `||example.com^$replace=/baz/`. Use the default mode for arbitrary text.
+ * A password that starts with whitespace, for example
+ * `user: pa ss@example.org/filter.txt`, is not redacted in arbitrary text: a
+ * colon followed by a space is also an ordinary sentence shape. The library
+ * handles such a value only when it is known to be a download source, for
+ * example an `!#include` target.
+ * For a value that the library resolved for a download, pass it as `knownUrl`
+ * to {@link redactErrorCredentials}.
+ *
+ * @param value Value that may contain URLs with a username and a password.
+ * @param isSchemaless Whether to remove userinfo from a scheme-less value.
+ * Defaults to `false`.
+ *
+ * @returns Value without the userinfo components.
+ */
+export const stripUrlCredentials = (value: string, isSchemaless = false): string => {
+    if (!isSchemaless) {
+        return stripUrlCredentialsWithScheme(value);
+    }
+
+    return stripSchemalessTextCredentials(value);
+};
+
+/**
+ * Matches the scheme and the authority of a URL, up to its path.
+ */
+const URL_AUTHORITY_REGEXP = /^(?:[a-z][a-z0-9+.-]*:)?\/\/[^/?#]*/i;
+
+/**
+ * Removes the userinfo component from a URL or a path that the caller knows is
+ * a download source.
+ *
+ * {@link stripUrlCredentials} does not scan the path of an absolute URL, so a
+ * `name:value@` segment in a path, for example
+ * `https://example.org/dir/user:pass@example.net/missing.txt`, stays as it is
+ * in that function. This function scans the path too. Such a value is a
+ * resolved `!#include` target when the filter has a URL origin: the resolver
+ * appends the raw target to the directory URL, and the download error message
+ * then contains the segment in its path.
+ *
+ * Use this function only for a value that the library itself resolved for a
+ * download. The display text of an arbitrary rule must stay unchanged, because
+ * a rule can contain a `name:value@` segment that is not a credential, for
+ * example `||example.com^$replace=/foo:bar@baz/`.
+ *
+ * A password that starts with whitespace, for example
+ * `user: pa ss@example.org/filter.txt`, is redacted here too. A colon followed
+ * by a space is also an ordinary sentence shape, so the text pass cannot
+ * redact it without shortening prose; it is safe only for a value that is
+ * known to be a download source.
+ *
+ * The path scan runs on the value after the scheme-aware pass, so a URL with
+ * credentials in both the authority and the path is covered too.
+ *
+ * The extra path scan does not include the query or the fragment, so a
+ * `name:value@` segment there stays as it is, for example
+ * `https://example.org/?q=user:pass@`. The scheme-aware pass still applies to
+ * the whole value.
+ *
+ * @param value URL or path that the caller knows is a download source.
+ *
+ * @returns Value without the userinfo components.
+ */
+export const stripKnownUrlCredentials = (value: string): string => {
+    const strippedValue = stripUrlCredentials(
+        value.replace(SCHEMALESS_USERINFO_WITH_LEADING_SPACE_REGEXP, '$1'),
+        true,
+    );
+
+    if (!strippedValue.includes('@')) {
+        return strippedValue;
+    }
+
+    const authority = URL_AUTHORITY_REGEXP.exec(strippedValue)?.[0];
+
+    if (authority === undefined) {
+        return strippedValue;
+    }
+
+    const remainder = strippedValue.slice(authority.length);
+    const pathEnd = remainder.search(/[?#]/);
+    const pathname = pathEnd === -1 ? remainder : remainder.slice(0, pathEnd);
+    const suffix = pathEnd === -1 ? '' : remainder.slice(pathEnd);
+    const strippedPathname = stripUrlCredentials(pathname, true);
+
+    if (strippedPathname === pathname) {
+        return strippedValue;
+    }
+
+    return `${authority}${strippedPathname}${suffix}`;
 };
 
 /**
@@ -995,7 +1354,7 @@ const getKnownUrlReplacements = (
     }
 
     if (typeof knownUrl === 'string') {
-        return [[knownUrl, stripUrlCredentials(knownUrl)]];
+        return [[knownUrl, stripKnownUrlCredentials(knownUrl)]];
     }
 
     return knownUrl;
@@ -1014,7 +1373,7 @@ const getKnownUrlReplacements = (
  *
  * @returns Redacted text.
  */
-const redactKnownUrlText = (
+export const redactKnownUrlText = (
     text: string,
     knownUrl?: string | readonly KnownUrlReplacement[],
 ): string => {
@@ -1183,15 +1542,8 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
 };
 
 /**
- * Removes the userinfo components from the message and the stack of an error,
- * from its own enumerable string properties, and from the whole chain of its
- * causes and nested errors.
- *
- * A string, a plain object, or an array in the chain is redacted too, including
- * the objects nested in them. The function changes the objects in place, so
- * their identity, type and additional properties are kept. If a property
- * cannot be changed, the function returns a new object with the redacted text
- * instead.
+ * Removes the userinfo components from an error and returns the redacted
+ * value.
  *
  * @param error Error or other value to redact.
  * @param seen Map of the objects that are already processed to their redacted
@@ -1202,9 +1554,9 @@ const createRedactedError = (error: Error, message: string, stack: string | unde
  * @returns The same value, or a redacted copy if it cannot be changed in
  * place.
  */
-export const redactErrorCredentials = (
+const redactErrorCredentialsInternal = (
     error: unknown,
-    seen = new WeakMap<object, unknown>(),
+    seen: WeakMap<object, unknown>,
     knownUrl?: string | readonly KnownUrlReplacement[],
 ): unknown => {
     if (typeof error === 'string') {
@@ -1228,7 +1580,7 @@ export const redactErrorCredentials = (
         }
 
         if (isRedactableObject(value)) {
-            return redactErrorCredentials(value, seen, knownUrl);
+            return redactErrorCredentialsInternal(value, seen, knownUrl);
         }
 
         return value;
@@ -1261,7 +1613,7 @@ export const redactErrorCredentials = (
 
     const { cause } = error;
     if (cause !== undefined) {
-        const redactedCause = redactErrorCredentials(cause, seen, knownUrl);
+        const redactedCause = redactErrorCredentialsInternal(cause, seen, knownUrl);
 
         if (
             (redactedError !== error || redactedCause !== cause)
@@ -1275,7 +1627,7 @@ export const redactErrorCredentials = (
 
     if (error instanceof AggregateError) {
         const redactedErrors = error.errors.map(
-            (nestedError) => redactErrorCredentials(nestedError, seen, knownUrl),
+            (nestedError) => redactErrorCredentialsInternal(nestedError, seen, knownUrl),
         );
 
         setObjectProperty(redactedError, 'errors', redactedErrors);
@@ -1283,3 +1635,28 @@ export const redactErrorCredentials = (
 
     return redactedError;
 };
+
+/**
+ * Removes the userinfo components from the message and the stack of an error,
+ * from its own enumerable string properties, and from the whole chain of its
+ * causes and nested errors.
+ *
+ * A string, a plain object, or an array in the chain is redacted too, including
+ * the objects nested in them. The function changes the objects in place, so
+ * their identity, type and additional properties are kept. If a property
+ * cannot be changed, the function returns a new object with the redacted text
+ * instead.
+ *
+ * @param error Error or other value to redact.
+ * @param knownUrl URL whose userinfo can contain a character that the generic
+ * redaction does not accept, for example a space or a quote, or a list of
+ * `[value, sanitizedValue]` replacements for a value that contains the URL,
+ * for example a local path.
+ *
+ * @returns The same value, or a redacted copy if it cannot be changed in
+ * place.
+ */
+export const redactErrorCredentials = (
+    error: unknown,
+    knownUrl?: string | readonly KnownUrlReplacement[],
+): unknown => redactErrorCredentialsInternal(error, new WeakMap(), knownUrl);

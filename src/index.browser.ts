@@ -1,4 +1,9 @@
-import { stripUrlCredentials } from './common/url';
+import {
+    redactErrorCredentials,
+    stripUrlCredentials,
+    type KnownUrlReplacement,
+} from './common/url';
+import { resolveIncludePath } from './common/include-path';
 import {
     type IFiltersDownloader,
     DefinedExpressions,
@@ -19,8 +24,11 @@ const FiltersDownloader = FiltersDownloaderCreator({
 
 export {
     FiltersDownloader,
+    redactErrorCredentials,
+    resolveIncludePath,
     stripUrlCredentials,
     type DownloadResult,
     type IFiltersDownloader,
     DefinedExpressions,
+    type KnownUrlReplacement,
 };

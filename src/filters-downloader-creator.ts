@@ -18,7 +18,12 @@
 import { DiffUpdater, UnacceptableResponseError } from '@adguard/diff-builder/diff-updater';
 import { isValidChecksum } from './checksum';
 import { throwError, getContext } from './helpers/logger';
-import { ABSOLUTE_URL_REGEXP, parseUrlCredentials, stripUrlCredentials } from './common/url';
+import {
+    ABSOLUTE_URL_REGEXP,
+    parseUrlCredentials,
+    stripKnownUrlCredentials,
+    stripUrlCredentials,
+} from './common/url';
 import { resolveIncludePath } from './common/include-path';
 
 /**
@@ -284,7 +289,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * Get the `filterOrigin` from url for relative path resolve.
      *
      * @param url Filter file URL.
-     * @returns Valid origin url.
+     * @returns Valid origin url without a trailing slash.
      */
     const getFilterUrlOrigin = (url: string): string => {
         return url.substring(0, url.lastIndexOf('/'));
@@ -593,7 +598,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         if (line.indexOf(INCLUDE_DIRECTIVE) !== 0) {
             return Promise.resolve(line);
         }
-        let url = line.substring(INCLUDE_DIRECTIVE.length).trim();
+        const includeTarget = line.substring(INCLUDE_DIRECTIVE.length).trim();
+        let url = includeTarget;
 
         if (ABSOLUTE_URL_REGEXP.test(url)) {
             // Absolute URLs keep the existing validation and download flow.
@@ -620,12 +626,20 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             });
             filter = downloadResult.filter;
         } catch (error: unknown) {
+            // The resolver appends a scheme-less target to a URL origin, so the
+            // userinfo can appear in the path of the resolved URL. The wrapper
+            // does not know that the path segment is a userinfo, so the known
+            // value is passed to the error builder.
             throwError(
                 'Failed to resolve the include directive',
                 line,
                 context,
                 filterOrigin,
                 error,
+                [
+                    [url, stripKnownUrlCredentials(url)],
+                    [includeTarget, stripKnownUrlCredentials(includeTarget)],
+                ],
             );
         }
 
