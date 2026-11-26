@@ -50,8 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `!#include sub/user:pass@example.org/missing.txt`. The message, the stack, and
   a nested error's `URL:` line contain the redacted resolved URL.
 - A failing `!#include` no longer leaves unhandled promise rejections for the
-  other includes in the same filter, because the rules are now resolved one at
-  a time and no download is left unobserved.
+  other includes in the same filter: the rules are now resolved one at a time,
+  so a download is never left unobserved. Includes are therefore fetched
+  sequentially instead of all at once, and the includes after a failing one are
+  not fetched. Resolved rules, their order, and error messages are unchanged.
 
 ### Security
 

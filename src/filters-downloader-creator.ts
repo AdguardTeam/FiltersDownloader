@@ -663,6 +663,10 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * it: the Node.js build from the current working directory, the browser
      * build against the page URL.
      *
+     * Rules are resolved one at a time in order. When an include fails, the
+     * function rejects and does not fetch the remaining includes, so a started
+     * download is never left unobserved.
+     *
      * @param rules Array of rules.
      * @param filterOrigin Filter file URL origin, or `undefined` when the
      * directory is unknown. A `null` value is treated the same way.

@@ -290,7 +290,7 @@ describe('FiltersDownloader', () => {
 
             try {
                 const host = 'http://example.org';
-                nock(host)
+                const scope = nock(host)
                     .get('/missing-1.txt')
                     .reply(404)
                     .get('/missing-2.txt')
@@ -302,12 +302,19 @@ describe('FiltersDownloader', () => {
                     `!#include ${host}/missing-2.txt`,
                 ];
 
-                await expect(FiltersDownloader.resolveIncludes(rules)).rejects.toThrow();
+                const error = await FiltersDownloader.resolveIncludes(rules).catch((e: Error) => e);
 
                 // Wait for the second download. On the broken implementation,
                 // it rejects after `resolveIncludes()` has already rejected.
                 await new Promise((resolve) => { setTimeout(resolve, 300); });
 
+                expect(error).toBeInstanceOf(Error);
+                expect((error as Error).message).toBe(mergeErrorDetails([
+                    `Failed to resolve the include directive '!#include ${host}/missing-1.txt'`,
+                    `\tResponse status for url ${host}/missing-1.txt is invalid: 404`,
+                ]));
+                // The failing include stops the loop, so the second include is never requested.
+                expect(scope.isDone()).toBe(false);
                 expect(unhandledRejections).toEqual([]);
             } finally {
                 process.off('unhandledRejection', onUnhandledRejection);

@@ -162,6 +162,11 @@ compiles.
 An absolute URL from the same origin is allowed from any directory. An absolute
 URL from a different origin is rejected.
 
+`!#include` directives are fetched one at a time in filter order. If an include
+fails, the library rejects and does not fetch the includes after it, so a failed
+download is never left unobserved. Resolved rules and their order are
+unchanged.
+
 ### Checksums
 
 A filter file may embed an MD5 checksum in its header (e.g.
