@@ -120,7 +120,13 @@ After completing any code change, verify correctness by following these steps:
    verb: under `### Fixed`, write `- The Node.js build ...`, not
    `- Fixed the Node.js build ...`.
 
-7. **Keep the KnowledgeBase in sync.** The `!#include` section of
+7. **Write the entry for users.** One or two sentences about what changes for
+   them, about as long as the neighboring entries, one bullet per user-visible
+   effect. Do not narrate the old behavior or what did not change, and leave out
+   internal mechanics and follow-up tickets. When an example needs a domain, use
+   `example.com` or `example.org`.
+
+8. **Keep the KnowledgeBase in sync.** The `!#include` section of
    `docs/general/ad-filtering/create-own-filters.md` in
    `AdguardTeam/KnowledgeBase` describes the behavior of this library. If a
    change affects filter directives or their resolution, update the matching
