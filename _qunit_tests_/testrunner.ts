@@ -39,6 +39,6 @@
 
     testRunner.run({
         code: './dist/index.js',
-        tests: './_qunit_tests_/filters-downloader.test.js',
+        tests: './_qunit_tests_/filters-downloader.test.ts',
     }, testCallback);
 })();
