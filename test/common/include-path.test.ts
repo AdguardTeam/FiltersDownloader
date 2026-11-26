@@ -365,7 +365,37 @@ const localCases: IncludePathCase[] = [
         name: 'resolves an absolute file URL include with an encoded space',
         includePath: 'file:///filters/in%20cluded.txt',
         filterOrigin: 'file:///filters',
-        expected: 'in cluded.txt',
+        expected: 'in%20cluded.txt',
+    },
+    {
+        name: 'keeps an encoded hash in an absolute file URL include',
+        includePath: 'file:///filters/a%23b.txt',
+        filterOrigin: 'file:///filters',
+        expected: 'a%23b.txt',
+    },
+    {
+        name: 'keeps an encoded question mark in an absolute file URL include',
+        includePath: 'file:///filters/a%3Fb.txt',
+        filterOrigin: 'file:///filters',
+        expected: 'a%3Fb.txt',
+    },
+    {
+        name: 'keeps an encoded percent sign in an absolute file URL include',
+        includePath: 'file:///filters/100%25.txt',
+        filterOrigin: 'file:///filters',
+        expected: '100%25.txt',
+    },
+    {
+        name: 'resolves a single-slash file URL include inside the directory',
+        includePath: 'file:/filters/inclusion.txt',
+        filterOrigin: 'file:///filters',
+        expected: 'inclusion.txt',
+    },
+    {
+        name: 'resolves an absolute file URL include with a single-slash origin',
+        includePath: 'file:///filters/sub/inclusion.txt',
+        filterOrigin: 'file:/filters',
+        expected: 'sub/inclusion.txt',
     },
     {
         name: 'ignores an absolute file URL include outside the directory',

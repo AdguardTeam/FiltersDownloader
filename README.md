@@ -162,10 +162,12 @@ compiles.
 An absolute `file:` URL in a filter that is loaded from a `file:` URL follows
 the same rule. The library decodes and normalizes the path, resolves it inside
 the containing directory, and ignores a target outside that directory without a
-request.
+request. In a filter that is loaded from another URL, the library ignores an
+absolute `file:` target and does not request it.
 
 An absolute URL from the same origin is allowed from any directory. An absolute
-URL from a different origin is rejected.
+URL from a different origin is rejected, except for a `file:` target, which the
+library ignores as described above.
 
 ### Checksums
 

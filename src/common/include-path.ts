@@ -10,12 +10,7 @@ const SCHEME_PLACEHOLDER = 'http:';
  * Matches a `file:` URL. A `file:` URL is a local source, even though it is an
  * absolute URL.
  */
-const FILE_URL_REGEXP = /^file:/i;
-
-/**
- * Matches an absolute `file:` URL with an authority component.
- */
-const ABSOLUTE_FILE_URL_REGEXP = /^file:\/\//i;
+export const FILE_URL_REGEXP = /^file:/i;
 
 /**
  * Path segments that mean the current directory, including percent-encoded
@@ -351,6 +346,20 @@ const getRelativeLocalPath = (targetPath: string, directoryPath: string): string
 };
 
 /**
+ * Applies the separators of the filter origin to a relative path.
+ *
+ * @param relativePath Relative path with forward slashes.
+ * @param filterOrigin Directory of the file that contains the directive.
+ *
+ * @returns Relative path with the separators of the filter origin.
+ */
+const applyOriginSeparators = (relativePath: string, filterOrigin: string): string => {
+    return filterOrigin.includes('\\')
+        ? relativePath.replace(/\//g, '\\')
+        : relativePath;
+};
+
+/**
  * Resolves an include path against a local directory and checks that the
  * result stays inside that directory.
  *
@@ -366,7 +375,6 @@ const getRelativeLocalPath = (targetPath: string, directoryPath: string): string
  * the directory.
  */
 const resolveLocalIncludePath = (includePath: string, filterOrigin: string): string | null => {
-    const separator = filterOrigin.includes('\\') ? '\\' : '/';
     const directory = normalizeLocalPath(filterOrigin);
     const normalizedIncludePath = /^[\\/]/.test(includePath)
         ? includePath.replace(/^[\\/]+/, '')
@@ -379,11 +387,7 @@ const resolveLocalIncludePath = (includePath: string, filterOrigin: string): str
         return null;
     }
 
-    const relativePath = getRelativeLocalPath(target, directory);
-
-    return separator === '\\'
-        ? relativePath.replace(/\//g, '\\')
-        : relativePath;
+    return applyOriginSeparators(getRelativeLocalPath(target, directory), filterOrigin);
 };
 
 /**
@@ -466,18 +470,21 @@ const resolveFileUrlIncludePath = (includePath: string, filterOrigin: string): s
     const target = normalizeLocalPath(decodedTargetPath);
     // A `file:` URL with a drive prefix is a Windows path, where the file
     // system is usually case-insensitive.
-    const caseInsensitive = isWindowsPath(filterOrigin) || /^\/[a-zA-Z]:\//.test(directory);
+    const caseInsensitive = /^\/[a-zA-Z]:\//.test(directory);
 
     if (!isInsideLocalDirectory(target, directory, caseInsensitive)) {
         return null;
     }
 
     const relativePath = getRelativeLocalPath(target, directory);
-    const separator = filterOrigin.includes('\\') ? '\\' : '/';
+    // The caller inserts the result into a URL, so encode each segment and
+    // keep characters such as `#`, `?`, and `%` as path data.
+    const encodedRelativePath = relativePath
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('/');
 
-    return separator === '\\'
-        ? relativePath.replace(/\//g, '\\')
-        : relativePath;
+    return applyOriginSeparators(encodedRelativePath, filterOrigin);
 };
 
 /**
@@ -504,7 +511,7 @@ const resolveFileUrlIncludePath = (includePath: string, filterOrigin: string): s
  * directory.
  */
 export const resolveIncludePath = (includePath: string, filterOrigin: string): string | null => {
-    if (ABSOLUTE_FILE_URL_REGEXP.test(includePath)) {
+    if (FILE_URL_REGEXP.test(includePath)) {
         // A `file:` target is a local source. The containment check needs the
         // local directory of the origin, so any other origin rejects it.
         if (!FILE_URL_REGEXP.test(filterOrigin)) {

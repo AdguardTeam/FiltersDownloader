@@ -865,6 +865,23 @@ describe('browser file download wrapper', () => {
             expect(requestedUrls).toEqual([LOCAL_URL, includedUrl]);
         });
 
+        it('should keep the encoding of an absolute file URL include', async () => {
+            const includedUrl = 'file:///filters/a%23b.txt';
+            const requestedUrls: string[] = [];
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                contentByUrl: {
+                    [LOCAL_URL]: '||example.com^\n!#include file:///filters/a%23b.txt',
+                    [includedUrl]: '||included.com^',
+                },
+                requestedUrls,
+            }));
+
+            await expect(FiltersDownloader.download(LOCAL_URL, {}))
+                .resolves.toEqual(['||example.com^', '||included.com^']);
+            expect(requestedUrls).toEqual([LOCAL_URL, includedUrl]);
+        });
+
         it('should ignore an absolute file URL include outside the filter directory', async () => {
             const requestedUrls: string[] = [];
             vi.stubGlobal('XMLHttpRequest', createXhrConstructor({

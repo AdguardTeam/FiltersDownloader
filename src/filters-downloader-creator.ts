@@ -24,7 +24,7 @@ import {
     stripKnownUrlCredentials,
     stripUrlCredentials,
 } from './common/url';
-import { resolveIncludePath } from './common/include-path';
+import { resolveIncludePath, FILE_URL_REGEXP } from './common/include-path';
 
 /**
  * The utility tool resolves preprocessor directives in filter content.
@@ -234,7 +234,6 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     const INCLUDE_DIRECTIVE = '!#include';
 
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
-    const REGEXP_ABSOLUTE_FILE_URL = /^file:\/\//i;
 
     /**
      * Checks if the opening and closing brackets in a string are balanced.
@@ -602,12 +601,12 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const includeTarget = line.substring(INCLUDE_DIRECTIVE.length).trim();
         let url = includeTarget;
 
-        if (REGEXP_ABSOLUTE_FILE_URL.test(url)) {
+        if (FILE_URL_REGEXP.test(url)) {
             // A `file:` URL is a local source, so it follows the same
             // containment rule as a relative path. It must not go through
             // validateUrl(): both `file:` origins are the string "null", so
             // the origin check would pass and the target would stay absolute.
-            if (typeof filterOrigin !== 'string' || !REGEXP_ABSOLUTE_FILE_URL.test(filterOrigin)) {
+            if (typeof filterOrigin !== 'string' || !FILE_URL_REGEXP.test(filterOrigin)) {
                 return Promise.resolve([]);
             }
 
@@ -814,6 +813,8 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param downloadOptions Options to be applied while downloading the filter.
      * @returns A promise that returns an array of strings with rules when resolved or an Error if rejected.
      * @throws Error if validateChecksum flag is true and checksum is invalid.
+     * @throws Error if `url` is an absolute `file:` URL and `filterOrigin` is
+     * set, because the include flow must resolve it to a relative path first.
      */
     const getLocalFile = async (
         url: string,
@@ -821,7 +822,14 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     ): Promise<DownloadResult> => {
         const { filterOrigin } = downloadOptions;
 
-        const urlToLoad = filterOrigin && !REGEXP_ABSOLUTE_FILE_URL.test(url)
+        if (filterOrigin && FILE_URL_REGEXP.test(url)) {
+            // An absolute `file:` URL is complete. `resolveInclude()` must pass
+            // a path relative to the origin, so an absolute URL here would
+            // bypass the containment check.
+            throw new Error(`An absolute file URL cannot be resolved against the filter origin: '${url}'`);
+        }
+
+        const urlToLoad = filterOrigin
             ? `${filterOrigin}/${url}`
             : url;
 

@@ -38,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doubled path. The library resolves the target inside the containing
   directory and requests the file once, for example
   `file:///filters/included.txt`. The library ignores a target outside the
-  directory and does not request it.
+  directory and does not request it. A `file:` `!#include` target in a filter
+  that is not loaded from a `file:` URL is now ignored instead of failing the
+  update.
 - An unspaced `!#if` operator no longer drops the last character of the left
   operand. For example, `!#if adguard&&adguard_ext_chromium` and
   `!#if adguard||unknown_platform` now resolve the condition correctly.
