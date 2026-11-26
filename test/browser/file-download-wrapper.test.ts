@@ -848,6 +848,38 @@ describe('browser file download wrapper', () => {
             expect(requestedUrls).toEqual([LOCAL_URL, includedUrl]);
         });
 
+        it('should resolve an absolute file URL include inside the filter directory', async () => {
+            const includedUrl = 'file:///filters/included.txt';
+            const requestedUrls: string[] = [];
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                contentByUrl: {
+                    [LOCAL_URL]: '||example.com^\n!#include file:///filters/included.txt',
+                    [includedUrl]: '||included.com^',
+                },
+                requestedUrls,
+            }));
+
+            await expect(FiltersDownloader.download(LOCAL_URL, {}))
+                .resolves.toEqual(['||example.com^', '||included.com^']);
+            expect(requestedUrls).toEqual([LOCAL_URL, includedUrl]);
+        });
+
+        it('should ignore an absolute file URL include outside the filter directory', async () => {
+            const requestedUrls: string[] = [];
+            vi.stubGlobal('XMLHttpRequest', createXhrConstructor({
+                responseUrl: LOCAL_URL,
+                contentByUrl: {
+                    [LOCAL_URL]: '||example.com^\n!#include file:///other/included.txt\n||after.com^',
+                },
+                requestedUrls,
+            }));
+
+            await expect(FiltersDownloader.download(LOCAL_URL, {}))
+                .resolves.toEqual(['||example.com^', '||after.com^']);
+            expect(requestedUrls).toEqual([LOCAL_URL]);
+        });
+
         it('should not read response headers for a local file URL', async () => {
             const xhrConstructor = createXhrConstructor({
                 responseUrl: LOCAL_URL,

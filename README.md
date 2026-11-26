@@ -159,6 +159,11 @@ that escapes it with `..`, a percent-encoded dot segment, or an encoded path
 separator. The library does not fetch the file and the rest of the filter still
 compiles.
 
+An absolute `file:` URL in a filter that is loaded from a `file:` URL follows
+the same rule. The library decodes and normalizes the path, resolves it inside
+the containing directory, and ignores a target outside that directory without a
+request.
+
 An absolute URL from the same origin is allowed from any directory. An absolute
 URL from a different origin is rejected.
 
@@ -463,9 +468,9 @@ the directive. The result depends on the origin:
 - `null` means the target leaves that directory.
 
 For a URL origin the helper also accepts an absolute URL target and keeps it
-only when it stays on the same origin inside the directory. The library
-handles an absolute `!#include` target before calling this helper in its own
-flow, so a consumer that reuses the helper must handle both a path and a URL.
+only when it stays on the same origin inside the directory. For a `file:`
+origin the helper accepts an absolute `file:` URL target and returns a relative
+path. A `file:` target with any other origin returns `null`.
 
 ```ts
 import { resolveIncludePath } from '@adguard/filters-downloader';
@@ -475,6 +480,9 @@ resolveIncludePath('inclusion.txt', '/tmp/dir');
 
 resolveIncludePath('sub/inclusion.txt', 'https://example.org/lists/main');
 // → 'https://example.org/lists/main/sub/inclusion.txt'
+
+resolveIncludePath('file:///lists/sub/inclusion.txt', 'file:///lists');
+// → 'sub/inclusion.txt'
 
 resolveIncludePath('../secret.txt', '/tmp/dir');
 // → null

@@ -343,6 +343,66 @@ const localCases: IncludePathCase[] = [
         filterOrigin: 'file://',
         expected: null,
     },
+    {
+        name: 'resolves an absolute file URL include inside the directory',
+        includePath: 'file:///filters/inclusion.txt',
+        filterOrigin: 'file:///filters',
+        expected: 'inclusion.txt',
+    },
+    {
+        name: 'resolves an absolute file URL include in a subdirectory',
+        includePath: 'file:///filters/sub/inclusion.txt',
+        filterOrigin: 'file:///filters',
+        expected: 'sub/inclusion.txt',
+    },
+    {
+        name: 'resolves an absolute file URL include with a localhost origin',
+        includePath: 'file:///filters/inclusion.txt',
+        filterOrigin: 'file://localhost/filters',
+        expected: 'inclusion.txt',
+    },
+    {
+        name: 'resolves an absolute file URL include with an encoded space',
+        includePath: 'file:///filters/in%20cluded.txt',
+        filterOrigin: 'file:///filters',
+        expected: 'in cluded.txt',
+    },
+    {
+        name: 'ignores an absolute file URL include outside the directory',
+        includePath: 'file:///other/inclusion.txt',
+        filterOrigin: 'file:///filters',
+        expected: null,
+    },
+    {
+        name: 'ignores an absolute file URL include with an encoded parent-directory segment',
+        includePath: 'file:///filters/%2e%2e/secret.txt',
+        filterOrigin: 'file:///filters',
+        expected: null,
+    },
+    {
+        name: 'ignores an absolute file URL include with an encoded separator',
+        includePath: 'file:///filters%2f..%2fsecret.txt',
+        filterOrigin: 'file:///filters',
+        expected: null,
+    },
+    {
+        name: 'ignores an absolute file URL include with a different host',
+        includePath: 'file://host/share/inclusion.txt',
+        filterOrigin: 'file:///filters',
+        expected: null,
+    },
+    {
+        name: 'ignores an absolute file URL include with a non-file origin',
+        includePath: 'file:///filters/inclusion.txt',
+        filterOrigin: 'https://example.org/lists/main',
+        expected: null,
+    },
+    {
+        name: 'resolves an absolute Windows file URL include in a subdirectory',
+        includePath: 'file:///C:/lists/main/sub/inclusion.txt',
+        filterOrigin: 'file:///C:/lists/main',
+        expected: 'sub/inclusion.txt',
+    },
 ];
 
 describe('resolveIncludePath', () => {

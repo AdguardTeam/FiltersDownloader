@@ -234,6 +234,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     const INCLUDE_DIRECTIVE = '!#include';
 
     const REGEXP_EXTERNAL_ABSOLUTE_URL = /^((?!file)[a-z]+:\/\/|\/\/)/i;
+    const REGEXP_ABSOLUTE_FILE_URL = /^file:\/\//i;
 
     /**
      * Checks if the opening and closing brackets in a string are balanced.
@@ -601,7 +602,25 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const includeTarget = line.substring(INCLUDE_DIRECTIVE.length).trim();
         let url = includeTarget;
 
-        if (ABSOLUTE_URL_REGEXP.test(url)) {
+        if (REGEXP_ABSOLUTE_FILE_URL.test(url)) {
+            // A `file:` URL is a local source, so it follows the same
+            // containment rule as a relative path. It must not go through
+            // validateUrl(): both `file:` origins are the string "null", so
+            // the origin check would pass and the target would stay absolute.
+            if (typeof filterOrigin !== 'string' || !REGEXP_ABSOLUTE_FILE_URL.test(filterOrigin)) {
+                return Promise.resolve([]);
+            }
+
+            const resolvedIncludePath = resolveIncludePath(url, filterOrigin);
+
+            if (resolvedIncludePath === null) {
+                // uBO ignores an include that points outside the directory of
+                // the file that contains the directive, and so do we.
+                return Promise.resolve([]);
+            }
+
+            url = resolvedIncludePath;
+        } else if (ABSOLUTE_URL_REGEXP.test(url)) {
             // Absolute URLs keep the existing validation and download flow.
             validateUrl(url, filterOrigin);
         } else if (typeof filterOrigin === 'string' && url !== '') {
@@ -802,7 +821,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
     ): Promise<DownloadResult> => {
         const { filterOrigin } = downloadOptions;
 
-        const urlToLoad = filterOrigin
+        const urlToLoad = filterOrigin && !REGEXP_ABSOLUTE_FILE_URL.test(url)
             ? `${filterOrigin}/${url}`
             : url;
 

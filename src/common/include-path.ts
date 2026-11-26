@@ -13,6 +13,11 @@ const SCHEME_PLACEHOLDER = 'http:';
 const FILE_URL_REGEXP = /^file:/i;
 
 /**
+ * Matches an absolute `file:` URL with an authority component.
+ */
+const ABSOLUTE_FILE_URL_REGEXP = /^file:\/\//i;
+
+/**
  * Path segments that mean the current directory, including percent-encoded
  * forms that `new URL()` treats as a dot segment.
  */
@@ -382,6 +387,100 @@ const resolveLocalIncludePath = (includePath: string, filterOrigin: string): str
 };
 
 /**
+ * Checks whether a `file:` URL authority points to the local machine.
+ *
+ * The URL parser normalizes `localhost` to an empty host for a `file:` URL.
+ * The function accepts both values so the check stays explicit.
+ *
+ * @param authority Host from a `file:` URL.
+ *
+ * @returns `true` if the authority is empty or `localhost`.
+ */
+const isLocalFileUrlAuthority = (authority: string): boolean => {
+    const lowerCaseAuthority = authority.toLowerCase();
+
+    return lowerCaseAuthority === '' || lowerCaseAuthority === 'localhost';
+};
+
+/**
+ * Decodes a percent-encoded path from a `file:` URL.
+ *
+ * @param pathname Encoded path.
+ *
+ * @returns Decoded path, or `null` if the encoding is malformed.
+ */
+const decodeFileUrlPath = (pathname: string): string | null => {
+    try {
+        return decodeURIComponent(pathname);
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Resolves an absolute `file:` include URL against a `file:` origin and checks
+ * that the result stays inside that directory.
+ *
+ * The function percent-decodes both paths and normalizes them before the
+ * containment check, so an encoded dot segment or separator cannot escape the
+ * directory. A target host that differs from the origin host points outside
+ * the directory.
+ *
+ * @param includePath Absolute `file:` URL from the include directive.
+ * @param filterOrigin Directory URL of the file that contains the directive.
+ *
+ * @returns The relative path to download, or `null` if the target is outside
+ * the directory.
+ */
+const resolveFileUrlIncludePath = (includePath: string, filterOrigin: string): string | null => {
+    let originUrl: URL;
+    let targetUrl: URL;
+
+    try {
+        originUrl = new URL(filterOrigin);
+        targetUrl = new URL(includePath);
+    } catch {
+        return null;
+    }
+
+    if (originUrl.protocol !== 'file:' || targetUrl.protocol !== 'file:') {
+        return null;
+    }
+
+    const hasSameAuthority = targetUrl.hostname === originUrl.hostname;
+    const hasLocalAuthorities = isLocalFileUrlAuthority(targetUrl.hostname)
+        && isLocalFileUrlAuthority(originUrl.hostname);
+
+    if (!hasSameAuthority && !hasLocalAuthorities) {
+        return null;
+    }
+
+    const decodedOriginPath = decodeFileUrlPath(originUrl.pathname);
+    const decodedTargetPath = decodeFileUrlPath(targetUrl.pathname);
+
+    if (decodedOriginPath === null || decodedTargetPath === null) {
+        return null;
+    }
+
+    const directory = normalizeLocalPath(decodedOriginPath);
+    const target = normalizeLocalPath(decodedTargetPath);
+    // A `file:` URL with a drive prefix is a Windows path, where the file
+    // system is usually case-insensitive.
+    const caseInsensitive = isWindowsPath(filterOrigin) || /^\/[a-zA-Z]:\//.test(directory);
+
+    if (!isInsideLocalDirectory(target, directory, caseInsensitive)) {
+        return null;
+    }
+
+    const relativePath = getRelativeLocalPath(target, directory);
+    const separator = filterOrigin.includes('\\') ? '\\' : '/';
+
+    return separator === '\\'
+        ? relativePath.replace(/\//g, '\\')
+        : relativePath;
+};
+
+/**
  * Resolves an `!#include` path against the directory of the file that contains
  * the directive.
  *
@@ -390,10 +489,13 @@ const resolveLocalIncludePath = (includePath: string, filterOrigin: string): str
  * `..`. The caller must ignore such an include.
  *
  * A `file:` filter origin is a local source, so the result is a relative path.
+ * An absolute `file:` target is valid only against a `file:` origin, and the
+ * result stays inside the directory. A `file:` target with any other origin is
+ * outside the local directory, so the function returns `null` for it.
+ *
  * A URL origin returns an absolute URL. A URL origin also accepts an absolute
  * target and keeps it only when it stays on the same origin inside the
- * directory. The library handles an absolute `!#include` target before it
- * calls this function in its own flow.
+ * directory.
  *
  * @param includePath Path from the include directive.
  * @param filterOrigin Directory of the file that contains the directive.
@@ -402,6 +504,16 @@ const resolveLocalIncludePath = (includePath: string, filterOrigin: string): str
  * directory.
  */
 export const resolveIncludePath = (includePath: string, filterOrigin: string): string | null => {
+    if (ABSOLUTE_FILE_URL_REGEXP.test(includePath)) {
+        // A `file:` target is a local source. The containment check needs the
+        // local directory of the origin, so any other origin rejects it.
+        if (!FILE_URL_REGEXP.test(filterOrigin)) {
+            return null;
+        }
+
+        return resolveFileUrlIncludePath(includePath, filterOrigin);
+    }
+
     if (ABSOLUTE_URL_REGEXP.test(filterOrigin) && !FILE_URL_REGEXP.test(filterOrigin)) {
         return resolveUrlIncludePath(includePath, filterOrigin);
     }
