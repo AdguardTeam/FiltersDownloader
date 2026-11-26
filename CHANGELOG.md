@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An unspaced `!#if` operator no longer drops the last character of the left
+  operand. For example, `!#if adguard&&adguard_ext_chromium` and
+  `!#if adguard||unknown_platform` now resolve the condition correctly.
 - `!#include` and local file error messages no longer show the userinfo
   component of a value without a scheme, for example
   `!#include user:pass@example.org/include.txt`, an `!#include` with no space
