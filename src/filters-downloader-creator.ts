@@ -676,16 +676,22 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         filterOrigin?: string,
         definedExpressions?: DefinedExpressions,
     ): Promise<string[]> => {
-        const promises = rules.map((rule, index) => {
-            return resolveInclude(rule, filterOrigin, definedExpressions, getContext(rules, index));
-        });
-
         let result: string[] = [];
-        // We do not use here Promise.all because it freezes the Chromium browsers and electron built on it, if there
-        // are more than 1_100_00 promises. Also, we consider that we can afford promises to be resolved sequentially.
-        for (let i = 0; i < promises.length; i += 1) {
+        // The rules are resolved one at a time on purpose. A promise for every
+        // rule starts every download before the first promise is awaited. If an
+        // include fails, the loop rejects and the remaining downloads are never
+        // observed, so their failures become unhandled promise rejections. We do
+        // not use Promise.all because it freezes the Chromium browsers and
+        // electron built on it, if there are more than 1_100_00 promises. Also,
+        // we consider that we can afford to resolve the rules sequentially.
+        for (let i = 0; i < rules.length; i += 1) {
             // eslint-disable-next-line no-await-in-loop
-            const resolved = await promises[i];
+            const resolved = await resolveInclude(
+                rules[i],
+                filterOrigin,
+                definedExpressions,
+                getContext(rules, i),
+            );
             if (Array.isArray(resolved)) {
                 result = result.concat(resolved);
             } else {

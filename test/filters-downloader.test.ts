@@ -276,6 +276,45 @@ describe('FiltersDownloader', () => {
         });
     });
 
+    describe('unhandled rejections', () => {
+        afterEach(() => {
+            nock.cleanAll();
+        });
+
+        it('does not leave an unhandled rejection when a later include fails', async () => {
+            const unhandledRejections: unknown[] = [];
+            const onUnhandledRejection = (reason: unknown): void => {
+                unhandledRejections.push(reason);
+            };
+            process.on('unhandledRejection', onUnhandledRejection);
+
+            try {
+                const host = 'http://example.org';
+                nock(host)
+                    .get('/missing-1.txt')
+                    .reply(404)
+                    .get('/missing-2.txt')
+                    .delay(100)
+                    .reply(404);
+
+                const rules = [
+                    `!#include ${host}/missing-1.txt`,
+                    `!#include ${host}/missing-2.txt`,
+                ];
+
+                await expect(FiltersDownloader.resolveIncludes(rules)).rejects.toThrow();
+
+                // Wait for the second download. On the broken implementation,
+                // it rejects after `resolveIncludes()` has already rejected.
+                await new Promise((resolve) => { setTimeout(resolve, 300); });
+
+                expect(unhandledRejections).toEqual([]);
+            } finally {
+                process.off('unhandledRejection', onUnhandledRejection);
+            }
+        });
+    });
+
     describe('a filter URL with credentials', () => {
         it('resolves a relative include with the same credentials', async () => {
             const authorization = `Basic ${Buffer.from('user:password').toString('base64')}`;

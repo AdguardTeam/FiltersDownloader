@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   URL, for example
   `!#include sub/user:pass@example.org/missing.txt`. The message, the stack, and
   a nested error's `URL:` line contain the redacted resolved URL.
+- A failing `!#include` no longer leaves unhandled promise rejections for the
+  other includes in the same filter, because the rules are now resolved one at
+  a time and no download is left unobserved.
 
 ### Security
 
