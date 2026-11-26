@@ -407,7 +407,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
 
         if (indexOfOrOperator !== -1) {
             result = resolveExpression(
-                expression.substring(0, indexOfOrOperator - 1),
+                expression.substring(0, indexOfOrOperator),
                 definedProperties,
             ) || resolveExpression(
                 expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length),
@@ -415,7 +415,7 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
             );
         } else if (indexOfAndOperator !== -1) {
             result = resolveExpression(
-                expression.substring(0, indexOfAndOperator - 1),
+                expression.substring(0, indexOfAndOperator),
                 definedProperties,
             ) && resolveExpression(
                 expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length),
