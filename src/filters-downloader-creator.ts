@@ -338,16 +338,10 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @param expression The conditional expression to resolve.
      * @param definedExpressions An object containing defined properties for evaluation.
      *
-     * @throws Throws an error if the expression is empty.
-     *
      * @returns Returns `true` if the expression evaluates to `true` or a defined
      * property exists; otherwise, returns `false`.
      */
     const resolveConditionConstant = (expression: string, definedExpressions?: DefinedExpressions): boolean => {
-        if (!expression) {
-            throw new Error('Invalid directives: Empty condition');
-        }
-
         const trimmedExpression = expression.trim();
 
         if (trimmedExpression === 'true') {

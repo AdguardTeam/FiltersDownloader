@@ -121,6 +121,8 @@ the full list of recognized constants.
 
 - `!#if` / `!#else` / `!#endif` delimit conditional blocks.
 - Conditions support `&&`, `||`, `!`, and parentheses.
+- Both operands of `&&` and `||` must be non-empty. An empty operand makes the
+  `!#if` condition invalid, for example `!#if adguard ||`.
 - Only the block whose condition evaluates to `true` is included in the output.
 
 #### File inclusion

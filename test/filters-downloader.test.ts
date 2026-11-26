@@ -104,7 +104,13 @@ describe('FiltersDownloader', () => {
             'adguard_ext_firefox &&',
             'unknown_platform ||',
             'unknown_platform &&',
-        ])('throws on an empty operand in `!#if $condition`', (condition) => {
+            // Operands after bracket replacement and behind `!`.
+            '(adguard||)',
+            '(adguard)||',
+            'adguard||(!)',
+            '!adguard||',
+            'adguard||( )',
+        ])('throws on an empty operand in `!#if %s`', (condition) => {
             const rules = [
                 `!#if ${condition}`,
                 '||example.com^',
