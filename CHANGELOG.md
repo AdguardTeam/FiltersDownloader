@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** The minimum supported Node.js version is now
+  `^22.23.5 || ^24.22.3 || >=26.13.1`: 22.23.5 for 22.x, 24.22.3 for 24.x, and
+  26.13.1 for 26.x and newer. Older releases on these lines are vulnerable to
+  CVE-2026-111497, fixed in 22.23.4, 24.22.1 and 26.12.1, and to the
+  vulnerabilities fixed in the November 2026 security releases. The 22.x floor
+  is 22.23.5, the Node.js version the CI image runs.
+
 ### Deprecated
 
 ### Removed
