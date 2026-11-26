@@ -37,7 +37,7 @@ Install the following tools before you start:
 
 | Tool                           | Version                                 | Notes                                      |
 | ------------------------------ | --------------------------------------- | ------------------------------------------ |
-| [Node.js](https://nodejs.org/) | `^22.23.5 \|\| ^24.22.1 \|\| >=26.12.1` | CI runs tests on Node.js 22.23.5           |
+| [Node.js](https://nodejs.org/) | `^22.23.5 \|\| ^24.22.3 \|\| >=26.13.1` | CI runs tests on Node.js 22.23.5           |
 | [pnpm](https://pnpm.io/)       | ≥ 10.33.4, < 11                         | Install with `npm install -g pnpm@10.33.4` |
 | [Git](https://git-scm.com/)    | any recent                              | —                                          |
 
@@ -247,7 +247,7 @@ For the complete annotated structure see [AGENTS.md](AGENTS.md).
 
 ### `pnpm install` fails with an engine error
 
-Ensure your Node.js version is `^22.23.5 || ^24.22.1 || >=26.12.1`, and pnpm is ≥ 10.33.4 but < 11:
+Ensure your Node.js version is `^22.23.5 || ^24.22.3 || >=26.13.1`, and pnpm is ≥ 10.33.4 but < 11:
 
 ```bash
 node -v
