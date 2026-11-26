@@ -83,6 +83,41 @@ describe('FiltersDownloader', () => {
         });
     });
 
+    describe('resolveConditions with empty operands', () => {
+        it.each([
+            // Trailing operators.
+            'adguard||',
+            'adguard&&',
+            'adguard ||',
+            'adguard &&',
+            // Leading operators.
+            '||adguard',
+            '&&adguard',
+            '|| adguard',
+            '&& adguard',
+            // Trailing operators with a false or unknown left operand.
+            'adguard_ext_firefox||',
+            'adguard_ext_firefox&&',
+            'unknown_platform||',
+            'unknown_platform&&',
+            'adguard_ext_firefox ||',
+            'adguard_ext_firefox &&',
+            'unknown_platform ||',
+            'unknown_platform &&',
+        ])('throws on an empty operand in `!#if $condition`', (condition) => {
+            const rules = [
+                `!#if ${condition}`,
+                '||example.com^',
+                '!#endif',
+            ];
+
+            expect(() => FiltersDownloader.resolveConditions(
+                rules,
+                FilterCompilerConditionsConstants,
+            )).toThrowError(new Error('Invalid directives: Empty condition'));
+        });
+    });
+
     describe('error message during `!#include` and condition directives resolving', () => {
         it('unexpected condition else branch', async () => {
             const rules = [

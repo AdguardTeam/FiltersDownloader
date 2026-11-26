@@ -376,11 +376,11 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
      * @throws Error If the expression is empty or contains incorrect brackets.
      */
     const resolveExpression = (rawExpression: string, definedProperties?: DefinedExpressions): boolean => {
-        if (!rawExpression) {
+        const expression = rawExpression.trim();
+
+        if (!expression) {
             throw new Error('Invalid directives: Empty condition');
         }
-
-        const expression = rawExpression.trim();
 
         if (!checkBracketsBalance(expression)) {
             throw new Error(`Invalid directives: Incorrect brackets: ${expression}`);
@@ -406,21 +406,31 @@ const FiltersDownloaderCreator = (FileDownloadWrapper: IFileDownloader): IFilter
         const indexOfNotOperator = expression.indexOf(CONDITION_OPERATOR_NOT);
 
         if (indexOfOrOperator !== -1) {
-            result = resolveExpression(
+            // Resolve both operands before applying `||` so that an empty
+            // operand always throws, regardless of the left operand.
+            const leftOperandResult = resolveExpression(
                 expression.substring(0, indexOfOrOperator),
                 definedProperties,
-            ) || resolveExpression(
+            );
+            const rightOperandResult = resolveExpression(
                 expression.substring(indexOfOrOperator + CONDITION_OPERATOR_OR.length, expression.length),
                 definedProperties,
             );
+
+            result = leftOperandResult || rightOperandResult;
         } else if (indexOfAndOperator !== -1) {
-            result = resolveExpression(
+            // Resolve both operands before applying `&&` so that an empty
+            // operand always throws, regardless of the left operand.
+            const leftOperandResult = resolveExpression(
                 expression.substring(0, indexOfAndOperator),
                 definedProperties,
-            ) && resolveExpression(
+            );
+            const rightOperandResult = resolveExpression(
                 expression.substring(indexOfAndOperator + CONDITION_OPERATOR_AND.length, expression.length),
                 definedProperties,
             );
+
+            result = leftOperandResult && rightOperandResult;
         } else if (indexOfNotOperator === 0) {
             result = !resolveExpression(expression.substring(CONDITION_OPERATOR_NOT.length), definedProperties);
         } else {

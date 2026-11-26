@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   URL, for example
   `!#include sub/user:pass@example.org/missing.txt`. The message, the stack, and
   a nested error's `URL:` line contain the redacted resolved URL.
+- An empty `!#if` operand now throws `Invalid directives: Empty condition` for
+  every form, for example `!#if adguard||`, `!#if adguard &&`, `!#if ||adguard`,
+  and `!#if &&adguard`, regardless of the other operand.
 
 ### Security
 
