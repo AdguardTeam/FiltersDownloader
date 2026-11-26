@@ -21,10 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** The Node.js build now requires Node.js 22.23.5+ (22.x) or 24+.
-  Node.js 22.23.4 and earlier contain CVE-2026-111497, an out-of-bounds write
-  in the Brotli decoder. Consumers on an older Node.js 22.x version must
-  upgrade the runtime.
+- Raised the minimum supported Node.js version to 22.23.5, 24.22.1 or 26.12.1
+  depending on the release line (22.x, 24.x or 26.x and newer).
+  CVE-2026-111497 is fixed in Node.js 22.23.4, 24.22.1 and 26.12.1.
 
 ### Deprecated
 
